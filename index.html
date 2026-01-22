@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Thinking Trace Viewer</title>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      html, body {
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+        background: #1a1a2e;
+        color: #eee;
+      }
+
+      #app {
+        width: 100%;
+        height: 100%;
+        position: relative;
+      }
+
+      #canvas-container {
+        width: 100%;
+        height: 100%;
+      }
+
+      #drop-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(26, 26, 46, 0.95);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        z-index: 100;
+        pointer-events: none;
+        opacity: 0;
+        transition: opacity 0.2s ease;
+      }
+
+      #drop-overlay.active {
+        opacity: 1;
+      }
+
+      #drop-overlay.visible {
+        pointer-events: auto;
+        opacity: 1;
+      }
+
+      .drop-icon {
+        font-size: 64px;
+        margin-bottom: 20px;
+      }
+
+      .drop-text {
+        font-size: 24px;
+        color: #888;
+      }
+
+      .drop-subtext {
+        font-size: 14px;
+        color: #666;
+        margin-top: 10px;
+      }
+
+      #info-panel {
+        position: fixed;
+        top: 20px;
+        left: 20px;
+        background: rgba(0, 0, 0, 0.7);
+        padding: 15px 20px;
+        border-radius: 8px;
+        font-size: 14px;
+        z-index: 10;
+      }
+
+      #info-panel h1 {
+        font-size: 16px;
+        font-weight: 600;
+        margin-bottom: 8px;
+      }
+
+      #info-panel p {
+        color: #888;
+        line-height: 1.5;
+      }
+
+      #stats {
+        position: fixed;
+        bottom: 20px;
+        left: 20px;
+        background: rgba(0, 0, 0, 0.7);
+        padding: 10px 15px;
+        border-radius: 8px;
+        font-size: 12px;
+        font-family: monospace;
+        z-index: 10;
+        color: #888;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="app">
+      <div id="canvas-container"></div>
+
+      <div id="drop-overlay" class="visible">
+        <div class="drop-icon">📁</div>
+        <div class="drop-text">Drop a conversation file to visualize</div>
+        <div class="drop-subtext">Supports Claude Code JSON files</div>
+      </div>
+
+      <div id="info-panel">
+        <h1>Thinking Trace Viewer</h1>
+        <p>Drag and drop a conversation file<br>to explore its structure in 3D</p>
+      </div>
+
+      <div id="stats"></div>
+    </div>
+
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

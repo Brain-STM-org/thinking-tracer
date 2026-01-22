@@ -52,3 +52,15 @@ check your connect to anthropic, i am gett 500 errors from you
 ## 2026-01-22T22:24:33Z
 
 make a directory etc/reports and write your 3D library research out to 3d_libraries.md
+
+---
+
+## 2026-01-22T22:33:57Z
+
+proceed with project scaffolding.  i also like to use Taskfile, so maintain a Taskfile.yml
+
+---
+
+## 2026-01-22T22:45:37Z
+
+check the git staging for anything that seems like a temporary or build file

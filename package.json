@@ -1,0 +1,57 @@
+{
+  "name": "thinking-trace-viewer",
+  "version": "0.1.0",
+  "description": "WebGL/WebGPU visualization tool for exploring LLM conversations in 3D",
+  "type": "module",
+  "main": "dist/thinking-trace-viewer.js",
+  "module": "dist/thinking-trace-viewer.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/thinking-trace-viewer.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "build:lib": "tsc && vite build --mode lib",
+    "preview": "vite preview",
+    "test": "vitest",
+    "test:run": "vitest run",
+    "test:coverage": "vitest run --coverage",
+    "lint": "eslint src --ext .ts,.tsx",
+    "typecheck": "tsc --noEmit"
+  },
+  "keywords": [
+    "llm",
+    "visualization",
+    "3d",
+    "webgl",
+    "webgpu",
+    "threejs",
+    "claude",
+    "thinking",
+    "trace"
+  ],
+  "author": "Neomantra Corp",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/neomantra/thinking-trace-viewer"
+  },
+  "devDependencies": {
+    "@types/three": "^0.170.0",
+    "jsdom": "^27.4.0",
+    "typescript": "^5.7.0",
+    "vite": "^6.0.0",
+    "vitest": "^2.1.0"
+  },
+  "dependencies": {
+    "three": "^0.171.0",
+    "troika-three-text": "^0.52.0"
+  }
+}
