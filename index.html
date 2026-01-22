@@ -73,25 +73,70 @@
         margin-top: 10px;
       }
 
+      .drop-divider {
+        display: flex;
+        align-items: center;
+        gap: 15px;
+        margin: 20px 0;
+        color: #666;
+        font-size: 14px;
+      }
+
+      .drop-divider::before,
+      .drop-divider::after {
+        content: '';
+        flex: 1;
+        height: 1px;
+        background: #444;
+        max-width: 60px;
+      }
+
+      #file-select-btn {
+        padding: 12px 24px;
+        font-size: 16px;
+        font-family: inherit;
+        background: #4a90d9;
+        color: white;
+        border: none;
+        border-radius: 6px;
+        cursor: pointer;
+        transition: background 0.2s ease;
+      }
+
+      #file-select-btn:hover {
+        background: #5a9fe9;
+      }
+
+      #file-select-btn:active {
+        background: #3a80c9;
+      }
+
+      #file-input {
+        display: none;
+      }
+
       #info-panel {
         position: fixed;
         top: 20px;
         left: 20px;
-        background: rgba(0, 0, 0, 0.7);
+        background: #3a3a5c;
+        border: 1px solid #6a6a9a;
         padding: 15px 20px;
         border-radius: 8px;
         font-size: 14px;
-        z-index: 10;
+        z-index: 200;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
       }
 
       #info-panel h1 {
         font-size: 16px;
         font-weight: 600;
         margin-bottom: 8px;
+        color: #fff;
       }
 
       #info-panel p {
-        color: #888;
+        color: #ddd;
         line-height: 1.5;
       }
 
@@ -99,13 +144,15 @@
         position: fixed;
         bottom: 20px;
         left: 20px;
-        background: rgba(0, 0, 0, 0.7);
+        background: #3a3a5c;
+        border: 1px solid #6a6a9a;
         padding: 10px 15px;
         border-radius: 8px;
         font-size: 12px;
         font-family: monospace;
-        z-index: 10;
-        color: #888;
+        z-index: 200;
+        color: #ddd;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
       }
     </style>
   </head>
@@ -116,7 +163,10 @@
       <div id="drop-overlay" class="visible">
         <div class="drop-icon">📁</div>
         <div class="drop-text">Drop a conversation file to visualize</div>
-        <div class="drop-subtext">Supports Claude Code JSON files</div>
+        <div class="drop-subtext">Supports Claude Code .jsonl files</div>
+        <div class="drop-divider">or</div>
+        <button id="file-select-btn">Select File</button>
+        <input type="file" id="file-input" accept=".json,.jsonl">
       </div>
 
       <div id="info-panel">

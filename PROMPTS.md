@@ -64,3 +64,33 @@ proceed with project scaffolding.  i also like to use Taskfile, so maintain a Ta
 ## 2026-01-22T22:45:37Z
 
 check the git staging for anything that seems like a temporary or build file
+
+---
+
+## 2026-01-22T22:47:15Z
+
+Add a buttom to select a file in addition to the drag-and-drop
+
+---
+
+## 2026-01-22T22:54:11Z
+
+i'm in dark mode, the upper corner rectangle "thinking trace viewer" is barely visible
+
+---
+
+## 2026-01-22T22:55:29Z
+
+hmm, still looks faint in my dark mode
+
+---
+
+## 2026-01-22T22:58:55Z
+
+i don't see any difference, is it a z-layer issue?
+
+---
+
+## 2026-01-22T23:12:57Z
+
+much better!  great work.   now onto functionality, which Claude Code JSON file should i drop?

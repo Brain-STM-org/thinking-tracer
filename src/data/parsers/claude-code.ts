@@ -1,5 +1,5 @@
 /**
- * Parser for Claude Code conversation files
+ * Parser for Claude Code conversation files (JSONL format)
  */
 
 import type {
@@ -12,15 +12,16 @@ import type {
   TokenUsage,
 } from '../types';
 
-/** Raw Claude Code message format */
-interface ClaudeCodeMessage {
-  uuid: string;
-  type: 'human' | 'assistant' | 'system';
-  message: {
-    id?: string;
-    type?: string;
+/** Raw Claude Code JSONL line format */
+interface ClaudeCodeLine {
+  type: 'user' | 'assistant' | 'file-history-snapshot' | string;
+  uuid?: string;
+  parentUuid?: string | null;
+  sessionId?: string;
+  timestamp?: string;
+  message?: {
     role?: string;
-    content: unknown[];
+    content?: unknown[] | string;
     model?: string;
     usage?: {
       input_tokens?: number;
@@ -29,18 +30,6 @@ interface ClaudeCodeMessage {
       cache_creation_input_tokens?: number;
     };
   };
-  timestamp?: string;
-  parentMessageUUID?: string;
-}
-
-/** Raw Claude Code conversation format */
-interface ClaudeCodeConversation {
-  uuid?: string;
-  name?: string;
-  created?: number;
-  updated?: number;
-  model?: string;
-  messages: ClaudeCodeMessage[];
 }
 
 /**
@@ -103,19 +92,25 @@ function parseContentBlock(raw: unknown): ContentBlock | null {
 }
 
 /**
- * Parse a Claude Code message into a Turn
+ * Parse a Claude Code JSONL line into a Turn
  */
-function parseMessage(msg: ClaudeCodeMessage): Turn {
-  const roleMap: Record<string, Turn['role']> = {
-    human: 'user',
-    assistant: 'assistant',
-    system: 'system',
-  };
+function parseLine(line: ClaudeCodeLine): Turn | null {
+  // Skip non-message lines
+  if (line.type !== 'user' && line.type !== 'assistant') {
+    return null;
+  }
+
+  if (!line.message) {
+    return null;
+  }
 
   const content: ContentBlock[] = [];
 
-  if (Array.isArray(msg.message.content)) {
-    for (const rawBlock of msg.message.content) {
+  // Handle string content (user messages)
+  if (typeof line.message.content === 'string') {
+    content.push({ type: 'text', text: line.message.content });
+  } else if (Array.isArray(line.message.content)) {
+    for (const rawBlock of line.message.content) {
       const block = parseContentBlock(rawBlock);
       if (block) {
         content.push(block);
@@ -123,24 +118,61 @@ function parseMessage(msg: ClaudeCodeMessage): Turn {
     }
   }
 
-  const usage: TokenUsage | undefined = msg.message.usage
+  const usage: TokenUsage | undefined = line.message.usage
     ? {
-        input_tokens: msg.message.usage.input_tokens,
-        output_tokens: msg.message.usage.output_tokens,
-        cache_read_input_tokens: msg.message.usage.cache_read_input_tokens,
-        cache_creation_input_tokens: msg.message.usage.cache_creation_input_tokens,
+        input_tokens: line.message.usage.input_tokens,
+        output_tokens: line.message.usage.output_tokens,
+        cache_read_input_tokens: line.message.usage.cache_read_input_tokens,
+        cache_creation_input_tokens: line.message.usage.cache_creation_input_tokens,
       }
     : undefined;
 
   return {
-    id: msg.uuid,
-    role: roleMap[msg.type] || 'user',
+    id: line.uuid || '',
+    role: line.type === 'user' ? 'user' : 'assistant',
     content,
-    timestamp: msg.timestamp,
-    model: msg.message.model,
+    timestamp: line.timestamp,
+    model: line.message.model,
     usage,
-    parentId: msg.parentMessageUUID,
+    parentId: line.parentUuid ?? undefined,
   };
+}
+
+/**
+ * Parse JSONL string into array of objects
+ */
+function parseJsonl(text: string): ClaudeCodeLine[] {
+  const lines: ClaudeCodeLine[] = [];
+
+  for (const line of text.split('\n')) {
+    const trimmed = line.trim();
+    if (!trimmed) continue;
+
+    try {
+      lines.push(JSON.parse(trimmed));
+    } catch {
+      // Skip invalid JSON lines
+      console.warn('Skipping invalid JSON line');
+    }
+  }
+
+  return lines;
+}
+
+/**
+ * Check if text is JSONL format (Claude Code)
+ */
+function isJsonl(text: string): boolean {
+  const firstLine = text.trim().split('\n')[0];
+  if (!firstLine) return false;
+
+  try {
+    const parsed = JSON.parse(firstLine);
+    // Claude Code JSONL has type field
+    return typeof parsed === 'object' && parsed !== null && 'type' in parsed;
+  } catch {
+    return false;
+  }
 }
 
 /**
@@ -148,13 +180,19 @@ function parseMessage(msg: ClaudeCodeMessage): Turn {
  */
 export const claudeCodeParser: TraceParser = {
   canParse(data: unknown): boolean {
+    // Handle string input (JSONL)
+    if (typeof data === 'string') {
+      return isJsonl(data);
+    }
+
+    // Handle object input (legacy format)
     if (typeof data !== 'object' || data === null) {
       return false;
     }
 
     const obj = data as Record<string, unknown>;
 
-    // Check for Claude Code conversation structure
+    // Check for legacy Claude Code conversation structure
     return (
       Array.isArray(obj.messages) &&
       obj.messages.length > 0 &&
@@ -166,7 +204,48 @@ export const claudeCodeParser: TraceParser = {
   },
 
   parse(data: unknown): Conversation {
-    const raw = data as ClaudeCodeConversation;
+    // Handle JSONL string input
+    if (typeof data === 'string') {
+      const lines = parseJsonl(data);
+
+      // Extract session info from first message line
+      const firstMsg = lines.find(l => l.type === 'user' || l.type === 'assistant');
+      const sessionId = firstMsg?.sessionId;
+      const firstTimestamp = firstMsg?.timestamp;
+
+      // Parse all message lines into turns
+      const turns: Turn[] = [];
+      for (const line of lines) {
+        const turn = parseLine(line);
+        if (turn) {
+          turns.push(turn);
+        }
+      }
+
+      // Calculate total usage
+      let totalUsage: TokenUsage = {};
+      for (const turn of turns) {
+        if (turn.usage) {
+          totalUsage = {
+            input_tokens: (totalUsage.input_tokens || 0) + (turn.usage.input_tokens || 0),
+            output_tokens: (totalUsage.output_tokens || 0) + (turn.usage.output_tokens || 0),
+          };
+        }
+      }
+
+      const meta: ConversationMeta = {
+        id: sessionId,
+        title: sessionId ? `Session ${sessionId.slice(0, 8)}...` : 'Claude Code Session',
+        created_at: firstTimestamp,
+        source: 'claude-code',
+        total_usage: totalUsage,
+      };
+
+      return { meta, turns };
+    }
+
+    // Handle legacy object format
+    const raw = data as { uuid?: string; name?: string; created?: number; updated?: number; model?: string; messages: ClaudeCodeLine[] };
 
     const meta: ConversationMeta = {
       id: raw.uuid,
@@ -177,7 +256,13 @@ export const claudeCodeParser: TraceParser = {
       source: 'claude-code',
     };
 
-    const turns = raw.messages.map(parseMessage);
+    const turns: Turn[] = [];
+    for (const line of raw.messages) {
+      const turn = parseLine(line);
+      if (turn) {
+        turns.push(turn);
+      }
+    }
 
     // Calculate total usage
     let totalUsage: TokenUsage = {};
@@ -186,7 +271,6 @@ export const claudeCodeParser: TraceParser = {
         totalUsage = {
           input_tokens: (totalUsage.input_tokens || 0) + (turn.usage.input_tokens || 0),
           output_tokens: (totalUsage.output_tokens || 0) + (turn.usage.output_tokens || 0),
-          thinking_tokens: (totalUsage.thinking_tokens || 0) + (turn.usage.thinking_tokens || 0),
         };
       }
     }

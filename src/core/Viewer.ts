@@ -74,14 +74,23 @@ export class Viewer {
   }
 
   /**
-   * Load a conversation from JSON string
+   * Load a conversation from JSON/JSONL string
    */
-  public loadJSON(json: string): void {
+  public loadJSON(content: string): void {
+    // First try as JSONL (Claude Code format)
+    if (claudeCodeParser.canParse(content)) {
+      this.conversation = claudeCodeParser.parse(content);
+      this.buildVisualization();
+      this.updateStats();
+      return;
+    }
+
+    // Fall back to JSON parsing
     try {
-      const data = JSON.parse(json);
+      const data = JSON.parse(content);
       this.loadData(data);
     } catch (error) {
-      throw new Error(`Failed to parse JSON: ${error}`);
+      throw new Error(`Failed to parse file: ${error}`);
     }
   }
 
