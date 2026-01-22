@@ -22,3 +22,33 @@ so there is not much interest in the relationships between thinking and prompts 
 ## 2026-01-22T22:04:48Z
 
 write out that knowledge to the docs and fill out all markdown documents as needed
+
+---
+
+## 2026-01-22T22:10:03Z
+
+let's start with building out project scaffolding.  explore the state of the art 3d frameworks that would be applicable to this project.
+
+---
+
+## 2026-01-22T22:14:59Z
+
+let's start with building out project scaffolding.  explore the state of the art 3d frameworks that would be applicable to this project.
+
+---
+
+## 2026-01-22T22:16:52Z
+
+let's start with building out project scaffolding.  explore the state of the art 3d frameworks that would be applicable to this project.
+
+---
+
+## 2026-01-22T22:21:38Z
+
+check your connect to anthropic, i am gett 500 errors from you
+
+---
+
+## 2026-01-22T22:24:33Z
+
+make a directory etc/reports and write your 3D library research out to 3d_libraries.md
