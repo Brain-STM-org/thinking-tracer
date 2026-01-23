@@ -202,3 +202,15 @@ for the text boxes in the detail pane, add clipboard copy button functionality f
 ## 2026-01-23T01:53:13Z
 
 allow the metrics window to be resized?
+
+---
+
+## 2026-01-23T01:56:45Z
+
+i want to deploy this on github pages.  create a deploy.yml for me in .github/workflows
+
+---
+
+## 2026-01-23T01:58:19Z
+
+can we test this before push?

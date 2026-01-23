@@ -5,6 +5,9 @@ export default defineConfig(({ mode }) => {
   const isLib = mode === 'lib';
 
   return {
+    // Use repo name as base for GitHub Pages, otherwise '/'
+    base: process.env.GITHUB_PAGES ? '/thinking-trace-viewer/' : '/',
+
     resolve: {
       alias: {
         '@': resolve(__dirname, 'src'),
