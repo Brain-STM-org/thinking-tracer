@@ -442,3 +442,39 @@ that you one-shotted that, wow thank you.   in the metrics charts, add tooltips 
 ## 2026-01-23T18:44:43Z
 
 in the charts, when a value is non-zero but too small for the y-range, include a small sliver so we know there is some data there without restorting to tooltip
+
+---
+
+## 2026-01-23T18:49:02Z
+
+in the search box, have a regex mode
+
+---
+
+## 2026-01-23T19:00:03Z
+
+when there is a matching cluster in search, only show those mathches in the 3D view and conversation
+
+---
+
+## 2026-01-23T19:04:17Z
+
+in the details view, there is an actions ection and a large expand button.  make it smaller.  can you think of other actions to put in there?
+
+---
+
+## 2026-01-23T19:07:15Z
+
+that is great.  now i want the search bar to be the topmost element of that lef tpanel
+
+---
+
+## 2026-01-23T19:10:33Z
+
+close, the "search" section's title is underneath the header bar
+
+---
+
+## 2026-01-23T19:20:13Z
+
+i added etc/images/screenshot.png   add it to the README at 50% size centered with a link to itself in a new window.   also add it as an example of what to expect in the "open trace" page

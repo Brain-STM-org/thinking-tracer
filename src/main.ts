@@ -46,6 +46,7 @@ const conversationTurnIndicator = document.getElementById('conversation-turn-ind
 const wordFreqChart = document.getElementById('word-freq-chart');
 const wordFreqSource = document.getElementById('word-freq-source') as HTMLSelectElement | null;
 const searchInput = document.getElementById('search-input') as HTMLInputElement | null;
+const searchRegexToggle = document.getElementById('search-regex-toggle');
 const searchResultsCount = document.getElementById('search-results-count');
 const searchResultsList = document.getElementById('search-results-list');
 const searchPrevBtn = document.getElementById('search-prev');
@@ -627,9 +628,21 @@ function renderDetail(selection: { type: string; data: unknown; turnIndex: numbe
     </div>`;
     content += `<div class="detail-section">
       <div class="detail-section-label">Actions</div>
-      <div class="detail-section-content">
-        <button id="toggle-cluster-btn" class="detail-action-btn" data-cluster-index="${cluster.index}">
-          ${cluster.expanded ? '↩ Collapse' : '↗ Expand'}
+      <div class="detail-section-content detail-actions">
+        <button id="toggle-cluster-btn" class="detail-action-btn" data-cluster-index="${cluster.index}" title="${cluster.expanded ? 'Collapse to single node' : 'Expand to show all blocks'}">
+          ${cluster.expanded ? 'Collapse' : 'Expand'}
+        </button>
+        <button id="focus-cluster-btn" class="detail-action-btn" data-cluster-index="${cluster.index}" title="Center camera on this turn">
+          Focus
+        </button>
+        <button id="copy-turn-btn" class="detail-action-btn" data-cluster-index="${cluster.index}" title="Copy turn content to clipboard">
+          Copy
+        </button>
+        <button id="prev-turn-btn" class="detail-action-btn" data-cluster-index="${cluster.index}" title="Go to previous turn" ${cluster.index === 0 ? 'disabled' : ''}>
+          ← Prev
+        </button>
+        <button id="next-turn-btn" class="detail-action-btn" data-cluster-index="${cluster.index}" title="Go to next turn" ${cluster.index >= viewer.getClusterCount() - 1 ? 'disabled' : ''}>
+          Next →
         </button>
       </div>
     </div>`;
@@ -1072,6 +1085,68 @@ viewer.onSelect((selection) => {
     toggleBtn?.addEventListener('click', () => {
       const clusterIndex = parseInt(toggleBtn.dataset.clusterIndex || '0', 10);
       viewer.toggleCluster(clusterIndex);
+    });
+
+    // Wire up focus button
+    const focusBtn = document.getElementById('focus-cluster-btn');
+    focusBtn?.addEventListener('click', () => {
+      const clusterIndex = parseInt(focusBtn.dataset.clusterIndex || '0', 10);
+      viewer.focusOnCluster(clusterIndex);
+    });
+
+    // Wire up copy turn button
+    const copyTurnBtn = document.getElementById('copy-turn-btn');
+    copyTurnBtn?.addEventListener('click', async () => {
+      const clusterIndex = parseInt(copyTurnBtn.dataset.clusterIndex || '0', 10);
+      const searchable = viewer.getSearchableContent();
+      const cluster = searchable[clusterIndex];
+      if (!cluster) return;
+
+      // Build text content for this turn
+      let text = `Turn ${clusterIndex + 1}\n${'='.repeat(40)}\n\n`;
+      if (cluster.userText) {
+        text += `USER:\n${cluster.userText}\n\n`;
+      }
+      if (cluster.thinkingBlocks.length > 0) {
+        for (const thinking of cluster.thinkingBlocks) {
+          text += `THINKING:\n${thinking}\n\n`;
+        }
+      }
+      for (let i = 0; i < cluster.toolUses.length; i++) {
+        const tool = cluster.toolUses[i];
+        text += `TOOL (${tool.name}):\n${tool.input}\n\n`;
+        if (cluster.toolResults[i]) {
+          text += `RESULT:\n${cluster.toolResults[i].content}\n\n`;
+        }
+      }
+      if (cluster.assistantText) {
+        text += `ASSISTANT:\n${cluster.assistantText}\n`;
+      }
+
+      try {
+        await navigator.clipboard.writeText(text);
+        copyTurnBtn.textContent = 'Copied!';
+        setTimeout(() => { copyTurnBtn.textContent = 'Copy'; }, 1500);
+      } catch {
+        console.error('Failed to copy');
+      }
+    });
+
+    // Wire up prev/next turn buttons
+    const prevBtn = document.getElementById('prev-turn-btn');
+    prevBtn?.addEventListener('click', () => {
+      const clusterIndex = parseInt(prevBtn.dataset.clusterIndex || '0', 10);
+      if (clusterIndex > 0) {
+        viewer.selectClusterByIndex(clusterIndex - 1);
+      }
+    });
+
+    const nextBtn = document.getElementById('next-turn-btn');
+    nextBtn?.addEventListener('click', () => {
+      const clusterIndex = parseInt(nextBtn.dataset.clusterIndex || '0', 10);
+      if (clusterIndex < viewer.getClusterCount() - 1) {
+        viewer.selectClusterByIndex(clusterIndex + 1);
+      }
     });
 
     // Wire up collapse parent button
@@ -1529,6 +1604,30 @@ function renderConversation(): void {
 }
 
 /**
+ * Filter conversation to show only specific clusters
+ * Pass null to show all clusters
+ */
+function filterConversation(clusterIndices: number[] | null): void {
+  if (!conversationContent) return;
+
+  const turns = conversationContent.querySelectorAll('.conv-turn');
+
+  if (clusterIndices === null) {
+    // Show all turns
+    turns.forEach((turn) => {
+      (turn as HTMLElement).style.display = '';
+    });
+  } else {
+    // Show only matching turns
+    const matchSet = new Set(clusterIndices);
+    turns.forEach((turn) => {
+      const idx = parseInt((turn as HTMLElement).dataset.clusterIndex || '0', 10);
+      (turn as HTMLElement).style.display = matchSet.has(idx) ? '' : 'none';
+    });
+  }
+}
+
+/**
  * Truncate text for display
  */
 function truncateText(text: string, maxLength: number): string {
@@ -1640,6 +1739,7 @@ interface SearchResult {
 let searchResults: SearchResult[] = [];
 let currentSearchIndex = -1;
 let searchDebounceTimer: ReturnType<typeof setTimeout> | null = null;
+let regexMode = false;
 
 /**
  * Get enabled search filters from checkboxes
@@ -1659,10 +1759,30 @@ function getSearchFilters(): Set<string> {
 
 /**
  * Find first match in text and return context snippet
+ * Supports both plain text (case-insensitive) and regex modes
  */
-function findMatch(text: string, lowerQuery: string, queryLength: number): { found: boolean; snippet: string; start: number; end: number } {
-  const lowerText = text.toLowerCase();
-  const matchIndex = lowerText.indexOf(lowerQuery);
+function findMatch(text: string, query: string, useRegex: boolean): { found: boolean; snippet: string; start: number; end: number } {
+  let matchIndex = -1;
+  let matchLength = 0;
+
+  if (useRegex) {
+    try {
+      const regex = new RegExp(query, 'i'); // case-insensitive
+      const match = text.match(regex);
+      if (match && match.index !== undefined) {
+        matchIndex = match.index;
+        matchLength = match[0].length;
+      }
+    } catch {
+      // Invalid regex - no match
+      return { found: false, snippet: '', start: -1, end: -1 };
+    }
+  } else {
+    const lowerText = text.toLowerCase();
+    const lowerQuery = query.toLowerCase();
+    matchIndex = lowerText.indexOf(lowerQuery);
+    matchLength = query.length;
+  }
 
   if (matchIndex === -1) {
     return { found: false, snippet: '', start: -1, end: -1 };
@@ -1670,14 +1790,26 @@ function findMatch(text: string, lowerQuery: string, queryLength: number): { fou
 
   // Extract context around match
   const snippetStart = Math.max(0, matchIndex - 30);
-  const snippetEnd = Math.min(text.length, matchIndex + queryLength + 50);
+  const snippetEnd = Math.min(text.length, matchIndex + matchLength + 50);
   let snippet = text.slice(snippetStart, snippetEnd);
 
   // Add ellipsis if truncated
   if (snippetStart > 0) snippet = '...' + snippet;
   if (snippetEnd < text.length) snippet = snippet + '...';
 
-  return { found: true, snippet, start: matchIndex, end: matchIndex + queryLength };
+  return { found: true, snippet, start: matchIndex, end: matchIndex + matchLength };
+}
+
+/**
+ * Validate regex pattern
+ */
+function isValidRegex(pattern: string): boolean {
+  try {
+    new RegExp(pattern, 'i');
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 /**
@@ -1687,14 +1819,18 @@ function performSearch(query: string): SearchResult[] {
   const results: SearchResult[] = [];
   if (!query.trim()) return results;
 
+  // Validate regex if in regex mode
+  if (regexMode && !isValidRegex(query)) {
+    return results;
+  }
+
   const filters = getSearchFilters();
-  const lowerQuery = query.toLowerCase();
   const searchableContent = viewer.getSearchableContent();
 
   for (const cluster of searchableContent) {
     // Search user text
     if (filters.has('user') && cluster.userText) {
-      const match = findMatch(cluster.userText, lowerQuery, query.length);
+      const match = findMatch(cluster.userText, query, regexMode);
       if (match.found) {
         results.push({
           type: 'user',
@@ -1708,7 +1844,7 @@ function performSearch(query: string): SearchResult[] {
 
     // Search assistant text
     if (filters.has('assistant') && cluster.assistantText) {
-      const match = findMatch(cluster.assistantText, lowerQuery, query.length);
+      const match = findMatch(cluster.assistantText, query, regexMode);
       if (match.found) {
         results.push({
           type: 'assistant',
@@ -1723,7 +1859,7 @@ function performSearch(query: string): SearchResult[] {
     // Search thinking blocks
     if (filters.has('thinking')) {
       for (const thinking of cluster.thinkingBlocks) {
-        const match = findMatch(thinking, lowerQuery, query.length);
+        const match = findMatch(thinking, query, regexMode);
         if (match.found) {
           results.push({
             type: 'thinking',
@@ -1740,7 +1876,7 @@ function performSearch(query: string): SearchResult[] {
     if (filters.has('tool_use')) {
       for (const toolUse of cluster.toolUses) {
         const searchText = `${toolUse.name} ${toolUse.input}`;
-        const match = findMatch(searchText, lowerQuery, query.length);
+        const match = findMatch(searchText, query, regexMode);
         if (match.found) {
           results.push({
             type: 'tool_use',
@@ -1756,7 +1892,7 @@ function performSearch(query: string): SearchResult[] {
     // Search tool results
     if (filters.has('tool_result')) {
       for (const toolResult of cluster.toolResults) {
-        const match = findMatch(toolResult.content, lowerQuery, query.length);
+        const match = findMatch(toolResult.content, query, regexMode);
         if (match.found) {
           results.push({
             type: 'tool_result',
@@ -1918,9 +2054,17 @@ function searchPrev(): void {
  * Clear search
  */
 function clearSearch(): void {
-  if (searchInput) searchInput.value = '';
+  if (searchInput) {
+    searchInput.value = '';
+    searchInput.classList.remove('regex-error');
+  }
   searchResults = [];
   currentSearchIndex = -1;
+
+  // Clear filters
+  viewer.setSearchFilter(null);
+  filterConversation(null);
+
   renderSearchResults();
   updateSearchUI();
 }
@@ -1933,8 +2077,28 @@ function handleSearchInput(): void {
 
   searchDebounceTimer = setTimeout(() => {
     const query = searchInput?.value || '';
+
+    // Update regex error styling
+    if (searchInput) {
+      if (regexMode && query && !isValidRegex(query)) {
+        searchInput.classList.add('regex-error');
+      } else {
+        searchInput.classList.remove('regex-error');
+      }
+    }
+
     searchResults = performSearch(query);
     currentSearchIndex = searchResults.length > 0 ? 0 : -1;
+
+    // Apply search filter to 3D view and conversation
+    if (searchResults.length > 0) {
+      const matchingClusters = [...new Set(searchResults.map(r => r.clusterIndex))];
+      viewer.setSearchFilter(matchingClusters);
+      filterConversation(matchingClusters);
+    } else {
+      viewer.setSearchFilter(null);
+      filterConversation(null);
+    }
 
     // Render the results list
     renderSearchResults();
@@ -1980,6 +2144,22 @@ if (searchClearBtn) {
   searchClearBtn.addEventListener('click', clearSearch);
 }
 
+// Wire up regex toggle
+if (searchRegexToggle) {
+  searchRegexToggle.addEventListener('click', () => {
+    regexMode = !regexMode;
+    searchRegexToggle.classList.toggle('active', regexMode);
+
+    // Update placeholder to indicate mode
+    if (searchInput) {
+      searchInput.placeholder = regexMode ? 'Regex search... (/)' : 'Search... (/)';
+    }
+
+    // Re-run search with new mode
+    handleSearchInput();
+  });
+}
+
 // Wire up filter checkboxes to re-search
 // Wire up search filter checkboxes
 document.querySelectorAll('.search-filter input[type="checkbox"]').forEach((checkbox) => {
@@ -1995,11 +2175,6 @@ window.addEventListener('keydown', (e) => {
 
   if (e.key === '/' && searchInput && sidebarVisible) {
     e.preventDefault();
-    // Expand search section if collapsed
-    const searchSection = document.querySelector('.sidebar-section[data-section="search"]');
-    if (searchSection && !searchSection.classList.contains('expanded')) {
-      searchSection.classList.add('expanded');
-    }
     searchInput.focus();
     searchInput.select();
   }

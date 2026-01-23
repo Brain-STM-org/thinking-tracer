@@ -328,6 +328,8 @@
         max-width: 400px;
         background: #252538;
         border-right: 1px solid #3a3a5a;
+        display: flex;
+        flex-direction: column;
         display: none;
         flex-direction: column;
         overflow: hidden;
@@ -342,6 +344,26 @@
         flex: 1;
         overflow-y: auto;
         padding: 0;
+      }
+
+      /* Sidebar search (always visible at top) */
+      #sidebar-search {
+        padding: 12px 16px;
+        border-bottom: 1px solid #4a4a6a;
+        background: #252538;
+        flex-shrink: 0;
+      }
+
+      #sidebar-search .search-input-row {
+        margin-bottom: 8px;
+      }
+
+      #sidebar-search .search-filters {
+        margin-bottom: 8px;
+      }
+
+      #sidebar-search .search-nav {
+        margin-top: 8px;
       }
 
       /* Sidebar sections (accordion) */
@@ -853,6 +875,27 @@
         margin: 0;
       }
 
+      .drop-screenshot-link {
+        display: block;
+        margin: 24px auto;
+        max-width: 50%;
+        border-radius: 8px;
+        overflow: hidden;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+        transition: transform 0.2s, box-shadow 0.2s;
+      }
+
+      .drop-screenshot-link:hover {
+        transform: scale(1.02);
+        box-shadow: 0 6px 28px rgba(0, 0, 0, 0.5);
+      }
+
+      .drop-screenshot {
+        display: block;
+        width: 100%;
+        height: auto;
+      }
+
       .drop-icon { font-size: 48px; margin-bottom: 16px; opacity: 0.8; }
       .drop-text { font-size: 20px; color: #888; }
       .drop-subtext { font-size: 13px; color: #666; margin-top: 8px; }
@@ -1082,8 +1125,15 @@
       .word-freq-row.active .word-freq-count { color: #bbb; }
 
       /* Search */
+      .search-input-row {
+        display: flex;
+        gap: 6px;
+        margin-bottom: 10px;
+      }
+
       #search-input {
-        width: 100%;
+        flex: 1;
+        min-width: 0;
         padding: 8px 10px;
         font-size: 13px;
         font-family: inherit;
@@ -1092,11 +1142,39 @@
         border: 1px solid #5a5a7a;
         border-radius: 4px;
         outline: none;
-        margin-bottom: 10px;
       }
 
       #search-input:focus { border-color: #4a90d9; }
       #search-input::placeholder { color: #666; }
+
+      #search-regex-toggle {
+        padding: 6px 10px;
+        font-size: 12px;
+        font-family: monospace;
+        font-weight: 600;
+        background: #2a2a40;
+        color: #888;
+        border: 1px solid #5a5a7a;
+        border-radius: 4px;
+        cursor: pointer;
+        transition: all 0.15s;
+        flex-shrink: 0;
+      }
+
+      #search-regex-toggle:hover {
+        background: #3a3a50;
+        color: #aaa;
+      }
+
+      #search-regex-toggle.active {
+        background: #4a90d9;
+        color: #fff;
+        border-color: #4a90d9;
+      }
+
+      #search-input.regex-error {
+        border-color: #e74c3c;
+      }
 
       .search-filters {
         display: flex;
@@ -1300,19 +1378,40 @@
       .detail-type-badge.tool_result { background: #e74c3c; color: #fff; }
       .detail-type-badge.cluster { background: #5a9a7a; color: #fff; }
 
-      .detail-action-btn {
-        padding: 6px 12px;
-        font-size: 12px;
-        font-family: inherit;
-        background: #4a90d9;
-        color: white;
-        border: none;
-        border-radius: 4px;
-        cursor: pointer;
-        transition: background 0.15s ease;
+      .detail-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
       }
 
-      .detail-action-btn:hover { background: #5a9fe9; }
+      .detail-action-btn {
+        padding: 4px 8px;
+        font-size: 11px;
+        font-family: inherit;
+        background: #3a3a5c;
+        color: #bbb;
+        border: 1px solid #5a5a7a;
+        border-radius: 4px;
+        cursor: pointer;
+        transition: all 0.15s ease;
+        white-space: nowrap;
+      }
+
+      .detail-action-btn:hover {
+        background: #4a4a6c;
+        color: #fff;
+        border-color: #6a6a8a;
+      }
+
+      .detail-action-btn.primary {
+        background: #4a90d9;
+        color: #fff;
+        border-color: #4a90d9;
+      }
+
+      .detail-action-btn.primary:hover {
+        background: #5a9fe9;
+      }
 
       .cluster-list {
         display: flex;
@@ -1445,6 +1544,49 @@
       <div id="main-container">
         <!-- Sidebar -->
         <div id="sidebar">
+          <!-- Search Bar (always visible at top, outside scrollable area) -->
+          <div id="sidebar-search">
+              <div class="search-input-row">
+                <input type="text" id="search-input" placeholder="Search... (/)">
+                <button id="search-regex-toggle" title="Toggle regex mode (case-insensitive)">.*</button>
+              </div>
+              <div class="search-filters">
+                <label class="search-filter">
+                  <input type="checkbox" data-type="user" checked>
+                  <span class="filter-color user"></span>
+                  <span>User</span>
+                </label>
+                <label class="search-filter">
+                  <input type="checkbox" data-type="assistant" checked>
+                  <span class="filter-color assistant"></span>
+                  <span>Asst</span>
+                </label>
+                <label class="search-filter">
+                  <input type="checkbox" data-type="thinking" checked>
+                  <span class="filter-color thinking"></span>
+                  <span>Think</span>
+                </label>
+                <label class="search-filter">
+                  <input type="checkbox" data-type="tool_use" checked>
+                  <span class="filter-color tool-use"></span>
+                  <span>Tool</span>
+                </label>
+                <label class="search-filter">
+                  <input type="checkbox" data-type="tool_result" checked>
+                  <span class="filter-color tool-result"></span>
+                  <span>Result</span>
+                </label>
+              </div>
+              <div id="search-results-count"></div>
+              <div id="search-results-list"></div>
+              <div class="search-nav">
+                <button id="search-prev" title="Previous (Shift+Enter)">&#8593; Prev</button>
+                <button id="search-next" title="Next (Enter)">Next &#8595;</button>
+                <button id="search-clear" title="Clear (Esc)">Clear</button>
+              </div>
+            </div>
+
+          <!-- Scrollable sidebar content -->
           <div id="sidebar-content">
             <!-- Metrics Section -->
             <div class="sidebar-section expanded" data-section="metrics">
@@ -1513,51 +1655,6 @@
               </div>
             </div>
 
-            <!-- Search Section -->
-            <div class="sidebar-section" data-section="search">
-              <div class="sidebar-section-header">
-                <span class="arrow">&#9658;</span>
-                <h3>Search</h3>
-              </div>
-              <div class="sidebar-section-content">
-                <input type="text" id="search-input" placeholder="Search... (/)">
-                <div class="search-filters">
-                  <label class="search-filter">
-                    <input type="checkbox" data-type="user" checked>
-                    <span class="filter-color user"></span>
-                    <span>User</span>
-                  </label>
-                  <label class="search-filter">
-                    <input type="checkbox" data-type="assistant" checked>
-                    <span class="filter-color assistant"></span>
-                    <span>Asst</span>
-                  </label>
-                  <label class="search-filter">
-                    <input type="checkbox" data-type="thinking" checked>
-                    <span class="filter-color thinking"></span>
-                    <span>Think</span>
-                  </label>
-                  <label class="search-filter">
-                    <input type="checkbox" data-type="tool_use" checked>
-                    <span class="filter-color tool-use"></span>
-                    <span>Tool</span>
-                  </label>
-                  <label class="search-filter">
-                    <input type="checkbox" data-type="tool_result" checked>
-                    <span class="filter-color tool-result"></span>
-                    <span>Result</span>
-                  </label>
-                </div>
-                <div id="search-results-count"></div>
-                <div id="search-results-list"></div>
-                <div class="search-nav">
-                  <button id="search-prev" title="Previous (Shift+Enter)">&#8593; Prev</button>
-                  <button id="search-next" title="Next (Enter)">Next &#8595;</button>
-                  <button id="search-clear" title="Clear (Esc)">Clear</button>
-                </div>
-              </div>
-            </div>
-
             <!-- Details Section -->
             <div class="sidebar-section expanded" data-section="details">
               <div class="sidebar-section-header">
@@ -1620,6 +1717,9 @@
           <h1 class="drop-title">Thinking Tracer</h1>
           <p class="drop-intro">Explore Claude's reasoning process in 3D. Visualize conversation traces to understand thinking patterns, tool usage, and response flow.</p>
         </div>
+        <a href="etc/images/screenshot.png" target="_blank" class="drop-screenshot-link">
+          <img src="etc/images/screenshot.png" alt="Example visualization" class="drop-screenshot">
+        </a>
         <div class="drop-icon">&#128193;</div>
         <div class="drop-text">Drop a conversation file to visualize</div>
         <div class="drop-subtext">Supports Claude Code .jsonl trace files</div>

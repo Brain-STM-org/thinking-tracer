@@ -4,6 +4,12 @@ A 3D visualization tool for exploring LLM conversation traces. Navigate complex 
 
 **[Live Demo](https://neomantra.github.io/thinking-tracer/)** | [Documentation](#documentation)
 
+<p align="center">
+  <a href="etc/images/screenshot.png" target="_blank">
+    <img src="etc/images/screenshot.png" alt="Thinking Tracer Screenshot" width="60%">
+  </a>
+</p>
+
 ## Features
 
 ### Spiral Cluster Layout

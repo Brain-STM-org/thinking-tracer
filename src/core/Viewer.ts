@@ -118,6 +118,9 @@ export class Viewer {
   private readonly maxVerticalSpacing = 1.5;  // Expanded spacing at focus
   private readonly focusRadius = 4;           // How many clusters around focus get expanded
 
+  // Search filter - null means show all, Set means show only those clusters
+  private searchFilterClusters: Set<number> | null = null;
+
   constructor(options: ViewerOptions) {
     const container =
       typeof options.container === 'string'
@@ -1195,6 +1198,40 @@ export class Viewer {
   }
 
   /**
+   * Focus camera on a specific cluster, centering it in view
+   */
+  public focusOnCluster(index: number): void {
+    if (index < 0 || index >= this.clusters.length) return;
+
+    // Find the cluster node or a visible child
+    let targetNode = this.nodes.find(
+      n => n.type === 'cluster' && (n.data as TurnCluster).index === index && n.mesh.visible
+    );
+
+    if (!targetNode) {
+      targetNode = this.nodes.find(
+        n => n.clusterIndex === index && n.mesh.visible
+      );
+    }
+
+    if (!targetNode) return;
+
+    const nodePos = targetNode.mesh.position.clone();
+
+    // Calculate camera position to look at node from a good angle
+    const cameraOffset = new THREE.Vector3(8, 4, 8);
+    const newCameraPos = nodePos.clone().add(cameraOffset);
+
+    // Start camera animation
+    this.cameraAnimating = true;
+    this.cameraAnimStart = Date.now();
+    this.cameraStartPos.copy(this.scene.camera.position);
+    this.cameraTargetPos.copy(newCameraPos);
+    this.cameraStartLookAt.copy(this.controls.getTarget());
+    this.cameraTargetLookAt.copy(nodePos);
+  }
+
+  /**
    * Highlight clusters containing a specific word
    * Returns the indices of clusters that were highlighted
    */
@@ -1315,6 +1352,34 @@ export class Viewer {
    */
   public getHighlightedClusters(): number[] {
     return Array.from(this.highlightedClusters.keys());
+  }
+
+  /**
+   * Set search filter to show only specific clusters
+   * Pass null to clear the filter and show all clusters
+   */
+  public setSearchFilter(clusterIndices: number[] | null): void {
+    if (clusterIndices === null || clusterIndices.length === 0) {
+      // Clear filter - show all
+      this.searchFilterClusters = null;
+      for (const node of this.nodes) {
+        node.mesh.visible = true;
+      }
+    } else {
+      // Apply filter
+      this.searchFilterClusters = new Set(clusterIndices);
+      for (const node of this.nodes) {
+        // Show node if its cluster is in the filter set
+        node.mesh.visible = node.clusterIndex !== undefined && this.searchFilterClusters.has(node.clusterIndex);
+      }
+    }
+  }
+
+  /**
+   * Get current search filter cluster indices
+   */
+  public getSearchFilter(): number[] | null {
+    return this.searchFilterClusters ? Array.from(this.searchFilterClusters) : null;
   }
 
   /**
