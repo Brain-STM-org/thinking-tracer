@@ -1,4 +1,4 @@
-# 3D Library Research for thinking-trace-viewer
+# 3D Library Research for thinking-tracer
 
 *Research conducted: 2026-01-22*
 
@@ -193,7 +193,7 @@ For tree/hierarchical layouts (more appropriate for conversation structure), a c
 
 ---
 
-## Recommended Stack for thinking-trace-viewer
+## Recommended Stack for thinking-tracer
 
 | Layer | Choice | Rationale |
 |-------|--------|-----------|

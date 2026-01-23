@@ -6,7 +6,7 @@ export default defineConfig(({ mode }) => {
 
   return {
     // Use repo name as base for GitHub Pages, otherwise '/'
-    base: process.env.GITHUB_PAGES ? '/thinking-trace-viewer/' : '/',
+    base: process.env.GITHUB_PAGES ? '/thinking-tracer/' : '/',
 
     resolve: {
       alias: {
@@ -18,8 +18,8 @@ export default defineConfig(({ mode }) => {
       ? {
           lib: {
             entry: resolve(__dirname, 'src/index.ts'),
-            name: 'ThinkingTraceViewer',
-            fileName: 'thinking-trace-viewer',
+            name: 'ThinkingTracer',
+            fileName: 'thinking-tracer',
             formats: ['es'],
           },
           rollupOptions: {

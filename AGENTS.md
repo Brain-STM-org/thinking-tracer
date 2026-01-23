@@ -1,8 +1,8 @@
-# AGENTS: `thinking-trace-viewer`
+# AGENTS: `thinking-tracer`
 
 ## Project Overview
 
-`thinking-trace-viewer` is allows for the visualization of LLM conversations.  It allows a user to dissect a conversation (it's "trace"):  the prompts, the resultant thinking, the output, and the metadata.  This is intended for 3D environments, so we will use WebGL (or WebGPU) in a web page.  It is a user interface component that can be embedded in other applications.  We include a sample program that a user can run locally and drag-and-drop their conversations and view it.
+`thinking-tracer` is allows for the visualization of LLM conversations.  It allows a user to dissect a conversation (it's "trace"):  the prompts, the resultant thinking, the output, and the metadata.  This is intended for 3D environments, so we will use WebGL (or WebGPU) in a web page.  It is a user interface component that can be embedded in other applications.  We include a sample program that a user can run locally and drag-and-drop their conversations and view it.
 
 We hope to support multiple agents, but we will start with Claude Code files.
 
@@ -29,7 +29,7 @@ We maintain a series of Markdown documents to facilitate this project.
 
 ## Research: Amp Code Trace/Thread Features
 
-This section documents research on [Amp Code](https://ampcode.com/) (by Sourcegraph) and what users find most valuable about its conversation/thread features. This analysis informs design decisions for `thinking-trace-viewer`.
+This section documents research on [Amp Code](https://ampcode.com/) (by Sourcegraph) and what users find most valuable about its conversation/thread features. This analysis informs design decisions for `thinking-tracer`.
 
 ### What Amp Threads Are
 
@@ -68,7 +68,7 @@ Thread sharing enables powerful team workflows:
 - Individual file changes can be reverted separately
 - Provides control and safety when exploring approaches
 
-### Design Implications for thinking-trace-viewer
+### Design Implications for thinking-tracer
 
 | Amp Feature | Design Insight |
 |-------------|----------------|
@@ -99,7 +99,7 @@ Amp focuses on **workflow-level** features (persistence, sharing, collaboration)
 
 ## Research: Reasoning Structure Visualization
 
-This section covers academic research on visualizing LLM reasoning, which is more relevant to `thinking-trace-viewer`'s goal of dissecting conversation structure.
+This section covers academic research on visualizing LLM reasoning, which is more relevant to `thinking-tracer`'s goal of dissecting conversation structure.
 
 ### The Gap in Current Tools
 
@@ -135,7 +135,7 @@ This section covers academic research on visualizing LLM reasoning, which is mor
 4. **Traceability valued**: Connecting reasoning nodes to output sentences helped users understand provenance
 
 #### Design Implications
-| Hippo Finding | Implication for thinking-trace-viewer |
+| Hippo Finding | Implication for thinking-tracer |
 |---------------|--------------------------------------|
 | Tree structure > linear | Use hierarchical/spatial layout for conversation structure |
 | Breadth-first exploration | Show overview first, allow drilling into details |

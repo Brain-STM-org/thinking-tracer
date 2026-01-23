@@ -1,14 +1,14 @@
 {
-  "name": "thinking-trace-viewer",
+  "name": "thinking-tracer",
   "version": "0.1.0",
   "description": "WebGL/WebGPU visualization tool for exploring LLM conversations in 3D",
   "type": "module",
-  "main": "dist/thinking-trace-viewer.js",
-  "module": "dist/thinking-trace-viewer.js",
+  "main": "dist/thinking-tracer.js",
+  "module": "dist/thinking-tracer.js",
   "types": "dist/index.d.ts",
   "exports": {
     ".": {
-      "import": "./dist/thinking-trace-viewer.js",
+      "import": "./dist/thinking-tracer.js",
       "types": "./dist/index.d.ts"
     }
   },
@@ -41,7 +41,7 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/neomantra/thinking-trace-viewer"
+    "url": "https://github.com/neomantra/thinking-tracer"
   },
   "devDependencies": {
     "@types/three": "^0.170.0",

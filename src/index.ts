@@ -1,5 +1,5 @@
 /**
- * thinking-trace-viewer
+ * thinking-tracer
  *
  * WebGL/WebGPU visualization tool for exploring LLM conversations in 3D
  *

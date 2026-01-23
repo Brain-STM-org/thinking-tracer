@@ -1,6 +1,6 @@
 # MEMORY: Long-term Concepts and Decisions
 
-This document captures architectural decisions, design patterns, and persistent knowledge for the `thinking-trace-viewer` project.
+This document captures architectural decisions, design patterns, and persistent knowledge for the `thinking-tracer` project.
 
 ## Core Concepts
 

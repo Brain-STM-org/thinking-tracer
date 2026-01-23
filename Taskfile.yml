@@ -1,7 +1,7 @@
 version: '3'
 
 vars:
-  PROJECT_NAME: thinking-trace-viewer
+  PROJECT_NAME: thinking-tracer
 
 tasks:
   default:

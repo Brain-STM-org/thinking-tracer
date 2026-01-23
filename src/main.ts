@@ -772,5 +772,5 @@ if (metricsPanel) {
 refreshRecentTraces();
 
 // Log ready state
-console.log('Thinking Trace Viewer ready');
+console.log('Thinking Tracer ready');
 console.log('Drop a Claude Code conversation file to visualize');

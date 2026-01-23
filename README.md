@@ -1,8 +1,8 @@
-# thinking-trace-viewer
+# thinking-tracer
 
 A 3D visualization tool for exploring LLM conversation traces. Navigate complex conversations with thinking blocks, tool calls, and multi-turn interactions in an interactive WebGL environment.
 
-**[Live Demo](https://neomantra.github.io/thinking-trace-viewer/)** | [Documentation](#documentation)
+**[Live Demo](https://neomantra.github.io/thinking-tracer/)** | [Documentation](#documentation)
 
 ## Features
 
@@ -48,14 +48,14 @@ Automatically saves recently viewed traces (IndexedDB) for quick access.
 ## Getting Started
 
 ### Online
-Visit the [live demo](https://neomantra.github.io/thinking-trace-viewer/) and drag-and-drop a Claude Code `.jsonl` file.
+Visit the [live demo](https://neomantra.github.io/thinking-tracer/) and drag-and-drop a Claude Code `.jsonl` file.
 
 ### Local Development
 
 ```bash
 # Clone the repository
-git clone https://github.com/neomantra/thinking-trace-viewer
-cd thinking-trace-viewer
+git clone https://github.com/neomantra/thinking-tracer
+cd thinking-tracer
 
 # Install dependencies
 npm install

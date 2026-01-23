@@ -220,3 +220,9 @@ can we test this before push?
 ## 2026-01-23T02:00:54Z
 
 review all the work we have done and update the readme and other relevant document files
+
+---
+
+## 2026-01-23T02:04:20Z
+
+We renamed this from thinking-trace-viewer to thinking-tracer. please update anything relevant to that

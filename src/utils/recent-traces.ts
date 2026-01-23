@@ -2,7 +2,7 @@
  * Recent traces storage using IndexedDB
  */
 
-const DB_NAME = 'thinking-trace-viewer';
+const DB_NAME = 'thinking-tracer';
 const DB_VERSION = 1;
 const STORE_NAME = 'recent-traces';
 const MAX_RECENT = 10;

@@ -1,5 +1,5 @@
 /**
- * Main Viewer class - the primary API for thinking-trace-viewer
+ * Main Viewer class - the primary API for thinking-tracer
  */
 
 import * as THREE from 'three';

@@ -1,6 +1,6 @@
 # PLAN: Implementation Planning
 
-This document tracks the implementation roadmap for `thinking-trace-viewer`.
+This document tracks the implementation roadmap for `thinking-tracer`.
 
 ## Design Goals (from research)
 
