@@ -2,6 +2,7 @@
  * Standalone viewer entry point
  */
 
+import { marked } from 'marked';
 import { Viewer } from './core/Viewer';
 import { initFileDrop } from './utils/file-drop';
 import {
@@ -32,6 +33,7 @@ const fileSelectBtn = document.getElementById('file-select-btn');
 const trySampleBtn = document.getElementById('try-sample-btn');
 const fileInput = document.getElementById('file-input') as HTMLInputElement | null;
 const legend = document.getElementById('legend');
+const legendHeader = document.getElementById('legend-header');
 const detailPanelContent = document.getElementById('detail-panel-content');
 const recentTracesEl = document.getElementById('recent-traces');
 const recentListEl = document.getElementById('recent-list');
@@ -266,9 +268,12 @@ async function loadFile(content: string, filename: string, skipSave = false, cus
       (exportBtn as HTMLButtonElement).disabled = false;
     }
 
-    // Show legend
+    // Show legend and expand toggle
     if (legend) {
       legend.classList.add('visible');
+    }
+    if (expandToggle) {
+      expandToggle.classList.add('visible');
     }
 
     // Apply view mode
@@ -511,9 +516,12 @@ async function showFileSelector(): Promise<void> {
     toolbar.classList.remove('visible');
   }
 
-  // Hide legend
+  // Hide legend and expand toggle
   if (legend) {
     legend.classList.remove('visible');
+  }
+  if (expandToggle) {
+    expandToggle.classList.remove('visible');
   }
 
   // Hide sidebar
@@ -533,6 +541,25 @@ function escapeHtml(text: string): string {
   const div = document.createElement('div');
   div.textContent = text;
   return div.innerHTML;
+}
+
+// Configure marked for safe rendering
+marked.setOptions({
+  gfm: true, // GitHub Flavored Markdown
+  breaks: true, // Convert \n to <br>
+});
+
+/**
+ * Render markdown to HTML
+ */
+function renderMarkdown(text: string): string {
+  if (!text) return '';
+  try {
+    return marked.parse(text) as string;
+  } catch {
+    // Fallback to escaped text if parsing fails
+    return escapeHtml(text);
+  }
 }
 
 // ============================================
@@ -617,6 +644,13 @@ function toggleSidebar(): void {
 // Wire up sidebar toggle
 if (sidebarToggle) {
   sidebarToggle.addEventListener('click', toggleSidebar);
+}
+
+// Wire up legend collapse toggle
+if (legendHeader && legend) {
+  legendHeader.addEventListener('click', () => {
+    legend.classList.toggle('collapsed');
+  });
 }
 
 // Wire up toolbar back button
@@ -1680,7 +1714,7 @@ function renderConversation(): void {
       const charCount = len > 200 ? `<span style="color: #666; font-weight: normal;">(${len.toLocaleString()} chars)</span>` : '';
       html += `<div class="conv-user expanded">
 <div class="conv-user-header"><span class="arrow">▶</span><span>User</span>${charCount}</div>
-<div class="conv-user-content"><div class="conv-content-wrap">${escapeHtml(cluster.userText)}<button class="conv-expand-btn">More</button></div></div>
+<div class="conv-user-content"><div class="conv-content-wrap markdown-content">${renderMarkdown(cluster.userText)}<button class="conv-expand-btn">More</button></div></div>
 </div>`;
     }
 
@@ -1692,7 +1726,7 @@ function renderConversation(): void {
       const thinking = cluster.thinkingBlocks[t];
       html += `<div class="conv-thinking" data-thinking-index="${t}">
 <div class="conv-thinking-header"><span class="arrow">▶</span><span>Thinking</span><span style="color: #666; font-weight: normal;">(${thinking.length.toLocaleString()} chars)</span></div>
-<div class="conv-thinking-content"><div class="conv-content-wrap">${escapeHtml(thinking)}<button class="conv-expand-btn">More</button></div></div>
+<div class="conv-thinking-content"><div class="conv-content-wrap markdown-content">${renderMarkdown(thinking)}<button class="conv-expand-btn">More</button></div></div>
 </div>`;
     }
 
@@ -1721,7 +1755,7 @@ function renderConversation(): void {
       const charCount = len > 200 ? `<span style="color: #666; font-weight: normal;">(${len.toLocaleString()} chars)</span>` : '';
       html += `<div class="conv-text expanded">
 <div class="conv-text-header"><span class="arrow">▶</span><span>Output</span>${charCount}</div>
-<div class="conv-text-content"><div class="conv-content-wrap">${escapeHtml(cluster.assistantText)}<button class="conv-expand-btn">More</button></div></div>
+<div class="conv-text-content"><div class="conv-content-wrap markdown-content">${renderMarkdown(cluster.assistantText)}<button class="conv-expand-btn">More</button></div></div>
 </div>`;
     }
 

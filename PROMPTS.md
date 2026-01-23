@@ -640,3 +640,51 @@ just like "top words" can be selected and highlighted, so should search terms
 ## 2026-01-23T21:39:07Z
 
 Make clear in the main page and the README that this has export functionality for both HTML and Markdown, that's pretty handy!
+
+---
+
+## 2026-01-23T22:04:12Z
+
+in the nodes, is it possible to discern content as markdown and do prettier rendering?
+
+---
+
+## 2026-01-23T22:07:01Z
+
+let's try marked
+
+---
+
+## 2026-01-23T22:14:07Z
+
+we have a markdown exporter -- how will that effect it?
+
+---
+
+## 2026-01-23T22:27:16Z
+
+make the 3d legend collapsable
+
+---
+
+## 2026-01-23T22:32:26Z
+
+make the 3d legend collapsable
+
+---
+
+## 2026-01-23T22:33:17Z
+
+make the 3d legend collapsable
+
+---
+
+## 2026-01-23T22:37:51Z
+
+move the "expand" button from the upper right and incorporate it inside the 3d view near the legend.  
+
+---
+
+## 2026-01-23T22:51:40Z
+
+move the "expand" button from the upper right and incorporate it inside the 3d view near the legend.  

@@ -291,29 +291,37 @@
         color: #4a90d9;
       }
 
-      /* Expand toggle */
+      /* Expand toggle - positioned in 3D view */
       #expand-toggle {
-        padding: 4px 10px;
+        position: absolute;
+        bottom: 20px;
+        left: 20px;
+        padding: 6px 12px;
         font-size: 11px;
         font-family: inherit;
-        background: #3a3a5c;
-        color: #aaa;
-        border: 1px solid #4a4a6a;
-        border-radius: 4px;
+        background: rgba(58, 58, 92, 0.9);
+        color: #bbb;
+        border: 1px solid #6a6a9a;
+        border-radius: 6px;
         cursor: pointer;
         transition: all 0.15s;
-        flex-shrink: 0;
+        z-index: 50;
+        display: none;
       }
 
       #expand-toggle:hover {
-        background: #4a4a6c;
-        color: #ddd;
+        background: rgba(74, 74, 108, 0.95);
+        color: #fff;
       }
 
       #expand-toggle.expanded {
-        background: #4a90d9;
+        background: rgba(74, 144, 217, 0.9);
         color: #fff;
         border-color: #4a90d9;
+      }
+
+      #expand-toggle.visible {
+        display: block;
       }
 
       /* Responsive toolbar */
@@ -660,6 +668,110 @@
 
       .conv-expand-btn:hover {
         filter: brightness(1.2);
+      }
+
+      /* Markdown content styling */
+      .markdown-content {
+        line-height: 1.5;
+      }
+
+      .markdown-content p {
+        margin: 0 0 0.75em 0;
+      }
+
+      .markdown-content p:last-child {
+        margin-bottom: 0;
+      }
+
+      .markdown-content h1, .markdown-content h2, .markdown-content h3,
+      .markdown-content h4, .markdown-content h5, .markdown-content h6 {
+        margin: 0.5em 0 0.25em 0;
+        font-weight: 600;
+        line-height: 1.3;
+      }
+
+      .markdown-content h1 { font-size: 1.4em; }
+      .markdown-content h2 { font-size: 1.25em; }
+      .markdown-content h3 { font-size: 1.1em; }
+      .markdown-content h4, .markdown-content h5, .markdown-content h6 { font-size: 1em; }
+
+      .markdown-content code {
+        background: rgba(0, 0, 0, 0.3);
+        padding: 0.15em 0.4em;
+        border-radius: 3px;
+        font-family: 'SF Mono', Monaco, 'Cascadia Code', monospace;
+        font-size: 0.9em;
+      }
+
+      .markdown-content pre {
+        background: rgba(0, 0, 0, 0.3);
+        padding: 10px 12px;
+        border-radius: 6px;
+        overflow-x: auto;
+        margin: 0.75em 0;
+      }
+
+      .markdown-content pre code {
+        background: none;
+        padding: 0;
+        font-size: 0.85em;
+        line-height: 1.4;
+      }
+
+      .markdown-content ul, .markdown-content ol {
+        margin: 0.5em 0;
+        padding-left: 1.5em;
+      }
+
+      .markdown-content li {
+        margin: 0.25em 0;
+      }
+
+      .markdown-content blockquote {
+        margin: 0.75em 0;
+        padding: 0.5em 1em;
+        border-left: 3px solid rgba(255, 255, 255, 0.3);
+        background: rgba(0, 0, 0, 0.15);
+        color: rgba(255, 255, 255, 0.8);
+      }
+
+      .markdown-content a {
+        color: #4a90d9;
+        text-decoration: none;
+      }
+
+      .markdown-content a:hover {
+        text-decoration: underline;
+      }
+
+      .markdown-content hr {
+        border: none;
+        border-top: 1px solid rgba(255, 255, 255, 0.2);
+        margin: 1em 0;
+      }
+
+      .markdown-content table {
+        border-collapse: collapse;
+        margin: 0.75em 0;
+        font-size: 0.9em;
+      }
+
+      .markdown-content th, .markdown-content td {
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        padding: 6px 10px;
+        text-align: left;
+      }
+
+      .markdown-content th {
+        background: rgba(0, 0, 0, 0.2);
+      }
+
+      .markdown-content strong {
+        font-weight: 600;
+      }
+
+      .markdown-content em {
+        font-style: italic;
       }
 
       /* Color variables for each bubble type */
@@ -1658,7 +1770,7 @@
         right: 20px;
         background: rgba(58, 58, 92, 0.9);
         border: 1px solid #6a6a9a;
-        padding: 10px 14px;
+        padding: 0;
         border-radius: 8px;
         font-size: 11px;
         z-index: 50;
@@ -1667,6 +1779,41 @@
       }
 
       #legend.visible { display: block; }
+
+      #legend-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 8px 12px;
+        cursor: pointer;
+        font-weight: 600;
+        font-size: 10px;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        color: #bbb;
+        user-select: none;
+      }
+
+      #legend-header:hover {
+        color: #fff;
+      }
+
+      #legend-toggle {
+        font-size: 8px;
+        transition: transform 0.2s;
+      }
+
+      #legend.collapsed #legend-toggle {
+        transform: rotate(-90deg);
+      }
+
+      #legend-body {
+        padding: 0 12px 10px 12px;
+      }
+
+      #legend.collapsed #legend-body {
+        display: none;
+      }
 
       #legend h3 {
         font-size: 10px;
@@ -1752,7 +1899,6 @@
           <button class="view-mode-btn active" data-mode="split" title="Split View">Split</button>
           <button class="view-mode-btn" data-mode="conversation" title="Conversation Only">Conv</button>
         </div>
-        <button id="expand-toggle" title="Toggle Expand/Collapse All">Expand</button>
         <div class="export-dropdown">
           <button id="export-btn" title="Export Conversation" disabled>Export</button>
           <div class="export-menu">
@@ -1889,44 +2035,51 @@
           <div id="canvas-pane">
             <div id="canvas-container"></div>
             <div id="legend">
-              <div class="legend-section">
-                <h3>Node Types</h3>
-                <div class="legend-item">
-                  <div class="legend-color user"></div>
-                  <span class="legend-label">User</span>
-                </div>
-                <div class="legend-item">
-                  <div class="legend-color assistant"></div>
-                  <span class="legend-label">Assistant</span>
-                </div>
-                <div class="legend-item">
-                  <div class="legend-color thinking"></div>
-                  <span class="legend-label">Thinking</span>
-                </div>
-                <div class="legend-item">
-                  <div class="legend-color tool-use"></div>
-                  <span class="legend-label">Tool call</span>
-                </div>
-                <div class="legend-item">
-                  <div class="legend-color tool-result"></div>
-                  <span class="legend-label">Tool result</span>
-                </div>
+              <div id="legend-header">
+                <span>Legend</span>
+                <span id="legend-toggle">▼</span>
               </div>
-              <div class="legend-section">
-                <h3>Camera</h3>
-                <div class="legend-shortcut"><kbd>Drag</kbd> Rotate</div>
-                <div class="legend-shortcut"><kbd>Shift+Drag</kbd> Pan</div>
-                <div class="legend-shortcut"><kbd>Scroll</kbd> Zoom</div>
-                <div class="legend-shortcut"><kbd>H</kbd> Home view</div>
-                <div class="legend-shortcut"><kbd>R</kbd> Reset view</div>
-              </div>
-              <div class="legend-section">
-                <h3>Navigation</h3>
-                <div class="legend-shortcut"><kbd>←</kbd><kbd>→</kbd> Prev/Next turn</div>
-                <div class="legend-shortcut"><kbd>Enter</kbd> Expand/Collapse</div>
-                <div class="legend-shortcut"><kbd>Home</kbd><kbd>End</kbd> First/Last</div>
+              <div id="legend-body">
+                <div class="legend-section">
+                  <h3>Node Types</h3>
+                  <div class="legend-item">
+                    <div class="legend-color user"></div>
+                    <span class="legend-label">User</span>
+                  </div>
+                  <div class="legend-item">
+                    <div class="legend-color assistant"></div>
+                    <span class="legend-label">Assistant</span>
+                  </div>
+                  <div class="legend-item">
+                    <div class="legend-color thinking"></div>
+                    <span class="legend-label">Thinking</span>
+                  </div>
+                  <div class="legend-item">
+                    <div class="legend-color tool-use"></div>
+                    <span class="legend-label">Tool call</span>
+                  </div>
+                  <div class="legend-item">
+                    <div class="legend-color tool-result"></div>
+                    <span class="legend-label">Tool result</span>
+                  </div>
+                </div>
+                <div class="legend-section">
+                  <h3>Camera</h3>
+                  <div class="legend-shortcut"><kbd>Drag</kbd> Rotate</div>
+                  <div class="legend-shortcut"><kbd>Shift+Drag</kbd> Pan</div>
+                  <div class="legend-shortcut"><kbd>Scroll</kbd> Zoom</div>
+                  <div class="legend-shortcut"><kbd>H</kbd> Home view</div>
+                  <div class="legend-shortcut"><kbd>R</kbd> Reset view</div>
+                </div>
+                <div class="legend-section">
+                  <h3>Navigation</h3>
+                  <div class="legend-shortcut"><kbd>←</kbd><kbd>→</kbd> Prev/Next turn</div>
+                  <div class="legend-shortcut"><kbd>Enter</kbd> Expand/Collapse</div>
+                  <div class="legend-shortcut"><kbd>Home</kbd><kbd>End</kbd> First/Last</div>
+                </div>
               </div>
             </div>
+            <button id="expand-toggle" title="Toggle Expand/Collapse All">Expand</button>
           </div>
           <div id="split-handle"></div>
           <div id="conversation-pane">
