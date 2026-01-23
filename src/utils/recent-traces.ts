@@ -7,6 +7,22 @@ const DB_VERSION = 1;
 const STORE_NAME = 'recent-traces';
 const MAX_RECENT = 10;
 
+/** Persisted UI state for a trace */
+export interface TraceUIState {
+  /** Camera position [x, y, z] */
+  cameraPosition?: [number, number, number];
+  /** Camera target/look-at point [x, y, z] */
+  cameraTarget?: [number, number, number];
+  /** View mode */
+  viewMode?: '3d' | 'split' | 'conversation';
+  /** Sidebar visibility */
+  sidebarVisible?: boolean;
+  /** Split pane ratio (0-1) */
+  splitRatio?: number;
+  /** Selected cluster index */
+  selectedCluster?: number;
+}
+
 export interface RecentTrace {
   /** Unique ID (hash of content) */
   id: string;
@@ -24,6 +40,8 @@ export interface RecentTrace {
   content: string;
   /** File size in bytes */
   size: number;
+  /** Persisted UI state */
+  uiState?: TraceUIState;
 }
 
 /**
@@ -197,6 +215,31 @@ export async function updateTraceCustomName(id: string, customName: string): Pro
 
   // Update the custom name (empty string clears it)
   trace.customName = customName.trim() || undefined;
+
+  return new Promise((resolve, reject) => {
+    const transaction = db.transaction(STORE_NAME, 'readwrite');
+    const store = transaction.objectStore(STORE_NAME);
+    const request = store.put(trace);
+
+    request.onsuccess = () => resolve();
+    request.onerror = () => reject(request.error);
+  });
+}
+
+/**
+ * Update the UI state for a trace
+ */
+export async function updateTraceUIState(id: string, uiState: TraceUIState): Promise<void> {
+  const db = await openDB();
+  const trace = await getTraceById(id);
+
+  if (!trace) {
+    // Trace not found - silently ignore (might have been cleared)
+    return;
+  }
+
+  // Merge with existing state
+  trace.uiState = { ...trace.uiState, ...uiState };
 
   return new Promise((resolve, reject) => {
     const transaction = db.transaction(STORE_NAME, 'readwrite');

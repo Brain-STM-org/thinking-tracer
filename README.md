@@ -20,7 +20,7 @@ Conversations are organized as a **spiral helix** of turn clusters, providing a 
 - **Expand/collapse**: Double-click or press Enter to expand clusters and see individual blocks
 
 ### Interactive 3D Navigation
-- **Orbit controls**: Drag to rotate, scroll to zoom, right-drag to pan
+- **Orbit controls**: Drag to rotate, scroll to zoom, Shift+drag to pan
 - **Keyboard navigation**: Arrow keys to move between nodes, Home/End for first/last
 - **Click selection**: Click any node to see its details
 
@@ -57,7 +57,7 @@ Automatically saves recently viewed traces (IndexedDB) for quick access.
 Visit the [live demo](https://neomantra.github.io/thinking-tracer/) and drag-and-drop a Claude Code `.jsonl` file.
 
 ### Try the Sample
-A sample trace file is included at [`public/samples/sample-trace.jsonl`](public/samples/sample-trace.jsonl) - this is the actual conversation trace from building this tool with Claude! Click "Try Sample" on the live demo to load it instantly.
+A sample trace file is included at [`public/samples/sample-trace.jsonl`](public/samples/sample-trace.jsonl) - this is the actual conversation trace from building this tool with Claude! Click "See How This Was Built" on the live demo to load it instantly.
 
 ### Local Development
 
@@ -107,6 +107,9 @@ Additional agent formats planned.
 | `Enter` / `Space` | Expand/collapse selected cluster |
 | `Backspace` | Collapse current cluster |
 | `Escape` | Clear selection |
+| `H` | Home view (restore saved camera position) |
+| `R` | Reset view (initial camera position) |
+| `/` | Focus search box |
 
 ## Architecture
 

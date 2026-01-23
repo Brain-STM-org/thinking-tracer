@@ -10,9 +10,11 @@ import {
   deleteRecentTrace,
   clearRecentTraces,
   updateTraceCustomName,
+  updateTraceUIState,
   formatSize,
   formatRelativeTime,
   type RecentTrace,
+  type TraceUIState,
 } from './utils/recent-traces';
 
 // Get DOM elements
@@ -70,6 +72,91 @@ let sidebarVisible = true;
 // Current trace info for name editing
 let currentTraceId: string | null = null;
 
+// Track if this is a freshly loaded trace (vs restored from recent)
+let isNewTrace = false;
+
+// Saved camera state for "home" view (user's last saved position)
+let savedCameraState: { position: [number, number, number]; target: [number, number, number] } | null = null;
+
+/**
+ * Get current UI state for persistence
+ */
+function getCurrentUIState(): TraceUIState {
+  const cameraState = viewer.getCameraState();
+
+  // Calculate split ratio if in split mode
+  let splitRatio: number | undefined;
+  if (viewMode === 'split' && canvasPane && contentArea) {
+    const canvasWidth = canvasPane.offsetWidth;
+    const contentWidth = contentArea.offsetWidth;
+    if (contentWidth > 0) {
+      splitRatio = canvasWidth / contentWidth;
+    }
+  }
+
+  return {
+    cameraPosition: cameraState.position,
+    cameraTarget: cameraState.target,
+    viewMode,
+    sidebarVisible,
+    splitRatio,
+    selectedCluster: currentFocusIndex,
+  };
+}
+
+/**
+ * Save current UI state to storage
+ */
+async function saveCurrentUIState(): Promise<void> {
+  if (!currentTraceId) return;
+
+  try {
+    const uiState = getCurrentUIState();
+    await updateTraceUIState(currentTraceId, uiState);
+  } catch (err) {
+    console.warn('Failed to save UI state:', err);
+  }
+}
+
+/**
+ * Restore UI state from a trace
+ */
+function restoreUIState(uiState: TraceUIState): void {
+  // Restore camera position and save as "home" state
+  if (uiState.cameraPosition && uiState.cameraTarget) {
+    viewer.setCameraState(uiState.cameraPosition, uiState.cameraTarget);
+    savedCameraState = {
+      position: uiState.cameraPosition,
+      target: uiState.cameraTarget,
+    };
+  }
+
+  // Restore view mode
+  if (uiState.viewMode) {
+    viewMode = uiState.viewMode;
+  }
+
+  // Restore sidebar visibility
+  if (uiState.sidebarVisible !== undefined) {
+    sidebarVisible = uiState.sidebarVisible;
+  }
+
+  // Restore split ratio
+  if (uiState.splitRatio !== undefined && canvasPane && contentArea) {
+    const contentWidth = contentArea.offsetWidth;
+    if (contentWidth > 0) {
+      const canvasWidth = uiState.splitRatio * contentWidth;
+      canvasPane.style.flex = 'none';
+      canvasPane.style.width = `${canvasWidth}px`;
+    }
+  }
+
+  // Restore selected cluster
+  if (uiState.selectedCluster !== undefined) {
+    currentFocusIndex = uiState.selectedCluster;
+  }
+}
+
 if (!container) {
   throw new Error('Container element not found');
 }
@@ -124,6 +211,8 @@ async function loadFile(content: string, filename: string, skipSave = false, cus
 
     // Save to recent traces (unless loading from recent)
     if (!skipSave) {
+      // Mark as new trace - will set initial view
+      isNewTrace = true;
       try {
         await saveRecentTrace(filename, originalTitle, turnCount, content);
         await refreshRecentTraces();
@@ -196,6 +285,12 @@ async function loadFile(content: string, filename: string, skipSave = false, cus
     setTimeout(() => {
       drawCharts(currentFocusIndex);
       renderWordFrequencyChart();
+
+      // Set initial camera view for new traces
+      if (isNewTrace) {
+        viewer.setInitialView();
+      }
+
       // Select first cluster
       if (viewer.getClusterCount() > 0) {
         viewer.selectClusterByIndex(0);
@@ -220,8 +315,33 @@ async function loadRecentTrace(trace: RecentTrace): Promise<void> {
     console.warn('Failed to update recent trace:', err);
   }
 
+  // Mark as not a new trace (has saved state)
+  isNewTrace = false;
+
   // Pass custom name if it exists
   await loadFile(trace.content, trace.filename, true, trace.customName);
+
+  // Restore UI state after loading
+  if (trace.uiState) {
+    restoreUIState(trace.uiState);
+
+    // Apply restored view mode and sidebar state
+    applyViewMode();
+    if (sidebarVisible) {
+      sidebar?.classList.add('visible');
+      sidebarToggle?.classList.add('active');
+    } else {
+      sidebar?.classList.remove('visible');
+      sidebarToggle?.classList.remove('active');
+    }
+
+    // Restore selected cluster in viewer
+    if (trace.uiState.selectedCluster !== undefined && trace.uiState.selectedCluster < viewer.getClusterCount()) {
+      setTimeout(() => {
+        viewer.selectClusterByIndex(trace.uiState!.selectedCluster!);
+      }, 100);
+    }
+  }
 }
 
 /**
@@ -342,13 +462,13 @@ if (trySampleBtn) {
       }
 
       const content = await response.text();
-      await loadFile(content, 'sample-trace.jsonl');
+      await loadFile(content, 'sample-trace.jsonl', false, 'Thinking Tracer pt2');
     } catch (error) {
       console.error('Failed to load sample:', error);
       alert(`Failed to load sample: ${error instanceof Error ? error.message : error}`);
     } finally {
       trySampleBtn.classList.remove('loading');
-      if (btnText) btnText.textContent = 'Try Sample';
+      if (btnText) btnText.textContent = 'See How This Was Built';
     }
   });
 }
@@ -367,6 +487,9 @@ if (recentClearBtn) {
  * Show the file selector overlay
  */
 async function showFileSelector(): Promise<void> {
+  // Save current UI state before switching away
+  await saveCurrentUIState();
+
   // Refresh recent traces list
   await refreshRecentTraces();
 
@@ -983,28 +1106,16 @@ function drawCharts(focusIndex?: number): void {
   rows.forEach((row) => {
     const metricKey = row.getAttribute('data-metric') as MetricKey;
     const canvas = row.querySelector('.metric-canvas') as HTMLCanvasElement;
-    const checkbox = row.querySelector('input[type="checkbox"]') as HTMLInputElement;
 
-    if (!metricKey || !canvas || !checkbox) return;
+    if (!metricKey || !canvas) return;
 
-    if (checkbox.checked) {
-      row.classList.remove('hidden');
-      const values = metrics.map(m => m[metricKey]);
-      drawMetricChart(canvas, values, focusIndex, colors[metricKey]);
-    } else {
-      row.classList.add('hidden');
-    }
+    const values = metrics.map(m => m[metricKey]);
+    drawMetricChart(canvas, values, focusIndex, colors[metricKey]);
   });
 }
 
-// Setup metric toggles and click-to-select
+// Setup metric click-to-select
 if (metricsStack) {
-  metricsStack.addEventListener('change', (e) => {
-    if ((e.target as HTMLElement).matches('input[type="checkbox"]')) {
-      drawCharts(currentFocusIndex);
-    }
-  });
-
   // Click on chart to select cluster
   metricsStack.addEventListener('click', (e) => {
     const container = (e.target as HTMLElement).closest('.metric-chart-container');
@@ -1524,64 +1635,53 @@ function renderConversation(): void {
 
     // User message
     if (cluster.userText) {
-      html += `
-        <div class="conv-user">
-          <div class="conv-user-label">User</div>
-          <div class="conv-user-content">${escapeHtml(cluster.userText)}</div>
-        </div>
-      `;
+      const len = cluster.userText.length;
+      const charCount = len > 200 ? `<span style="color: #666; font-weight: normal;">(${len.toLocaleString()} chars)</span>` : '';
+      html += `<div class="conv-user expanded">
+<div class="conv-user-header"><span class="arrow">▶</span><span>User</span>${charCount}</div>
+<div class="conv-user-content"><div class="conv-content-wrap">${escapeHtml(cluster.userText)}<button class="conv-expand-btn">More</button></div></div>
+</div>`;
     }
 
     // Assistant section
     html += `<div class="conv-assistant">`;
 
-    // Thinking blocks
+    // Thinking blocks (default collapsed)
     for (let t = 0; t < cluster.thinkingBlocks.length; t++) {
       const thinking = cluster.thinkingBlocks[t];
-      html += `
-        <div class="conv-thinking" data-thinking-index="${t}">
-          <div class="conv-thinking-header">
-            <span class="arrow">▶</span>
-            <span>Thinking</span>
-            <span style="color: #666; font-weight: normal;">(${thinking.length.toLocaleString()} chars)</span>
-          </div>
-          <div class="conv-thinking-content">${escapeHtml(thinking)}</div>
-        </div>
-      `;
+      html += `<div class="conv-thinking" data-thinking-index="${t}">
+<div class="conv-thinking-header"><span class="arrow">▶</span><span>Thinking</span><span style="color: #666; font-weight: normal;">(${thinking.length.toLocaleString()} chars)</span></div>
+<div class="conv-thinking-content"><div class="conv-content-wrap">${escapeHtml(thinking)}<button class="conv-expand-btn">More</button></div></div>
+</div>`;
     }
 
-    // Tool calls and results (interleaved)
+    // Tool calls and results (interleaved, default collapsed)
     for (let t = 0; t < cluster.toolUses.length; t++) {
       const toolUse = cluster.toolUses[t];
-      html += `
-        <div class="conv-tool tool-use" data-tool-index="${t}">
-          <div class="conv-tool-header">
-            <span class="arrow">▶</span>
-            <span class="conv-tool-name">${escapeHtml(toolUse.name)}</span>
-          </div>
-          <div class="conv-tool-content">${escapeHtml(toolUse.input)}</div>
-        </div>
-      `;
+      html += `<div class="conv-tool tool-use" data-tool-index="${t}">
+<div class="conv-tool-header"><span class="arrow">▶</span><span class="conv-tool-name">${escapeHtml(toolUse.name)}</span></div>
+<div class="conv-tool-content"><div class="conv-content-wrap">${escapeHtml(toolUse.input)}<button class="conv-expand-btn">More</button></div></div>
+</div>`;
 
       // Matching tool result (if exists)
       if (t < cluster.toolResults.length) {
         const toolResult = cluster.toolResults[t];
         const isError = toolResult.isError;
-        html += `
-          <div class="conv-tool tool-result ${isError ? '' : 'success'}" data-result-index="${t}">
-            <div class="conv-tool-header">
-              <span class="arrow">▶</span>
-              <span>${isError ? '✗ Error' : '✓ Result'}</span>
-            </div>
-            <div class="conv-tool-content">${escapeHtml(truncateText(toolResult.content, 2000))}</div>
-          </div>
-        `;
+        html += `<div class="conv-tool tool-result ${isError ? '' : 'success'}" data-result-index="${t}">
+<div class="conv-tool-header"><span class="arrow">▶</span><span>${isError ? '✗ Error' : '✓ Result'}</span></div>
+<div class="conv-tool-content"><div class="conv-content-wrap">${escapeHtml(toolResult.content)}<button class="conv-expand-btn">More</button></div></div>
+</div>`;
       }
     }
 
-    // Assistant text
+    // Assistant text output
     if (cluster.assistantText) {
-      html += `<div class="conv-text">${escapeHtml(cluster.assistantText)}</div>`;
+      const len = cluster.assistantText.length;
+      const charCount = len > 200 ? `<span style="color: #666; font-weight: normal;">(${len.toLocaleString()} chars)</span>` : '';
+      html += `<div class="conv-text expanded">
+<div class="conv-text-header"><span class="arrow">▶</span><span>Output</span>${charCount}</div>
+<div class="conv-text-content"><div class="conv-content-wrap">${escapeHtml(cluster.assistantText)}<button class="conv-expand-btn">More</button></div></div>
+</div>`;
     }
 
     html += `</div>`; // close .conv-assistant
@@ -1591,11 +1691,20 @@ function renderConversation(): void {
   conversationContent.innerHTML = html;
 
   // Wire up collapsible sections
-  conversationContent.querySelectorAll('.conv-thinking-header, .conv-tool-header').forEach((header) => {
+  conversationContent.querySelectorAll('.conv-thinking-header, .conv-tool-header, .conv-user-header, .conv-text-header').forEach((header) => {
     header.addEventListener('click', (e) => {
       e.stopPropagation();
       const parent = header.parentElement;
       parent?.classList.toggle('expanded');
+    });
+  });
+
+  // Wire up "More" buttons for truncated content
+  conversationContent.querySelectorAll('.conv-expand-btn').forEach((btn) => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const wrap = btn.parentElement;
+      wrap?.classList.add('full');
     });
   });
 
@@ -1653,14 +1762,6 @@ function filterConversation(clusterIndices: number[] | null): void {
       (turn as HTMLElement).style.display = matchSet.has(idx) ? '' : 'none';
     });
   }
-}
-
-/**
- * Truncate text for display
- */
-function truncateText(text: string, maxLength: number): string {
-  if (text.length <= maxLength) return text;
-  return text.slice(0, maxLength) + '\n... (truncated)';
 }
 
 /**
@@ -2194,17 +2295,35 @@ document.querySelectorAll('.search-filter input[type="checkbox"]').forEach((chec
   checkbox.addEventListener('change', handleSearchInput);
 });
 
-// Global keyboard shortcut: / to focus search (when sidebar visible)
+// Global keyboard shortcuts
 window.addEventListener('keydown', (e) => {
   // Don't trigger if already in an input
   if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) {
     return;
   }
 
+  // / - Focus search (when sidebar visible)
   if (e.key === '/' && searchInput && sidebarVisible) {
     e.preventDefault();
     searchInput.focus();
     searchInput.select();
+  }
+
+  // H - Home view (restore saved camera state)
+  if (e.key === 'h' || e.key === 'H') {
+    e.preventDefault();
+    if (savedCameraState) {
+      viewer.setCameraState(savedCameraState.position, savedCameraState.target);
+    } else {
+      // If no saved state, use initial view
+      viewer.setInitialView();
+    }
+  }
+
+  // R - Reset to initial view
+  if (e.key === 'r' || e.key === 'R') {
+    e.preventDefault();
+    viewer.setInitialView();
   }
 });
 
@@ -2434,6 +2553,25 @@ if (exportMenu) {
 
 // Load recent traces on startup
 refreshRecentTraces();
+
+// Save UI state before leaving
+window.addEventListener('beforeunload', () => {
+  // Use synchronous-ish approach - fire and forget
+  // IndexedDB operations will likely complete before page closes
+  if (currentTraceId) {
+    const uiState = getCurrentUIState();
+    updateTraceUIState(currentTraceId, uiState).catch(() => {
+      // Ignore errors on unload
+    });
+  }
+});
+
+// Also save periodically while using (every 30 seconds if there's a trace loaded)
+setInterval(() => {
+  if (currentTraceId) {
+    saveCurrentUIState();
+  }
+}, 30000);
 
 // Log ready state
 console.log('Thinking Tracer ready');

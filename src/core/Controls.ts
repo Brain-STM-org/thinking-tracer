@@ -65,7 +65,11 @@ export class Controls {
   private onMouseDown = (event: MouseEvent): void => {
     event.preventDefault();
 
-    if (event.button === 0) {
+    if (event.button === 0 && event.shiftKey) {
+      // Shift+left click - pan (trackpad-friendly)
+      this.isPanning = true;
+      this.panStart.set(event.clientX, event.clientY);
+    } else if (event.button === 0) {
       // Left click - rotate
       this.isRotating = true;
       this.rotateStart.set(event.clientX, event.clientY);
@@ -95,22 +99,25 @@ export class Controls {
       const deltaX = event.clientX - this.panStart.x;
       const deltaY = event.clientY - this.panStart.y;
 
-      const element = this.domElement;
-      const offset = this.camera.position.clone().sub(this.target);
-      let targetDistance = offset.length();
-      targetDistance *= Math.tan(((this.camera.fov / 2) * Math.PI) / 180);
+      // Ensure camera matrix is current
+      this.camera.updateMatrixWorld();
 
-      // Pan left/right
-      const panLeft = new THREE.Vector3();
-      panLeft.setFromMatrixColumn(this.camera.matrix, 0);
-      panLeft.multiplyScalar((-2 * deltaX * targetDistance) / element.clientHeight);
-      this.panOffset.add(panLeft);
+      // Get distance from camera to target for scaling
+      const distance = this.camera.position.distanceTo(this.target);
 
-      // Pan up/down
-      const panUp = new THREE.Vector3();
-      panUp.setFromMatrixColumn(this.camera.matrix, 1);
-      panUp.multiplyScalar((2 * deltaY * targetDistance) / element.clientHeight);
-      this.panOffset.add(panUp);
+      // Scale pan speed based on distance and FOV
+      const fovRad = (this.camera.fov * Math.PI) / 180;
+      const panScale = (2 * distance * Math.tan(fovRad / 2)) / this.domElement.clientHeight;
+
+      // Get camera's right and up vectors from world matrix
+      const right = new THREE.Vector3();
+      const up = new THREE.Vector3();
+      right.setFromMatrixColumn(this.camera.matrixWorld, 0);
+      up.setFromMatrixColumn(this.camera.matrixWorld, 1);
+
+      // Apply pan directly to target (no damping)
+      this.target.addScaledVector(right, -deltaX * panScale);
+      this.target.addScaledVector(up, deltaY * panScale);
 
       this.panStart.set(event.clientX, event.clientY);
     }

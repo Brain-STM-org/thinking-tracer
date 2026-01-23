@@ -502,3 +502,87 @@ make all the necessary changes except no git activity
 ## 2026-01-23T19:43:31Z
 
 on the main page, i want the screenshot image at the top to have a "Try Sample" button with a shadow outline so it is legible on the screenshot.  The whole image and text, when clicked open the sample.  then we have on the next row, side-to-side is the Drop a conversation (with icon and other text) with a "Select File" button.  Then the recent traces at the bottom
+
+---
+
+## 2026-01-23T19:47:14Z
+
+On the main page, add a link to the repo with a GitHub icon
+
+---
+
+## 2026-01-23T19:50:28Z
+
+we should remember the last camera position for a trace and store that with its metadata, any other UI state that is easy to persist, also persist that in appropriate local storage.    regarding initial position, let's have an initial view that looks down the column of the trace but with a slight tilt down see the depth.  can we pan?
+
+---
+
+## 2026-01-23T19:58:21Z
+
+looks great, thanks.  I want to express that it is one of the conversations that made that app , how should i do that?  put the button text as "Try Sample That Made This" or something?
+
+---
+
+## 2026-01-23T19:59:05Z
+
+do number 1
+
+---
+
+## 2026-01-23T20:00:24Z
+
+can we set the session name to "Thinking Tracer pt2" for the sample when clicked?
+
+---
+
+## 2026-01-23T20:05:00Z
+
+add a legend to the 3d view that explains the keyboard shortcuts for panning and rotating, include a home view command that resets the view to the user saved state, also a reset to initial state command.  
+
+---
+
+## 2026-01-23T20:07:14Z
+
+i'm confused how to pan with an macbook trackpad
+
+---
+
+## 2026-01-23T20:09:07Z
+
+the way the shift-drag works is weird, it's almost like a rotate from a weird position.  rotate and scroll work fine
+
+---
+
+## 2026-01-23T20:10:48Z
+
+for now disable the damping, something is weird
+
+---
+
+## 2026-01-23T20:29:40Z
+
+in the conversation view, i like that thinking traces are collapsible and default are closed.   for users, default is open, which i like since they are far less frequent, but sometimes the are long.   can we both make them collapsible (but default open) and also have some sort of limit to an indiviual length unless some button is pressed (like a ... button at the lower right)
+
+---
+
+## 2026-01-23T20:36:44Z
+
+the user blocks start indented and have a lot of vertical padding
+
+---
+
+## 2026-01-23T20:40:54Z
+
+is there really no tool use in the file? i only see user and thinking in the conversation, no output or tools
+
+---
+
+## 2026-01-23T20:44:16Z
+
+there are some blocks produced that are not in a bubble, are those output blocks?
+
+---
+
+## 2026-01-23T20:45:45Z
+
+they should default open but have limited expanse (like 5-6 lines) but then have an option to expand them.   all bubble types should have this same behavior

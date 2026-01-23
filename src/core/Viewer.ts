@@ -541,6 +541,7 @@ export class Viewer {
 
   /**
    * Build clusters from turns
+   * Merges consecutive user turns and consecutive assistant turns into single clusters
    */
   private buildClusters(): void {
     this.clusters = [];
@@ -549,56 +550,103 @@ export class Viewer {
 
     const { turns } = this.conversation;
     let clusterIndex = 0;
+    let i = 0;
 
-    for (let i = 0; i < turns.length; i++) {
+    while (i < turns.length) {
       const turn = turns[i];
 
       if (turn.role === 'user') {
-        // Start a new cluster with user turn
+        // Collect all consecutive user turns and merge their content
+        const mergedUserContent: ContentBlock[] = [...turn.content];
+        const firstUserIndex = i;
+        i++;
+
+        while (i < turns.length && turns[i].role === 'user') {
+          mergedUserContent.push(...turns[i].content);
+          i++;
+        }
+
+        // Create merged user turn
+        const mergedUserTurn: Turn = {
+          ...turn,
+          content: mergedUserContent,
+        };
+
+        // Start a new cluster with merged user turn
         const cluster: TurnCluster = {
           index: clusterIndex,
-          userTurn: turn,
-          userTurnIndex: i,
+          userTurn: mergedUserTurn,
+          userTurnIndex: firstUserIndex,
           expanded: false,
           thinkingCount: 0,
           toolCount: 0,
         };
 
-        // Look for following assistant turn
-        if (i + 1 < turns.length && turns[i + 1].role === 'assistant') {
-          const assistantTurn = turns[i + 1];
-          cluster.assistantTurn = assistantTurn;
-          cluster.assistantTurnIndex = i + 1;
+        // Collect all consecutive assistant turns and merge their content
+        if (i < turns.length && turns[i].role === 'assistant') {
+          const firstAssistantTurn = turns[i];
+          const mergedAssistantContent: ContentBlock[] = [...firstAssistantTurn.content];
+          const firstAssistantIndex = i;
+          i++;
+
+          while (i < turns.length && turns[i].role === 'assistant') {
+            mergedAssistantContent.push(...turns[i].content);
+            i++;
+          }
+
+          // Create merged assistant turn
+          const mergedAssistantTurn: Turn = {
+            ...firstAssistantTurn,
+            content: mergedAssistantContent,
+          };
+
+          cluster.assistantTurn = mergedAssistantTurn;
+          cluster.assistantTurnIndex = firstAssistantIndex;
 
           // Count thinking and tool blocks
-          for (const block of assistantTurn.content) {
+          for (const block of mergedAssistantContent) {
             if (block.type === 'thinking') cluster.thinkingCount++;
             if (block.type === 'tool_use') cluster.toolCount++;
           }
-
-          i++; // Skip the assistant turn in next iteration
         }
 
         this.clusters.push(cluster);
         clusterIndex++;
-      } else if (turn.role === 'assistant' && this.clusters.length === 0) {
-        // Orphan assistant turn at the start
+      } else if (turn.role === 'assistant') {
+        // Orphan assistant turn(s) - collect all consecutive
+        const mergedContent: ContentBlock[] = [...turn.content];
+        const firstIndex = i;
+        i++;
+
+        while (i < turns.length && turns[i].role === 'assistant') {
+          mergedContent.push(...turns[i].content);
+          i++;
+        }
+
+        const mergedTurn: Turn = {
+          ...turn,
+          content: mergedContent,
+        };
+
         const cluster: TurnCluster = {
           index: clusterIndex,
-          assistantTurn: turn,
-          assistantTurnIndex: i,
+          assistantTurn: mergedTurn,
+          assistantTurnIndex: firstIndex,
           expanded: false,
           thinkingCount: 0,
           toolCount: 0,
         };
 
-        for (const block of turn.content) {
+        for (const block of mergedContent) {
           if (block.type === 'thinking') cluster.thinkingCount++;
           if (block.type === 'tool_use') cluster.toolCount++;
         }
 
         this.clusters.push(cluster);
         clusterIndex++;
+      } else {
+        // Unknown role, skip
+        i++;
       }
     }
   }
@@ -1380,6 +1428,40 @@ export class Viewer {
    */
   public getSearchFilter(): number[] | null {
     return this.searchFilterClusters ? Array.from(this.searchFilterClusters) : null;
+  }
+
+  /**
+   * Get current camera state for persistence
+   */
+  public getCameraState(): { position: [number, number, number]; target: [number, number, number] } {
+    const pos = this.scene.camera.position;
+    const target = this.controls.getTarget();
+    return {
+      position: [pos.x, pos.y, pos.z],
+      target: [target.x, target.y, target.z],
+    };
+  }
+
+  /**
+   * Set camera state from persisted data
+   */
+  public setCameraState(position: [number, number, number], target: [number, number, number]): void {
+    this.scene.camera.position.set(position[0], position[1], position[2]);
+    this.controls.setTarget(target[0], target[1], target[2]);
+  }
+
+  /**
+   * Set initial camera view looking down the spiral
+   */
+  public setInitialView(): void {
+    // Position camera above and to the side, looking down at the spiral
+    // The spiral descends in negative Y, so we look from above
+    const clusterCount = this.clusters.length;
+    const estimatedHeight = clusterCount * 0.5; // Rough estimate of vertical extent
+
+    // Camera positioned at an angle, looking down
+    this.scene.camera.position.set(12, 8, 12);
+    this.controls.setTarget(0, -Math.min(estimatedHeight / 3, 10), 0);
   }
 
   /**
