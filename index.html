@@ -875,49 +875,110 @@
         margin: 0;
       }
 
-      .drop-screenshot-link {
-        display: block;
+      /* Sample preview with overlay button */
+      .sample-preview {
+        position: relative;
         margin: 24px auto;
-        max-width: 50%;
+        max-width: 60%;
         border-radius: 8px;
         overflow: hidden;
         box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+        cursor: pointer;
         transition: transform 0.2s, box-shadow 0.2s;
       }
 
-      .drop-screenshot-link:hover {
+      .sample-preview:hover {
         transform: scale(1.02);
         box-shadow: 0 6px 28px rgba(0, 0, 0, 0.5);
       }
 
-      .drop-screenshot {
+      .sample-preview-img {
         display: block;
         width: 100%;
         height: auto;
       }
 
-      .drop-icon { font-size: 48px; margin-bottom: 16px; opacity: 0.8; }
-      .drop-text { font-size: 20px; color: #888; }
-      .drop-subtext { font-size: 13px; color: #666; margin-top: 8px; }
-      .drop-divider {
+      .sample-preview-overlay {
+        position: absolute;
+        inset: 0;
         display: flex;
         align-items: center;
-        gap: 15px;
-        margin: 20px 0;
-        color: #666;
-        font-size: 14px;
+        justify-content: center;
+        background: rgba(0, 0, 0, 0.2);
+        transition: background 0.2s;
       }
-      .drop-divider::before,
-      .drop-divider::after {
-        content: '';
-        flex: 1;
-        height: 1px;
+
+      .sample-preview:hover .sample-preview-overlay {
+        background: rgba(0, 0, 0, 0.4);
+      }
+
+      .sample-preview-btn {
+        padding: 14px 28px;
+        font-size: 18px;
+        font-weight: 600;
+        color: #fff;
+        background: rgba(74, 144, 217, 0.85);
+        border-radius: 8px;
+        box-shadow: 0 2px 12px rgba(0, 0, 0, 0.5);
+        text-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+        transition: transform 0.2s, box-shadow 0.2s;
+      }
+
+      .sample-preview:hover .sample-preview-btn {
+        transform: scale(1.05);
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.6);
+      }
+
+      .sample-preview.loading .sample-preview-btn {
+        background: rgba(100, 100, 100, 0.9);
+      }
+
+      /* Responsive: stack file select row on narrow screens */
+      @media (max-width: 500px) {
+        .file-select-row {
+          flex-direction: column;
+          gap: 20px;
+        }
+        .drop-divider-vertical {
+          width: 80px;
+          height: 1px;
+        }
+        .sample-preview {
+          max-width: 90%;
+        }
+      }
+
+      /* File selection row */
+      .file-select-row {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 30px;
+        margin: 30px 0;
+      }
+
+      .drop-zone {
+        text-align: center;
+        padding: 20px;
+      }
+
+      .drop-icon { font-size: 36px; margin-bottom: 10px; opacity: 0.7; }
+      .drop-text { font-size: 16px; color: #888; }
+      .drop-subtext { font-size: 12px; color: #666; margin-top: 6px; }
+
+      .drop-divider-vertical {
+        width: 1px;
+        height: 80px;
         background: #444;
-        max-width: 60px;
+      }
+
+      .file-select-zone {
+        text-align: center;
+        padding: 20px;
       }
 
       #file-select-btn {
-        padding: 12px 24px;
+        padding: 14px 28px;
         font-size: 16px;
         font-family: inherit;
         background: #4a90d9;
@@ -929,6 +990,7 @@
       }
       #file-select-btn:hover { background: #5a9fe9; }
       #file-select-btn:active { background: #3a80c9; }
+
       #file-input { display: none; }
 
       /* ============================================
@@ -1717,14 +1779,28 @@
           <h1 class="drop-title">Thinking Tracer</h1>
           <p class="drop-intro">Explore Claude's reasoning process in 3D. Visualize conversation traces to understand thinking patterns, tool usage, and response flow.</p>
         </div>
-        <a href="etc/images/screenshot.png" target="_blank" class="drop-screenshot-link">
-          <img src="etc/images/screenshot.png" alt="Example visualization" class="drop-screenshot">
-        </a>
-        <div class="drop-icon">&#128193;</div>
-        <div class="drop-text">Drop a conversation file to visualize</div>
-        <div class="drop-subtext">Supports Claude Code .jsonl trace files</div>
-        <div class="drop-divider">or</div>
-        <button id="file-select-btn">Select File</button>
+
+        <!-- Screenshot with Try Sample overlay -->
+        <div id="try-sample-btn" class="sample-preview">
+          <img src="etc/images/screenshot.png" alt="Example visualization" class="sample-preview-img">
+          <div class="sample-preview-overlay">
+            <span class="sample-preview-btn">Try Sample</span>
+          </div>
+        </div>
+
+        <!-- File selection row -->
+        <div class="file-select-row">
+          <div class="drop-zone">
+            <div class="drop-icon">&#128193;</div>
+            <div class="drop-text">Drop a conversation file</div>
+            <div class="drop-subtext">Supports Claude Code .jsonl trace files</div>
+          </div>
+          <div class="drop-divider-vertical"></div>
+          <div class="file-select-zone">
+            <button id="file-select-btn">Select File</button>
+            <div class="drop-subtext">Browse your files</div>
+          </div>
+        </div>
         <input type="file" id="file-input" accept=".json,.jsonl">
 
         <div id="recent-traces" class="hidden">

@@ -56,6 +56,9 @@ Automatically saves recently viewed traces (IndexedDB) for quick access.
 ### Online
 Visit the [live demo](https://neomantra.github.io/thinking-tracer/) and drag-and-drop a Claude Code `.jsonl` file.
 
+### Try the Sample
+A sample trace file is included at [`public/samples/sample-trace.jsonl`](public/samples/sample-trace.jsonl) - this is the actual conversation trace from building this tool with Claude! Click "Try Sample" on the live demo to load it instantly.
+
 ### Local Development
 
 ```bash

@@ -28,6 +28,7 @@ const sidebar = document.getElementById('sidebar');
 const sidebarToggle = document.getElementById('sidebar-toggle');
 const sidebarResize = document.getElementById('sidebar-resize');
 const fileSelectBtn = document.getElementById('file-select-btn');
+const trySampleBtn = document.getElementById('try-sample-btn');
 const fileInput = document.getElementById('file-input') as HTMLInputElement | null;
 const legend = document.getElementById('legend');
 const detailPanelContent = document.getElementById('detail-panel-content');
@@ -322,6 +323,33 @@ if (fileSelectBtn && fileInput) {
 
     // Reset input so the same file can be selected again
     fileInput.value = '';
+  });
+}
+
+// Setup try sample button (now a clickable div with overlay)
+if (trySampleBtn) {
+  trySampleBtn.addEventListener('click', async () => {
+    if (trySampleBtn.classList.contains('loading')) return;
+
+    const btnText = trySampleBtn.querySelector('.sample-preview-btn');
+    try {
+      trySampleBtn.classList.add('loading');
+      if (btnText) btnText.textContent = 'Loading...';
+
+      const response = await fetch('samples/sample-trace.jsonl');
+      if (!response.ok) {
+        throw new Error(`Failed to fetch sample: ${response.status}`);
+      }
+
+      const content = await response.text();
+      await loadFile(content, 'sample-trace.jsonl');
+    } catch (error) {
+      console.error('Failed to load sample:', error);
+      alert(`Failed to load sample: ${error instanceof Error ? error.message : error}`);
+    } finally {
+      trySampleBtn.classList.remove('loading');
+      if (btnText) btnText.textContent = 'Try Sample';
+    }
   });
 }
 
