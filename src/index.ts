@@ -33,3 +33,13 @@ export { claudeCodeParser } from './data/parsers/claude-code';
 
 // Utilities
 export { initFileDrop, type FileDropOptions } from './utils/file-drop';
+export {
+  saveRecentTrace,
+  getRecentTraces,
+  getTraceById,
+  deleteRecentTrace,
+  clearRecentTraces,
+  formatSize,
+  formatRelativeTime,
+  type RecentTrace,
+} from './utils/recent-traces';

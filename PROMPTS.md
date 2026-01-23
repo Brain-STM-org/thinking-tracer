@@ -106,3 +106,15 @@ make a legend for the different node colors.  we will want to display a summary 
 ## 2026-01-23T00:26:54Z
 
 add keyboard navigation through the blocks.
+
+---
+
+## 2026-01-23T00:29:38Z
+
+create a palette of recently used traces, you can store it in an appropriate local storage mechanism
+
+---
+
+## 2026-01-23T00:32:24Z
+
+add a way to go back to the selection screen

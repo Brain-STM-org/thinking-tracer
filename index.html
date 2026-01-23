@@ -57,6 +57,118 @@
         opacity: 1;
       }
 
+      #recent-traces {
+        margin-top: 30px;
+        width: 100%;
+        max-width: 500px;
+        padding: 0 20px;
+      }
+
+      #recent-traces.hidden {
+        display: none;
+      }
+
+      .recent-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 12px;
+      }
+
+      .recent-header h3 {
+        font-size: 12px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        color: #666;
+      }
+
+      .recent-clear-btn {
+        background: none;
+        border: none;
+        color: #666;
+        font-size: 12px;
+        cursor: pointer;
+        padding: 4px 8px;
+        border-radius: 4px;
+      }
+
+      .recent-clear-btn:hover {
+        color: #e74c3c;
+        background: rgba(231, 76, 60, 0.1);
+      }
+
+      .recent-list {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        max-height: 250px;
+        overflow-y: auto;
+      }
+
+      .recent-item {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 12px 16px;
+        background: #2a2a40;
+        border: 1px solid #3a3a5a;
+        border-radius: 8px;
+        cursor: pointer;
+        transition: all 0.15s ease;
+      }
+
+      .recent-item:hover {
+        background: #3a3a5c;
+        border-color: #4a90d9;
+      }
+
+      .recent-item-icon {
+        font-size: 24px;
+        flex-shrink: 0;
+      }
+
+      .recent-item-info {
+        flex: 1;
+        min-width: 0;
+      }
+
+      .recent-item-title {
+        font-size: 14px;
+        font-weight: 500;
+        color: #eee;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+
+      .recent-item-meta {
+        font-size: 12px;
+        color: #888;
+        margin-top: 2px;
+      }
+
+      .recent-item-delete {
+        background: none;
+        border: none;
+        color: #666;
+        font-size: 16px;
+        cursor: pointer;
+        padding: 4px 8px;
+        border-radius: 4px;
+        opacity: 0;
+        transition: opacity 0.15s ease;
+      }
+
+      .recent-item:hover .recent-item-delete {
+        opacity: 1;
+      }
+
+      .recent-item-delete:hover {
+        color: #e74c3c;
+        background: rgba(231, 76, 60, 0.1);
+      }
+
       .drop-icon {
         font-size: 64px;
         margin-bottom: 20px;
@@ -138,6 +250,25 @@
       #info-panel p {
         color: #ddd;
         line-height: 1.5;
+      }
+
+      #back-btn {
+        margin-top: 12px;
+        padding: 6px 12px;
+        font-size: 12px;
+        font-family: inherit;
+        background: transparent;
+        color: #aaa;
+        border: 1px solid #5a5a7a;
+        border-radius: 4px;
+        cursor: pointer;
+        transition: all 0.15s ease;
+      }
+
+      #back-btn:hover {
+        background: #4a4a6a;
+        color: #fff;
+        border-color: #6a6a9a;
       }
 
       #stats {
@@ -329,6 +460,14 @@
         <div class="drop-divider">or</div>
         <button id="file-select-btn">Select File</button>
         <input type="file" id="file-input" accept=".json,.jsonl">
+
+        <div id="recent-traces" class="hidden">
+          <div class="recent-header">
+            <h3>Recent Traces</h3>
+            <button class="recent-clear-btn" id="recent-clear-btn">Clear All</button>
+          </div>
+          <div class="recent-list" id="recent-list"></div>
+        </div>
       </div>
 
       <div id="info-panel">

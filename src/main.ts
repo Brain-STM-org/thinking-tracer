@@ -4,6 +4,15 @@
 
 import { Viewer } from './core/Viewer';
 import { initFileDrop } from './utils/file-drop';
+import {
+  saveRecentTrace,
+  getRecentTraces,
+  deleteRecentTrace,
+  clearRecentTraces,
+  formatSize,
+  formatRelativeTime,
+  type RecentTrace,
+} from './utils/recent-traces';
 
 // Get DOM elements
 const container = document.getElementById('canvas-container');
@@ -16,6 +25,9 @@ const legend = document.getElementById('legend');
 const detailPanel = document.getElementById('detail-panel');
 const detailPanelContent = document.getElementById('detail-panel-content');
 const detailPanelClose = document.getElementById('detail-panel-close');
+const recentTracesEl = document.getElementById('recent-traces');
+const recentListEl = document.getElementById('recent-list');
+const recentClearBtn = document.getElementById('recent-clear-btn');
 
 if (!container) {
   throw new Error('Container element not found');
@@ -42,21 +54,38 @@ viewer.onStats((stats) => {
 /**
  * Load a conversation file
  */
-function loadFile(content: string, filename: string): void {
+async function loadFile(content: string, filename: string, skipSave = false): Promise<void> {
   try {
     viewer.loadJSON(content);
+
+    const conversation = viewer.getConversation();
+    const title = conversation?.meta.title || filename;
+    const turnCount = conversation?.turns.length || 0;
+
+    // Save to recent traces (unless loading from recent)
+    if (!skipSave) {
+      try {
+        await saveRecentTrace(filename, title, turnCount, content);
+        await refreshRecentTraces();
+      } catch (err) {
+        console.warn('Failed to save to recent traces:', err);
+      }
+    }
 
     // Hide initial overlay and update info
     if (dropOverlay) {
       dropOverlay.classList.remove('visible');
     }
     if (infoPanel) {
-      const conversation = viewer.getConversation();
-      const title = conversation?.meta.title || filename;
       infoPanel.innerHTML = `
         <h1>${escapeHtml(title)}</h1>
         <p>Click or use arrow keys to navigate<br>Esc to deselect, drag to orbit</p>
+        <button id="back-btn">← Open Another</button>
       `;
+
+      // Wire up back button
+      const backBtn = document.getElementById('back-btn');
+      backBtn?.addEventListener('click', showFileSelector);
     }
 
     // Show legend
@@ -76,12 +105,84 @@ function loadFile(content: string, filename: string): void {
   }
 }
 
+/**
+ * Load a trace from recent history
+ */
+async function loadRecentTrace(trace: RecentTrace): Promise<void> {
+  // Update last opened time by re-saving
+  try {
+    await saveRecentTrace(trace.filename, trace.title, trace.turnCount, trace.content);
+  } catch (err) {
+    console.warn('Failed to update recent trace:', err);
+  }
+
+  await loadFile(trace.content, trace.filename, true);
+}
+
+/**
+ * Refresh the recent traces list
+ */
+async function refreshRecentTraces(): Promise<void> {
+  if (!recentTracesEl || !recentListEl) return;
+
+  try {
+    const traces = await getRecentTraces();
+
+    if (traces.length === 0) {
+      recentTracesEl.classList.add('hidden');
+      return;
+    }
+
+    recentTracesEl.classList.remove('hidden');
+    recentListEl.innerHTML = traces.map(renderRecentItem).join('');
+
+    // Attach event listeners
+    recentListEl.querySelectorAll('.recent-item').forEach((item, index) => {
+      const trace = traces[index];
+
+      item.addEventListener('click', (e) => {
+        // Don't trigger if clicking delete button
+        if ((e.target as HTMLElement).closest('.recent-item-delete')) return;
+        loadRecentTrace(trace);
+      });
+
+      const deleteBtn = item.querySelector('.recent-item-delete');
+      deleteBtn?.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        await deleteRecentTrace(trace.id);
+        await refreshRecentTraces();
+      });
+    });
+  } catch (err) {
+    console.warn('Failed to load recent traces:', err);
+    recentTracesEl.classList.add('hidden');
+  }
+}
+
+/**
+ * Render a recent trace item
+ */
+function renderRecentItem(trace: RecentTrace): string {
+  return `
+    <div class="recent-item" data-id="${trace.id}">
+      <div class="recent-item-icon">📄</div>
+      <div class="recent-item-info">
+        <div class="recent-item-title">${escapeHtml(trace.title)}</div>
+        <div class="recent-item-meta">
+          ${trace.turnCount} turns · ${formatSize(trace.size)} · ${formatRelativeTime(trace.lastOpened)}
+        </div>
+      </div>
+      <button class="recent-item-delete" title="Remove from history">&times;</button>
+    </div>
+  `;
+}
+
 // Setup file drop
 initFileDrop({
   target: document.body,
   overlay: dropOverlay ?? undefined,
   accept: ['.json', '.jsonl'],
-  onDrop: loadFile,
+  onDrop: (content, filename) => loadFile(content, filename),
   onError: (error) => {
     console.error('File drop error:', error);
     alert(error.message);
@@ -100,7 +201,7 @@ if (fileSelectBtn && fileInput) {
 
     try {
       const content = await file.text();
-      loadFile(content, file.name);
+      await loadFile(content, file.name);
     } catch (error) {
       console.error('Failed to read file:', error);
       alert(`Failed to read file: ${error instanceof Error ? error.message : error}`);
@@ -109,6 +210,40 @@ if (fileSelectBtn && fileInput) {
     // Reset input so the same file can be selected again
     fileInput.value = '';
   });
+}
+
+// Setup clear all recent traces button
+if (recentClearBtn) {
+  recentClearBtn.addEventListener('click', async () => {
+    if (confirm('Clear all recent traces?')) {
+      await clearRecentTraces();
+      await refreshRecentTraces();
+    }
+  });
+}
+
+/**
+ * Show the file selector overlay
+ */
+async function showFileSelector(): Promise<void> {
+  // Refresh recent traces list
+  await refreshRecentTraces();
+
+  // Show drop overlay
+  if (dropOverlay) {
+    dropOverlay.classList.add('visible');
+  }
+
+  // Hide legend
+  if (legend) {
+    legend.classList.remove('visible');
+  }
+
+  // Hide detail panel and clear selection
+  if (detailPanel) {
+    detailPanel.classList.remove('visible');
+  }
+  viewer.clearSelection();
 }
 
 /**
@@ -210,6 +345,9 @@ function truncate(text: string, maxLength: number): string {
   if (text.length <= maxLength) return text;
   return text.slice(0, maxLength) + '...';
 }
+
+// Load recent traces on startup
+refreshRecentTraces();
 
 // Log ready state
 console.log('Thinking Trace Viewer ready');
