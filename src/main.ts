@@ -31,6 +31,16 @@ const recentClearBtn = document.getElementById('recent-clear-btn');
 const metricsPanel = document.getElementById('metrics-panel');
 const metricsStack = document.getElementById('metrics-stack');
 const chartRange = document.getElementById('chart-range');
+const wordFreqPanel = document.getElementById('word-freq-panel');
+const wordFreqChart = document.getElementById('word-freq-chart');
+const wordFreqSource = document.getElementById('word-freq-source') as HTMLSelectElement | null;
+const searchPanel = document.getElementById('search-panel');
+const searchInput = document.getElementById('search-input') as HTMLInputElement | null;
+const searchResultsCount = document.getElementById('search-results-count');
+const searchResultsList = document.getElementById('search-results-list');
+const searchPrevBtn = document.getElementById('search-prev');
+const searchNextBtn = document.getElementById('search-next');
+const searchClearBtn = document.getElementById('search-clear');
 
 // Chart state
 let currentFocusIndex = 0;
@@ -122,9 +132,15 @@ async function loadFile(content: string, filename: string, skipSave = false): Pr
       legend.classList.add('visible');
     }
 
+    // Show search panel
+    updateSearchPanelVisibility(true);
+
     // Draw initial charts
     currentFocusIndex = Math.floor(viewer.getClusterCount() / 2);
     drawCharts(currentFocusIndex);
+
+    // Show word frequency panel (after metrics panel is positioned)
+    setTimeout(() => updateWordFreqPanelVisibility(true), 50);
 
     // Hide detail panel when loading new file
     if (detailPanel) {
@@ -276,6 +292,12 @@ async function showFileSelector(): Promise<void> {
   if (metricsPanel) {
     metricsPanel.classList.remove('visible');
   }
+
+  // Hide search panel
+  updateSearchPanelVisibility(false);
+
+  // Hide word frequency panel
+  updateWordFreqPanelVisibility(false);
 
   // Hide detail panel and clear selection
   if (detailPanel) {
@@ -557,39 +579,52 @@ function positionMetricsPanel(): void {
   metricsPanel.style.top = `${infoPanelRect.bottom + 10}px`;
 }
 
+// Minimum bar width for readability
+const MIN_BAR_WIDTH = 4;
+const BAR_GAP = 1;
+const CHART_PADDING = 2;
+
 /**
- * Draw a single metric chart
+ * Draw a single metric chart with scrollable support
  */
 function drawMetricChart(canvas: HTMLCanvasElement, values: number[], focusIndex?: number, color = '#4a90d9'): void {
   const maxValue = Math.max(...values, 1);
+  const container = canvas.parentElement;
+  if (!container) return;
 
-  // Setup canvas with device pixel ratio for crisp rendering
   const dpr = window.devicePixelRatio || 1;
-  const rect = canvas.getBoundingClientRect();
-  canvas.width = rect.width * dpr;
-  canvas.height = rect.height * dpr;
+  const containerWidth = container.clientWidth;
+  const height = 24;
+
+  // Calculate bar width - use minimum if needed, otherwise fit to container
+  const naturalBarWidth = (containerWidth - CHART_PADDING * 2) / values.length - BAR_GAP;
+  const barWidth = Math.max(MIN_BAR_WIDTH, naturalBarWidth);
+
+  // Calculate required canvas width
+  const requiredWidth = CHART_PADDING * 2 + values.length * (barWidth + BAR_GAP);
+  const canvasWidth = Math.max(containerWidth, requiredWidth);
+
+  // Set canvas size
+  canvas.width = canvasWidth * dpr;
+  canvas.height = height * dpr;
+  canvas.style.width = `${canvasWidth}px`;
+  canvas.style.height = `${height}px`;
 
   const ctx = canvas.getContext('2d');
   if (!ctx) return;
 
   ctx.scale(dpr, dpr);
 
-  const width = rect.width;
-  const height = rect.height;
-  const padding = 2;
-  const barWidth = Math.max(1, (width - padding * 2) / values.length - 1);
-  const gap = 1;
-
   // Clear
   ctx.fillStyle = '#2a2a40';
-  ctx.fillRect(0, 0, width, height);
+  ctx.fillRect(0, 0, canvasWidth, height);
 
   // Draw bars
   for (let i = 0; i < values.length; i++) {
     const value = values[i];
-    const barHeight = Math.max(1, (value / maxValue) * (height - padding * 2));
-    const x = padding + i * (barWidth + gap);
-    const y = height - padding - barHeight;
+    const barHeight = Math.max(1, (value / maxValue) * (height - CHART_PADDING * 2));
+    const x = CHART_PADDING + i * (barWidth + BAR_GAP);
+    const y = height - CHART_PADDING - barHeight;
 
     // Highlight focused bar
     if (focusIndex !== undefined && i === focusIndex) {
@@ -599,6 +634,13 @@ function drawMetricChart(canvas: HTMLCanvasElement, values: number[], focusIndex
     }
 
     ctx.fillRect(x, y, barWidth, barHeight);
+  }
+
+  // Auto-scroll to focused bar if needed
+  if (focusIndex !== undefined && canvasWidth > containerWidth) {
+    const focusX = CHART_PADDING + focusIndex * (barWidth + BAR_GAP);
+    const scrollTarget = focusX - containerWidth / 2 + barWidth / 2;
+    container.scrollLeft = Math.max(0, Math.min(scrollTarget, canvasWidth - containerWidth));
   }
 }
 
@@ -661,19 +703,24 @@ if (metricsStack) {
 
   // Click on chart to select cluster
   metricsStack.addEventListener('click', (e) => {
-    const canvas = (e.target as HTMLElement).closest('.metric-canvas') as HTMLCanvasElement;
-    if (!canvas) return;
+    const container = (e.target as HTMLElement).closest('.metric-chart-container');
+    const canvas = container?.querySelector('.metric-canvas') as HTMLCanvasElement;
+    if (!container || !canvas) return;
 
-    const rect = canvas.getBoundingClientRect();
-    const x = e.clientX - rect.left;
     const clusterCount = viewer.getClusterCount();
     if (clusterCount === 0) return;
 
+    // Get click position relative to canvas (accounting for scroll)
+    const containerRect = container.getBoundingClientRect();
+    const x = e.clientX - containerRect.left + container.scrollLeft;
+
+    // Calculate bar width (same logic as drawing)
+    const containerWidth = container.clientWidth;
+    const naturalBarWidth = (containerWidth - CHART_PADDING * 2) / clusterCount - BAR_GAP;
+    const barWidth = Math.max(MIN_BAR_WIDTH, naturalBarWidth);
+
     // Calculate which cluster was clicked
-    const padding = 2;
-    const barWidth = Math.max(1, (rect.width - padding * 2) / clusterCount - 1);
-    const gap = 1;
-    const clusterIndex = Math.floor((x - padding) / (barWidth + gap));
+    const clusterIndex = Math.floor((x - CHART_PADDING) / (barWidth + BAR_GAP));
 
     if (clusterIndex >= 0 && clusterIndex < clusterCount) {
       viewer.selectClusterByIndex(clusterIndex);
@@ -750,11 +797,14 @@ viewer.onSelect((selection) => {
   }
 });
 
-// Reposition metrics panel on window resize
+// Reposition panels on window resize
 window.addEventListener('resize', () => {
   if (metricsPanel?.classList.contains('visible')) {
     positionMetricsPanel();
     drawCharts(currentFocusIndex);
+  }
+  if (wordFreqPanel?.classList.contains('visible')) {
+    positionWordFreqPanel();
   }
 });
 
@@ -762,10 +812,672 @@ window.addEventListener('resize', () => {
 if (metricsPanel) {
   const resizeObserver = new ResizeObserver(() => {
     if (metricsPanel.classList.contains('visible')) {
-      drawCharts(currentFocusIndex);
+      // Small delay to let layout settle
+      requestAnimationFrame(() => {
+        drawCharts(currentFocusIndex);
+        if (wordFreqPanel?.classList.contains('visible')) {
+          positionWordFreqPanel();
+        }
+      });
     }
   });
   resizeObserver.observe(metricsPanel);
+
+  // Manual resize handle
+  const resizeHandle = document.getElementById('metrics-resize-handle');
+  if (resizeHandle) {
+    let isResizing = false;
+    let startX = 0;
+    let startWidth = 0;
+
+    resizeHandle.addEventListener('mousedown', (e) => {
+      isResizing = true;
+      startX = e.clientX;
+      startWidth = metricsPanel.offsetWidth;
+      document.body.style.cursor = 'ew-resize';
+      document.body.style.userSelect = 'none';
+      e.preventDefault();
+    });
+
+    document.addEventListener('mousemove', (e) => {
+      if (!isResizing) return;
+      const delta = e.clientX - startX;
+      const newWidth = Math.min(500, Math.max(180, startWidth + delta));
+      metricsPanel.style.width = `${newWidth}px`;
+    });
+
+    document.addEventListener('mouseup', () => {
+      if (isResizing) {
+        isResizing = false;
+        document.body.style.cursor = '';
+        document.body.style.userSelect = '';
+      }
+    });
+  }
+}
+
+// ============================================
+// Word Frequency Analysis
+// ============================================
+
+// Color palette for word highlighting (10 distinct colors)
+const WORD_HIGHLIGHT_COLORS = [
+  0xe6194b, // red
+  0x3cb44b, // green
+  0xffe119, // yellow
+  0x4363d8, // blue
+  0xf58231, // orange
+  0x911eb4, // purple
+  0x42d4f4, // cyan
+  0xf032e6, // magenta
+  0xbfef45, // lime
+  0xfabed4, // pink
+];
+
+// Track which words are currently highlighted
+const highlightedWords = new Map<string, number>(); // word -> color
+
+// Common stop words to filter out
+const STOP_WORDS = new Set([
+  'the', 'a', 'an', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for', 'of', 'with',
+  'by', 'from', 'as', 'is', 'was', 'are', 'were', 'been', 'be', 'have', 'has', 'had',
+  'do', 'does', 'did', 'will', 'would', 'could', 'should', 'may', 'might', 'must',
+  'shall', 'can', 'need', 'dare', 'ought', 'used', 'it', 'its', 'this', 'that',
+  'these', 'those', 'i', 'you', 'he', 'she', 'we', 'they', 'what', 'which', 'who',
+  'whom', 'when', 'where', 'why', 'how', 'all', 'each', 'every', 'both', 'few',
+  'more', 'most', 'other', 'some', 'such', 'no', 'nor', 'not', 'only', 'own', 'same',
+  'so', 'than', 'too', 'very', 'just', 'also', 'now', 'here', 'there', 'then',
+  'if', 'else', 'while', 'about', 'into', 'through', 'during', 'before', 'after',
+  'above', 'below', 'between', 'under', 'again', 'further', 'once', 'any', 'your',
+  'my', 'his', 'her', 'our', 'their', 'me', 'him', 'us', 'them', 'myself', 'yourself',
+  'himself', 'herself', 'itself', 'ourselves', 'themselves', 'am', 'being', 'having',
+  'doing', 'because', 'until', 'against', 'up', 'down', 'out', 'off', 'over', 'under',
+  'let', 'make', 'like', 'get', 'got', 'go', 'going', 'know', 'see', 'think', 'want',
+  'use', 'using', 'file', 'files', 'code', 'one', 'two', 'first', 'new', 'way',
+]);
+
+/**
+ * Extract words from text and count frequencies
+ */
+function extractWords(text: string): Map<string, number> {
+  const words = new Map<string, number>();
+
+  // Split on non-word characters, filter, and count
+  const tokens = text.toLowerCase()
+    .replace(/[^a-z\s]/g, ' ')
+    .split(/\s+/)
+    .filter(word => word.length > 2 && !STOP_WORDS.has(word));
+
+  for (const word of tokens) {
+    words.set(word, (words.get(word) || 0) + 1);
+  }
+
+  return words;
+}
+
+/**
+ * Get word frequencies for the conversation
+ */
+function getWordFrequencies(source: 'all' | 'user' | 'assistant' | 'thinking'): Array<{ word: string; count: number }> {
+  const searchableContent = viewer.getSearchableContent();
+  const allWords = new Map<string, number>();
+
+  for (const cluster of searchableContent) {
+    let textsToAnalyze: string[] = [];
+
+    if (source === 'all' || source === 'user') {
+      if (cluster.userText) textsToAnalyze.push(cluster.userText);
+    }
+
+    if (source === 'all' || source === 'assistant') {
+      if (cluster.assistantText) textsToAnalyze.push(cluster.assistantText);
+    }
+
+    if (source === 'all' || source === 'thinking') {
+      textsToAnalyze.push(...cluster.thinkingBlocks);
+    }
+
+    // Extract and merge word counts
+    for (const text of textsToAnalyze) {
+      const words = extractWords(text);
+      for (const [word, count] of words) {
+        allWords.set(word, (allWords.get(word) || 0) + count);
+      }
+    }
+  }
+
+  // Sort by count and return top 10
+  return Array.from(allWords.entries())
+    .map(([word, count]) => ({ word, count }))
+    .sort((a, b) => b.count - a.count)
+    .slice(0, 10);
+}
+
+/**
+ * Convert hex color to CSS string
+ */
+function hexToCSS(hex: number): string {
+  return '#' + hex.toString(16).padStart(6, '0');
+}
+
+/**
+ * Toggle word highlight
+ */
+function toggleWordHighlight(word: string, colorIndex: number): void {
+  const color = WORD_HIGHLIGHT_COLORS[colorIndex % WORD_HIGHLIGHT_COLORS.length];
+
+  if (highlightedWords.has(word)) {
+    // Unhighlight
+    viewer.unhighlightClustersByColor(highlightedWords.get(word)!);
+    highlightedWords.delete(word);
+  } else {
+    // Highlight
+    const matchedClusters = viewer.highlightClustersWithWord(word, color);
+    if (matchedClusters.length > 0) {
+      highlightedWords.set(word, color);
+    }
+  }
+
+  // Update UI to reflect active state
+  updateWordFreqActiveStates();
+}
+
+/**
+ * Update active states on word frequency rows
+ */
+function updateWordFreqActiveStates(): void {
+  if (!wordFreqChart) return;
+
+  wordFreqChart.querySelectorAll('.word-freq-row').forEach((row) => {
+    const word = (row as HTMLElement).dataset.word;
+    if (word && highlightedWords.has(word)) {
+      row.classList.add('active');
+    } else {
+      row.classList.remove('active');
+    }
+  });
+}
+
+/**
+ * Clear all word highlights
+ */
+function clearWordHighlights(): void {
+  viewer.clearAllHighlights();
+  highlightedWords.clear();
+  updateWordFreqActiveStates();
+}
+
+/**
+ * Render word frequency chart
+ */
+function renderWordFrequencyChart(): void {
+  if (!wordFreqChart || !wordFreqPanel) return;
+
+  // Clear highlights when re-rendering (source changed)
+  clearWordHighlights();
+
+  const source = (wordFreqSource?.value || 'all') as 'all' | 'user' | 'assistant' | 'thinking';
+  const frequencies = getWordFrequencies(source);
+
+  if (frequencies.length === 0) {
+    wordFreqChart.innerHTML = '<div style="color: #666; font-size: 11px; text-align: center; padding: 20px;">No words found</div>';
+    return;
+  }
+
+  const maxCount = frequencies[0].count;
+
+  const html = frequencies.map(({ word, count }, index) => {
+    const percentage = (count / maxCount) * 100;
+    const color = WORD_HIGHLIGHT_COLORS[index % WORD_HIGHLIGHT_COLORS.length];
+    const colorCSS = hexToCSS(color);
+    const isActive = highlightedWords.has(word);
+
+    return `
+      <div class="word-freq-row ${isActive ? 'active' : ''}" data-word="${escapeHtml(word)}" data-color-index="${index}">
+        <span class="word-freq-color" style="background: ${colorCSS}"></span>
+        <span class="word-freq-label" title="${escapeHtml(word)}">${escapeHtml(word)}</span>
+        <div class="word-freq-bar-container">
+          <div class="word-freq-bar" style="width: ${percentage}%; background: ${colorCSS}"></div>
+        </div>
+        <span class="word-freq-count">${count}</span>
+      </div>
+    `;
+  }).join('');
+
+  wordFreqChart.innerHTML = html;
+
+  // Wire up click handlers
+  wordFreqChart.querySelectorAll('.word-freq-row').forEach((row) => {
+    row.addEventListener('click', () => {
+      const word = (row as HTMLElement).dataset.word;
+      const colorIndex = parseInt((row as HTMLElement).dataset.colorIndex || '0', 10);
+      if (word) {
+        toggleWordHighlight(word, colorIndex);
+      }
+    });
+  });
+}
+
+/**
+ * Position word frequency panel below metrics panel
+ */
+function positionWordFreqPanel(): void {
+  if (!wordFreqPanel || !metricsPanel) return;
+
+  const metricsPanelRect = metricsPanel.getBoundingClientRect();
+  wordFreqPanel.style.top = `${metricsPanelRect.bottom + 10}px`;
+  wordFreqPanel.style.width = `${metricsPanel.offsetWidth}px`;
+}
+
+/**
+ * Show/hide word frequency panel
+ */
+function updateWordFreqPanelVisibility(visible: boolean): void {
+  if (wordFreqPanel) {
+    if (visible) {
+      wordFreqPanel.classList.add('visible');
+      positionWordFreqPanel();
+      renderWordFrequencyChart();
+    } else {
+      wordFreqPanel.classList.remove('visible');
+    }
+  }
+}
+
+// Wire up word frequency source selector
+if (wordFreqSource) {
+  wordFreqSource.addEventListener('change', renderWordFrequencyChart);
+}
+
+// ============================================
+// Search Functionality
+// ============================================
+
+interface SearchResult {
+  type: 'user' | 'assistant' | 'thinking' | 'tool_use' | 'tool_result';
+  clusterIndex: number;
+  text: string;
+  matchStart: number;
+  matchEnd: number;
+}
+
+let searchResults: SearchResult[] = [];
+let currentSearchIndex = -1;
+let searchDebounceTimer: ReturnType<typeof setTimeout> | null = null;
+
+/**
+ * Get enabled search filters from checkboxes
+ */
+function getSearchFilters(): Set<string> {
+  const filters = new Set<string>();
+  if (!searchPanel) return filters;
+
+  searchPanel.querySelectorAll('.search-filter input[type="checkbox"]').forEach((checkbox) => {
+    const input = checkbox as HTMLInputElement;
+    if (input.checked && input.dataset.type) {
+      filters.add(input.dataset.type);
+    }
+  });
+
+  return filters;
+}
+
+/**
+ * Find first match in text and return context snippet
+ */
+function findMatch(text: string, lowerQuery: string, queryLength: number): { found: boolean; snippet: string; start: number; end: number } {
+  const lowerText = text.toLowerCase();
+  const matchIndex = lowerText.indexOf(lowerQuery);
+
+  if (matchIndex === -1) {
+    return { found: false, snippet: '', start: -1, end: -1 };
+  }
+
+  // Extract context around match
+  const snippetStart = Math.max(0, matchIndex - 30);
+  const snippetEnd = Math.min(text.length, matchIndex + queryLength + 50);
+  let snippet = text.slice(snippetStart, snippetEnd);
+
+  // Add ellipsis if truncated
+  if (snippetStart > 0) snippet = '...' + snippet;
+  if (snippetEnd < text.length) snippet = snippet + '...';
+
+  return { found: true, snippet, start: matchIndex, end: matchIndex + queryLength };
+}
+
+/**
+ * Perform search across all clusters using the Viewer's searchable content
+ */
+function performSearch(query: string): SearchResult[] {
+  const results: SearchResult[] = [];
+  if (!query.trim()) return results;
+
+  const filters = getSearchFilters();
+  const lowerQuery = query.toLowerCase();
+  const searchableContent = viewer.getSearchableContent();
+
+  for (const cluster of searchableContent) {
+    // Search user text
+    if (filters.has('user') && cluster.userText) {
+      const match = findMatch(cluster.userText, lowerQuery, query.length);
+      if (match.found) {
+        results.push({
+          type: 'user',
+          clusterIndex: cluster.clusterIndex,
+          text: match.snippet,
+          matchStart: match.start,
+          matchEnd: match.end,
+        });
+      }
+    }
+
+    // Search assistant text
+    if (filters.has('assistant') && cluster.assistantText) {
+      const match = findMatch(cluster.assistantText, lowerQuery, query.length);
+      if (match.found) {
+        results.push({
+          type: 'assistant',
+          clusterIndex: cluster.clusterIndex,
+          text: match.snippet,
+          matchStart: match.start,
+          matchEnd: match.end,
+        });
+      }
+    }
+
+    // Search thinking blocks
+    if (filters.has('thinking')) {
+      for (const thinking of cluster.thinkingBlocks) {
+        const match = findMatch(thinking, lowerQuery, query.length);
+        if (match.found) {
+          results.push({
+            type: 'thinking',
+            clusterIndex: cluster.clusterIndex,
+            text: match.snippet,
+            matchStart: match.start,
+            matchEnd: match.end,
+          });
+        }
+      }
+    }
+
+    // Search tool uses
+    if (filters.has('tool_use')) {
+      for (const toolUse of cluster.toolUses) {
+        const searchText = `${toolUse.name} ${toolUse.input}`;
+        const match = findMatch(searchText, lowerQuery, query.length);
+        if (match.found) {
+          results.push({
+            type: 'tool_use',
+            clusterIndex: cluster.clusterIndex,
+            text: match.snippet,
+            matchStart: match.start,
+            matchEnd: match.end,
+          });
+        }
+      }
+    }
+
+    // Search tool results
+    if (filters.has('tool_result')) {
+      for (const toolResult of cluster.toolResults) {
+        const match = findMatch(toolResult.content, lowerQuery, query.length);
+        if (match.found) {
+          results.push({
+            type: 'tool_result',
+            clusterIndex: cluster.clusterIndex,
+            text: match.snippet,
+            matchStart: match.start,
+            matchEnd: match.end,
+          });
+        }
+      }
+    }
+  }
+
+  return results;
+}
+
+/**
+ * Escape HTML for safe rendering
+ */
+function escapeHtmlSearch(text: string): string {
+  const div = document.createElement('div');
+  div.textContent = text;
+  return div.innerHTML;
+}
+
+/**
+ * Highlight search query in snippet
+ */
+function highlightSnippet(snippet: string, query: string): string {
+  if (!query) return escapeHtmlSearch(snippet);
+
+  const lowerSnippet = snippet.toLowerCase();
+  const lowerQuery = query.toLowerCase();
+  const index = lowerSnippet.indexOf(lowerQuery);
+
+  if (index === -1) return escapeHtmlSearch(snippet);
+
+  const before = snippet.slice(0, index);
+  const match = snippet.slice(index, index + query.length);
+  const after = snippet.slice(index + query.length);
+
+  return `${escapeHtmlSearch(before)}<mark>${escapeHtmlSearch(match)}</mark>${escapeHtmlSearch(after)}`;
+}
+
+/**
+ * Render search results list
+ */
+function renderSearchResults(): void {
+  if (!searchResultsList) return;
+
+  if (searchResults.length === 0) {
+    searchResultsList.classList.remove('has-results');
+    searchResultsList.innerHTML = '';
+    return;
+  }
+
+  searchResultsList.classList.add('has-results');
+
+  const query = searchInput?.value || '';
+  const clusterCount = viewer.getClusterCount();
+
+  const html = searchResults.map((result, index) => {
+    const isActive = index === currentSearchIndex;
+    const typeLabel = result.type.replace('_', ' ');
+
+    return `
+      <div class="search-result-item ${result.type} ${isActive ? 'active' : ''}" data-index="${index}">
+        <div class="search-result-meta">
+          <span class="search-result-type ${result.type}">${typeLabel}</span>
+          <span class="search-result-turn">Turn ${result.clusterIndex + 1}/${clusterCount}</span>
+        </div>
+        <div class="search-result-snippet">${highlightSnippet(result.text, query)}</div>
+      </div>
+    `;
+  }).join('');
+
+  searchResultsList.innerHTML = html;
+
+  // Wire up click handlers
+  searchResultsList.querySelectorAll('.search-result-item').forEach((item) => {
+    item.addEventListener('click', () => {
+      const index = parseInt((item as HTMLElement).dataset.index || '0', 10);
+      navigateToResult(index);
+    });
+  });
+
+  // Scroll active item into view
+  const activeItem = searchResultsList.querySelector('.search-result-item.active');
+  if (activeItem) {
+    activeItem.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+  }
+}
+
+/**
+ * Update search results display
+ */
+function updateSearchUI(): void {
+  if (!searchResultsCount) return;
+
+  if (searchResults.length === 0) {
+    const query = searchInput?.value || '';
+    searchResultsCount.textContent = query ? 'No matches' : '';
+  } else {
+    searchResultsCount.textContent = `${currentSearchIndex + 1} / ${searchResults.length}`;
+  }
+
+  // Update button states
+  const hasResults = searchResults.length > 0;
+  if (searchPrevBtn) (searchPrevBtn as HTMLButtonElement).disabled = !hasResults;
+  if (searchNextBtn) (searchNextBtn as HTMLButtonElement).disabled = !hasResults;
+
+  // Update results list active state
+  if (searchResultsList) {
+    searchResultsList.querySelectorAll('.search-result-item').forEach((item, index) => {
+      if (index === currentSearchIndex) {
+        item.classList.add('active');
+        item.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+      } else {
+        item.classList.remove('active');
+      }
+    });
+  }
+}
+
+/**
+ * Navigate to a search result
+ */
+function navigateToResult(index: number): void {
+  if (index < 0 || index >= searchResults.length) return;
+
+  currentSearchIndex = index;
+  const result = searchResults[index];
+
+  // Select the cluster in the viewer
+  viewer.selectClusterByIndex(result.clusterIndex);
+
+  updateSearchUI();
+}
+
+/**
+ * Go to next search result
+ */
+function searchNext(): void {
+  if (searchResults.length === 0) return;
+  const nextIndex = (currentSearchIndex + 1) % searchResults.length;
+  navigateToResult(nextIndex);
+}
+
+/**
+ * Go to previous search result
+ */
+function searchPrev(): void {
+  if (searchResults.length === 0) return;
+  const prevIndex = currentSearchIndex <= 0 ? searchResults.length - 1 : currentSearchIndex - 1;
+  navigateToResult(prevIndex);
+}
+
+/**
+ * Clear search
+ */
+function clearSearch(): void {
+  if (searchInput) searchInput.value = '';
+  searchResults = [];
+  currentSearchIndex = -1;
+  renderSearchResults();
+  updateSearchUI();
+}
+
+/**
+ * Handle search input change (debounced)
+ */
+function handleSearchInput(): void {
+  if (searchDebounceTimer) clearTimeout(searchDebounceTimer);
+
+  searchDebounceTimer = setTimeout(() => {
+    const query = searchInput?.value || '';
+    searchResults = performSearch(query);
+    currentSearchIndex = searchResults.length > 0 ? 0 : -1;
+
+    // Render the results list
+    renderSearchResults();
+
+    // Navigate to first result
+    if (searchResults.length > 0) {
+      navigateToResult(0);
+    } else {
+      updateSearchUI();
+    }
+  }, 200);
+}
+
+// Wire up search UI
+if (searchInput) {
+  searchInput.addEventListener('input', handleSearchInput);
+
+  // Handle Enter/Shift+Enter for navigation
+  searchInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      if (e.shiftKey) {
+        searchPrev();
+      } else {
+        searchNext();
+      }
+    } else if (e.key === 'Escape') {
+      clearSearch();
+      searchInput.blur();
+    }
+  });
+}
+
+if (searchPrevBtn) {
+  searchPrevBtn.addEventListener('click', searchPrev);
+}
+
+if (searchNextBtn) {
+  searchNextBtn.addEventListener('click', searchNext);
+}
+
+if (searchClearBtn) {
+  searchClearBtn.addEventListener('click', clearSearch);
+}
+
+// Wire up filter checkboxes to re-search
+if (searchPanel) {
+  searchPanel.querySelectorAll('.search-filter input[type="checkbox"]').forEach((checkbox) => {
+    checkbox.addEventListener('change', handleSearchInput);
+  });
+}
+
+// Global keyboard shortcut: / to focus search
+window.addEventListener('keydown', (e) => {
+  // Don't trigger if already in an input
+  if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) {
+    return;
+  }
+
+  if (e.key === '/' && searchInput && searchPanel?.classList.contains('visible')) {
+    e.preventDefault();
+    searchInput.focus();
+    searchInput.select();
+  }
+});
+
+/**
+ * Show/hide search panel based on loaded state
+ */
+function updateSearchPanelVisibility(visible: boolean): void {
+  if (searchPanel) {
+    if (visible) {
+      searchPanel.classList.add('visible');
+    } else {
+      searchPanel.classList.remove('visible');
+      clearSearch();
+    }
+  }
 }
 
 // Load recent traces on startup

@@ -226,3 +226,63 @@ review all the work we have done and update the readme and other relevant docume
 ## 2026-01-23T02:04:20Z
 
 We renamed this from thinking-trace-viewer to thinking-tracer. please update anything relevant to that
+
+---
+
+## 2026-01-23T02:15:04Z
+
+i find the handle of the metric view hard to hit, there's no visible handle and there's no cursor change.  i also am not sure if the graphs are scaling properly within the window.  look at that
+
+---
+
+## 2026-01-23T02:18:37Z
+
+that' is much better.  if you are not going to show the whole bar inside, then there needs to be a scrolling functionality
+
+---
+
+## 2026-01-23T02:28:05Z
+
+i was thinking it would be intersting to load all the trace into an embedded duckdb and then do fast searches for information.  would that be useful?   
+
+---
+
+## 2026-01-23T02:29:49Z
+
+i think a simple search is fine at first, such as any text and then selecting /excluding some kinds of nodes
+
+---
+
+## 2026-01-23T03:04:26Z
+
+yes implement this now
+
+---
+
+## 2026-01-23T03:19:39Z
+
+can we have a search results pane? then step through that?
+
+---
+
+## 2026-01-23T03:23:08Z
+
+under the metrics, can you create a histogram of the most common words used and show a horizontal stacked graph of the top 10?
+
+---
+
+## 2026-01-23T03:27:23Z
+
+that's great.  make it so that when we click on the historgram, it highlights the relevant nodes. each row will have it's own from a useful pallete. it toggles on and off with press
+
+---
+
+## 2026-01-23T03:34:43Z
+
+looking great... when we select a node, let's bring it to the center and it can be a 25% larger than the other nodes around it
+
+---
+
+## 2026-01-23T03:38:00Z
+
+we are zooming far too close, i should have been clearer, i like the zoom level, mostly (you can pull it in just a little from where it was *before last step*) but make the diameter of the selected sphere 25%, so scale it in size

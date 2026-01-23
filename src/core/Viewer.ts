@@ -73,10 +73,25 @@ export class Viewer {
   private raycaster = new THREE.Raycaster();
   private mouse = new THREE.Vector2();
 
+  // Word highlight state
+  private highlightedClusters: Map<number, THREE.Material> = new Map(); // clusterIndex -> original material
+  private clusterHighlightColors: Map<number, number> = new Map(); // clusterIndex -> color
+
   // Animation state
   private animating = false;
   private animationStart = 0;
   private animatingNodes: VisualNode[] = [];
+
+  // Camera animation state
+  private cameraAnimating = false;
+  private cameraAnimStart = 0;
+  private cameraStartPos = new THREE.Vector3();
+  private cameraTargetPos = new THREE.Vector3();
+  private cameraStartLookAt = new THREE.Vector3();
+  private cameraTargetLookAt = new THREE.Vector3();
+
+  // Selection scale
+  private readonly selectedScale = 1.25; // 25% larger
 
   // Double-click detection
   private lastClickTime = 0;
@@ -361,16 +376,24 @@ export class Viewer {
     // Deselect previous
     if (this.selectedNode && this.selectedNode !== node) {
       this.selectedNode.mesh.material = this.selectedNode.originalMaterial;
+      // Restore previous node's scale
+      this.restoreNodeScale(this.selectedNode);
     }
 
     // Select new
     this.selectedNode = node;
     node.mesh.material = this.highlightMaterial;
 
+    // Scale up the selected node
+    this.enlargeNode(node);
+
     // Update focus to the selected cluster (slinky effect)
     if (node.clusterIndex !== undefined) {
       this.setFocus(node.clusterIndex);
     }
+
+    // Gently adjust camera to keep node in view (not aggressive centering)
+    this.gentlyCameraAdjust(node);
 
     // Notify callback
     this.selectCallback?.({
@@ -382,11 +405,53 @@ export class Viewer {
   }
 
   /**
+   * Enlarge a node by the selected scale factor
+   */
+  private enlargeNode(node: VisualNode): void {
+    // Store original scale if not stored
+    if ((node as any).originalScale === undefined) {
+      (node as any).originalScale = node.mesh.scale.x;
+    }
+    const originalScale = (node as any).originalScale as number;
+    node.mesh.scale.setScalar(originalScale * this.selectedScale);
+  }
+
+  /**
+   * Restore a node to its original scale
+   */
+  private restoreNodeScale(node: VisualNode): void {
+    const originalScale = (node as any).originalScale as number | undefined;
+    if (originalScale !== undefined) {
+      node.mesh.scale.setScalar(originalScale);
+    }
+  }
+
+  /**
+   * Gently adjust camera to keep node visible (just update look-at, minimal position change)
+   */
+  private gentlyCameraAdjust(node: VisualNode): void {
+    const nodePos = node.mesh.position.clone();
+    const currentTarget = this.controls.getTarget();
+
+    // Only animate the look-at target towards the node (blend 30% towards it)
+    const targetLookAt = currentTarget.clone().lerp(nodePos, 0.3);
+
+    // Start camera animation (only adjusting look-at, not position)
+    this.cameraAnimating = true;
+    this.cameraAnimStart = Date.now();
+    this.cameraStartPos.copy(this.scene.camera.position);
+    this.cameraTargetPos.copy(this.scene.camera.position); // Keep same position
+    this.cameraStartLookAt.copy(currentTarget);
+    this.cameraTargetLookAt.copy(targetLookAt);
+  }
+
+  /**
    * Clear current selection
    */
   public clearSelection(): void {
     if (this.selectedNode) {
       this.selectedNode.mesh.material = this.selectedNode.originalMaterial;
+      this.restoreNodeScale(this.selectedNode);
       this.selectedNode = null;
     }
     this.selectCallback?.(null);
@@ -794,41 +859,66 @@ export class Viewer {
    * Update animation frame
    */
   private updateAnimation(_deltaTime: number): void {
-    if (!this.animating) return;
+    // Layout animation
+    if (this.animating) {
+      const elapsed = Date.now() - this.animationStart;
+      const progress = Math.min(1, elapsed / ANIMATION_DURATION);
 
-    const elapsed = Date.now() - this.animationStart;
-    const progress = Math.min(1, elapsed / ANIMATION_DURATION);
+      // Ease out cubic
+      const eased = 1 - Math.pow(1 - progress, 3);
 
-    // Ease out cubic
-    const eased = 1 - Math.pow(1 - progress, 3);
+      for (const node of this.animatingNodes) {
+        const startPos = (node as any).startPosition as THREE.Vector3;
+        const startScale = (node as any).startScale as number;
 
-    for (const node of this.animatingNodes) {
-      const startPos = (node as any).startPosition as THREE.Vector3;
-      const startScale = (node as any).startScale as number;
+        if (node.targetPosition && startPos) {
+          node.mesh.position.lerpVectors(startPos, node.targetPosition, eased);
+        }
 
-      if (node.targetPosition && startPos) {
-        node.mesh.position.lerpVectors(startPos, node.targetPosition, eased);
+        if (node.targetScale !== undefined && startScale !== undefined) {
+          const newScale = startScale + (node.targetScale - startScale) * eased;
+          node.mesh.scale.setScalar(newScale);
+          node.mesh.visible = newScale > 0.01;
+        }
       }
 
-      if (node.targetScale !== undefined && startScale !== undefined) {
-        const newScale = startScale + (node.targetScale - startScale) * eased;
-        node.mesh.scale.setScalar(newScale);
-        node.mesh.visible = newScale > 0.01;
+      if (progress >= 1) {
+        this.animating = false;
+        this.animatingNodes = [];
+
+        // If selected node became invisible, select the cluster instead
+        if (this.selectedNode && !this.selectedNode.mesh.visible) {
+          const clusterNode = this.nodes.find(
+            n => n.type === 'cluster' && n.clusterIndex === this.selectedNode?.clusterIndex
+          );
+          if (clusterNode) {
+            this.selectNode(clusterNode);
+          }
+        }
       }
     }
 
-    if (progress >= 1) {
-      this.animating = false;
-      this.animatingNodes = [];
+    // Camera animation
+    if (this.cameraAnimating) {
+      const elapsed = Date.now() - this.cameraAnimStart;
+      const progress = Math.min(1, elapsed / ANIMATION_DURATION);
 
-      // If selected node became invisible, select the cluster instead
-      if (this.selectedNode && !this.selectedNode.mesh.visible) {
-        const clusterNode = this.nodes.find(
-          n => n.type === 'cluster' && n.clusterIndex === this.selectedNode?.clusterIndex
-        );
-        if (clusterNode) {
-          this.selectNode(clusterNode);
-        }
+      // Ease out cubic
+      const eased = 1 - Math.pow(1 - progress, 3);
+
+      // Interpolate camera position
+      this.scene.camera.position.lerpVectors(this.cameraStartPos, this.cameraTargetPos, eased);
+
+      // Interpolate look-at target
+      const currentLookAt = new THREE.Vector3().lerpVectors(
+        this.cameraStartLookAt,
+        this.cameraTargetLookAt,
+        eased
+      );
+      this.controls.setTarget(currentLookAt.x, currentLookAt.y, currentLookAt.z);
+
+      if (progress >= 1) {
+        this.cameraAnimating = false;
       }
     }
   }
@@ -988,6 +1078,71 @@ export class Viewer {
   }
 
   /**
+   * Get searchable content for all clusters
+   * Returns array of clusters with their text content for searching
+   */
+  public getSearchableContent(): Array<{
+    clusterIndex: number;
+    userText: string;
+    assistantText: string;
+    thinkingBlocks: string[];
+    toolUses: Array<{ name: string; input: string }>;
+    toolResults: Array<{ content: string; isError: boolean }>;
+  }> {
+    return this.clusters.map((cluster) => {
+      const result = {
+        clusterIndex: cluster.index,
+        userText: '',
+        assistantText: '',
+        thinkingBlocks: [] as string[],
+        toolUses: [] as Array<{ name: string; input: string }>,
+        toolResults: [] as Array<{ content: string; isError: boolean }>,
+      };
+
+      // Extract user text
+      if (cluster.userTurn) {
+        result.userText = cluster.userTurn.content
+          .filter(b => b.type === 'text')
+          .map(b => b.text)
+          .join('\n');
+      }
+
+      // Extract assistant content
+      if (cluster.assistantTurn) {
+        for (const block of cluster.assistantTurn.content) {
+          if (block.type === 'text') {
+            result.assistantText += (result.assistantText ? '\n' : '') + block.text;
+          } else if (block.type === 'thinking') {
+            result.thinkingBlocks.push(block.thinking);
+          } else if (block.type === 'tool_use') {
+            result.toolUses.push({
+              name: block.name,
+              input: JSON.stringify(block.input || {}),
+            });
+          } else if (block.type === 'tool_result') {
+            // Handle both string and ContentBlock[] content types
+            let contentStr = '';
+            if (typeof block.content === 'string') {
+              contentStr = block.content;
+            } else if (Array.isArray(block.content)) {
+              contentStr = block.content
+                .filter(b => b.type === 'text')
+                .map(b => (b as { text: string }).text)
+                .join('\n');
+            }
+            result.toolResults.push({
+              content: contentStr,
+              isError: block.is_error || false,
+            });
+          }
+        }
+      }
+
+      return result;
+    });
+  }
+
+  /**
    * Select a cluster by index
    */
   public selectClusterByIndex(index: number): void {
@@ -1012,9 +1167,133 @@ export class Viewer {
   }
 
   /**
+   * Highlight clusters containing a specific word
+   * Returns the indices of clusters that were highlighted
+   */
+  public highlightClustersWithWord(word: string, color: number): number[] {
+    const matchingIndices: number[] = [];
+    const lowerWord = word.toLowerCase();
+
+    // Find clusters containing the word
+    for (const cluster of this.clusters) {
+      let found = false;
+
+      // Check user text
+      if (cluster.userTurn) {
+        for (const block of cluster.userTurn.content) {
+          if (block.type === 'text' && block.text.toLowerCase().includes(lowerWord)) {
+            found = true;
+            break;
+          }
+        }
+      }
+
+      // Check assistant text and thinking
+      if (!found && cluster.assistantTurn) {
+        for (const block of cluster.assistantTurn.content) {
+          if (block.type === 'text' && block.text.toLowerCase().includes(lowerWord)) {
+            found = true;
+            break;
+          }
+          if (block.type === 'thinking' && block.thinking.toLowerCase().includes(lowerWord)) {
+            found = true;
+            break;
+          }
+        }
+      }
+
+      if (found) {
+        matchingIndices.push(cluster.index);
+        this.highlightCluster(cluster.index, color);
+      }
+    }
+
+    return matchingIndices;
+  }
+
+  /**
+   * Highlight a specific cluster with a color
+   */
+  public highlightCluster(clusterIndex: number, color: number): void {
+    const clusterNode = this.nodes.find(
+      n => n.type === 'cluster' && (n.data as TurnCluster).index === clusterIndex
+    );
+
+    if (clusterNode && !this.highlightedClusters.has(clusterIndex)) {
+      // Store original material
+      this.highlightedClusters.set(clusterIndex, clusterNode.mesh.material as THREE.Material);
+      this.clusterHighlightColors.set(clusterIndex, color);
+
+      // Apply highlight material
+      const highlightMat = new THREE.MeshStandardMaterial({
+        color: color,
+        roughness: 0.3,
+        emissive: color,
+        emissiveIntensity: 0.3,
+      });
+      clusterNode.mesh.material = highlightMat;
+    }
+  }
+
+  /**
+   * Remove highlight from clusters that match a color
+   */
+  public unhighlightClustersByColor(color: number): void {
+    const toRemove: number[] = [];
+
+    for (const [clusterIndex, highlightColor] of this.clusterHighlightColors) {
+      if (highlightColor === color) {
+        toRemove.push(clusterIndex);
+      }
+    }
+
+    for (const clusterIndex of toRemove) {
+      this.unhighlightCluster(clusterIndex);
+    }
+  }
+
+  /**
+   * Remove highlight from a specific cluster
+   */
+  public unhighlightCluster(clusterIndex: number): void {
+    const clusterNode = this.nodes.find(
+      n => n.type === 'cluster' && (n.data as TurnCluster).index === clusterIndex
+    );
+
+    const originalMaterial = this.highlightedClusters.get(clusterIndex);
+    if (clusterNode && originalMaterial) {
+      // Dispose highlight material
+      if (clusterNode.mesh.material !== originalMaterial) {
+        (clusterNode.mesh.material as THREE.Material).dispose();
+      }
+      // Restore original
+      clusterNode.mesh.material = originalMaterial;
+      this.highlightedClusters.delete(clusterIndex);
+      this.clusterHighlightColors.delete(clusterIndex);
+    }
+  }
+
+  /**
+   * Clear all word highlights
+   */
+  public clearAllHighlights(): void {
+    for (const clusterIndex of Array.from(this.highlightedClusters.keys())) {
+      this.unhighlightCluster(clusterIndex);
+    }
+  }
+
+  /**
+   * Get currently highlighted cluster indices
+   */
+  public getHighlightedClusters(): number[] {
+    return Array.from(this.highlightedClusters.keys());
+  }
+
+  /**
    * Dispose of all resources
    */
   public dispose(): void {
+    this.clearAllHighlights();
     this.clearNodes();
     Object.values(this.materials).forEach((m) => m.dispose());
     this.highlightMaterial.dispose();

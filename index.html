@@ -313,40 +313,47 @@
         background: #3a3a5c;
         border: 1px solid #6a6a9a;
         padding: 10px;
+        padding-right: 18px;
         border-radius: 8px;
         z-index: 199;
         box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
         display: none;
-        resize: horizontal;
-        overflow: hidden;
       }
 
       #metrics-panel.visible {
         display: block;
       }
 
-      #metrics-panel::-webkit-resizer {
-        background: transparent;
-      }
-
       .metrics-resize-handle {
         position: absolute;
-        right: 2px;
-        bottom: 2px;
+        right: 0;
+        top: 0;
+        bottom: 0;
         width: 12px;
-        height: 12px;
         cursor: ew-resize;
-        opacity: 0.4;
+        background: linear-gradient(to right, transparent, rgba(255,255,255,0.05));
+        border-left: 1px solid rgba(255,255,255,0.1);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        opacity: 0.5;
+        transition: opacity 0.15s, background 0.15s;
+      }
+
+      .metrics-resize-handle:hover {
+        opacity: 1;
+        background: linear-gradient(to right, transparent, rgba(255,255,255,0.15));
       }
 
       .metrics-resize-handle::before {
-        content: '⋮';
-        font-size: 14px;
+        content: '⋮⋮';
+        font-size: 10px;
         color: #888;
+        letter-spacing: -2px;
       }
 
-      #metrics-panel:hover .metrics-resize-handle {
-        opacity: 0.8;
+      .metrics-resize-handle:hover::before {
+        color: #bbb;
       }
 
       .metrics-header {
@@ -382,6 +389,7 @@
         display: flex;
         align-items: center;
         gap: 8px;
+        min-width: 0;
       }
 
       .metric-row.hidden .metric-canvas {
@@ -413,16 +421,371 @@
         color: #bbb;
       }
 
-      .metric-canvas {
+      .metric-chart-container {
         flex: 1;
+        min-width: 0;
         height: 24px;
         background: #2a2a40;
+        border-radius: 3px;
+        overflow-x: auto;
+        overflow-y: hidden;
+        cursor: pointer;
+      }
+
+      .metric-chart-container:hover {
+        background: #323248;
+      }
+
+      /* Hide scrollbar but keep functionality */
+      .metric-chart-container::-webkit-scrollbar {
+        height: 4px;
+      }
+
+      .metric-chart-container::-webkit-scrollbar-track {
+        background: transparent;
+      }
+
+      .metric-chart-container::-webkit-scrollbar-thumb {
+        background: rgba(255,255,255,0.2);
+        border-radius: 2px;
+      }
+
+      .metric-chart-container::-webkit-scrollbar-thumb:hover {
+        background: rgba(255,255,255,0.4);
+      }
+
+      .metric-canvas {
+        height: 24px;
+        display: block;
+      }
+
+      #word-freq-panel {
+        position: fixed;
+        top: 20px;
+        left: 20px;
+        width: 260px;
+        background: #3a3a5c;
+        border: 1px solid #6a6a9a;
+        padding: 10px;
+        border-radius: 8px;
+        z-index: 198;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+        display: none;
+      }
+
+      #word-freq-panel.visible {
+        display: block;
+      }
+
+      .word-freq-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 10px;
+        padding-bottom: 6px;
+        border-bottom: 1px solid #4a4a6a;
+      }
+
+      .word-freq-header h3 {
+        font-size: 11px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        color: #999;
+        margin: 0;
+      }
+
+      #word-freq-source {
+        font-size: 10px;
+        padding: 2px 4px;
+        background: #2a2a40;
+        color: #aaa;
+        border: 1px solid #5a5a7a;
         border-radius: 3px;
         cursor: pointer;
       }
 
-      .metric-canvas:hover {
-        background: #323248;
+      #word-freq-chart {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+      }
+
+      .word-freq-row {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        height: 22px;
+        padding: 2px 4px;
+        border-radius: 3px;
+        cursor: pointer;
+        transition: background 0.15s;
+      }
+
+      .word-freq-row:hover {
+        background: rgba(255, 255, 255, 0.05);
+      }
+
+      .word-freq-row.active {
+        background: rgba(255, 255, 255, 0.1);
+      }
+
+      .word-freq-color {
+        width: 10px;
+        height: 10px;
+        border-radius: 2px;
+        flex-shrink: 0;
+        opacity: 0.6;
+        transition: opacity 0.15s, transform 0.15s;
+      }
+
+      .word-freq-row:hover .word-freq-color,
+      .word-freq-row.active .word-freq-color {
+        opacity: 1;
+        transform: scale(1.1);
+      }
+
+      .word-freq-label {
+        width: 60px;
+        font-size: 11px;
+        color: #bbb;
+        text-align: right;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        flex-shrink: 0;
+      }
+
+      .word-freq-row.active .word-freq-label {
+        color: #fff;
+        font-weight: 500;
+      }
+
+      .word-freq-bar-container {
+        flex: 1;
+        height: 14px;
+        background: #2a2a40;
+        border-radius: 3px;
+        overflow: hidden;
+      }
+
+      .word-freq-bar {
+        height: 100%;
+        border-radius: 3px;
+        transition: width 0.3s ease, opacity 0.15s;
+        min-width: 2px;
+        opacity: 0.7;
+      }
+
+      .word-freq-row:hover .word-freq-bar,
+      .word-freq-row.active .word-freq-bar {
+        opacity: 1;
+      }
+
+      .word-freq-count {
+        width: 30px;
+        font-size: 10px;
+        color: #888;
+        text-align: left;
+        flex-shrink: 0;
+      }
+
+      .word-freq-row.active .word-freq-count {
+        color: #bbb;
+      }
+
+      #search-panel {
+        position: fixed;
+        top: 20px;
+        right: 380px;
+        width: 280px;
+        background: #3a3a5c;
+        border: 1px solid #6a6a9a;
+        padding: 12px;
+        border-radius: 8px;
+        z-index: 200;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+        display: none;
+      }
+
+      #search-panel.visible {
+        display: block;
+      }
+
+      .search-header {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+        margin-bottom: 10px;
+      }
+
+      #search-input {
+        flex: 1;
+        padding: 6px 10px;
+        font-size: 13px;
+        font-family: inherit;
+        background: #2a2a40;
+        color: #eee;
+        border: 1px solid #5a5a7a;
+        border-radius: 4px;
+        outline: none;
+      }
+
+      #search-input:focus {
+        border-color: #4a90d9;
+      }
+
+      #search-input::placeholder {
+        color: #666;
+      }
+
+      #search-results-count {
+        font-size: 11px;
+        color: #888;
+        white-space: nowrap;
+      }
+
+      .search-filters {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        margin-bottom: 10px;
+      }
+
+      .search-filter {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        font-size: 11px;
+        color: #aaa;
+        cursor: pointer;
+      }
+
+      .search-filter input {
+        width: 12px;
+        height: 12px;
+        margin: 0;
+        cursor: pointer;
+      }
+
+      .filter-color {
+        width: 8px;
+        height: 8px;
+        border-radius: 2px;
+      }
+
+      .filter-color.user { background: #4a90d9; }
+      .filter-color.assistant { background: #50c878; }
+      .filter-color.thinking { background: #9b59b6; }
+      .filter-color.tool-use { background: #f39c12; }
+      .filter-color.tool-result { background: #e74c3c; }
+
+      #search-results-list {
+        max-height: 300px;
+        overflow-y: auto;
+        margin-bottom: 10px;
+        display: none;
+      }
+
+      #search-results-list.has-results {
+        display: block;
+      }
+
+      .search-result-item {
+        padding: 8px 10px;
+        margin-bottom: 4px;
+        background: #2a2a40;
+        border-radius: 4px;
+        border-left: 3px solid #666;
+        cursor: pointer;
+        transition: all 0.15s;
+      }
+
+      .search-result-item:hover {
+        background: #3a3a50;
+      }
+
+      .search-result-item.active {
+        background: #3a4a60;
+        border-left-color: #fff;
+      }
+
+      .search-result-item.user { border-left-color: #4a90d9; }
+      .search-result-item.assistant { border-left-color: #50c878; }
+      .search-result-item.thinking { border-left-color: #9b59b6; }
+      .search-result-item.tool_use { border-left-color: #f39c12; }
+      .search-result-item.tool_result { border-left-color: #e74c3c; }
+
+      .search-result-meta {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 4px;
+      }
+
+      .search-result-type {
+        font-size: 10px;
+        font-weight: 600;
+        text-transform: uppercase;
+        padding: 1px 5px;
+        border-radius: 3px;
+        color: #fff;
+      }
+
+      .search-result-type.user { background: #4a90d9; }
+      .search-result-type.assistant { background: #50c878; }
+      .search-result-type.thinking { background: #9b59b6; }
+      .search-result-type.tool_use { background: #f39c12; }
+      .search-result-type.tool_result { background: #e74c3c; }
+
+      .search-result-turn {
+        font-size: 10px;
+        color: #888;
+      }
+
+      .search-result-snippet {
+        font-size: 11px;
+        color: #bbb;
+        line-height: 1.4;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+
+      .search-result-snippet mark {
+        background: #5a7a3a;
+        color: #fff;
+        padding: 0 2px;
+        border-radius: 2px;
+      }
+
+      .search-nav {
+        display: flex;
+        gap: 6px;
+      }
+
+      .search-nav button {
+        flex: 1;
+        padding: 5px 8px;
+        font-size: 11px;
+        font-family: inherit;
+        background: #2a2a40;
+        color: #aaa;
+        border: 1px solid #5a5a7a;
+        border-radius: 4px;
+        cursor: pointer;
+        transition: all 0.15s;
+      }
+
+      .search-nav button:hover {
+        background: #3a3a50;
+        color: #ddd;
+        border-color: #6a6a9a;
+      }
+
+      .search-nav button:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
       }
 
       #legend {
@@ -728,6 +1091,7 @@
       <div id="stats"></div>
 
       <div id="metrics-panel">
+        <div class="metrics-resize-handle" id="metrics-resize-handle"></div>
         <div class="metrics-header">
           <h3>Metrics</h3>
           <span class="metrics-range"><span id="chart-range">1-N</span></span>
@@ -738,43 +1102,96 @@
               <input type="checkbox" checked>
               <span class="metric-label">Total Tokens</span>
             </label>
-            <canvas class="metric-canvas"></canvas>
+            <div class="metric-chart-container"><canvas class="metric-canvas"></canvas></div>
           </div>
           <div class="metric-row" data-metric="outputTokens">
             <label class="metric-toggle">
               <input type="checkbox" checked>
               <span class="metric-label">Output</span>
             </label>
-            <canvas class="metric-canvas"></canvas>
+            <div class="metric-chart-container"><canvas class="metric-canvas"></canvas></div>
           </div>
           <div class="metric-row" data-metric="inputTokens">
             <label class="metric-toggle">
               <input type="checkbox">
               <span class="metric-label">Input</span>
             </label>
-            <canvas class="metric-canvas"></canvas>
+            <div class="metric-chart-container"><canvas class="metric-canvas"></canvas></div>
           </div>
           <div class="metric-row" data-metric="thinkingCount">
             <label class="metric-toggle">
               <input type="checkbox" checked>
               <span class="metric-label">Thinking</span>
             </label>
-            <canvas class="metric-canvas"></canvas>
+            <div class="metric-chart-container"><canvas class="metric-canvas"></canvas></div>
           </div>
           <div class="metric-row" data-metric="toolCount">
             <label class="metric-toggle">
               <input type="checkbox" checked>
               <span class="metric-label">Tools</span>
             </label>
-            <canvas class="metric-canvas"></canvas>
+            <div class="metric-chart-container"><canvas class="metric-canvas"></canvas></div>
           </div>
           <div class="metric-row" data-metric="contentLength">
             <label class="metric-toggle">
               <input type="checkbox">
               <span class="metric-label">Length</span>
             </label>
-            <canvas class="metric-canvas"></canvas>
+            <div class="metric-chart-container"><canvas class="metric-canvas"></canvas></div>
           </div>
+        </div>
+      </div>
+
+      <div id="word-freq-panel">
+        <div class="word-freq-header">
+          <h3>Top Words</h3>
+          <select id="word-freq-source">
+            <option value="all">All Content</option>
+            <option value="user">User Only</option>
+            <option value="assistant">Assistant Only</option>
+            <option value="thinking">Thinking Only</option>
+          </select>
+        </div>
+        <div id="word-freq-chart"></div>
+      </div>
+
+      <div id="search-panel">
+        <div class="search-header">
+          <input type="text" id="search-input" placeholder="Search... (/ to focus)">
+          <span id="search-results-count"></span>
+        </div>
+        <div class="search-filters">
+          <label class="search-filter">
+            <input type="checkbox" data-type="user" checked>
+            <span class="filter-color user"></span>
+            <span>User</span>
+          </label>
+          <label class="search-filter">
+            <input type="checkbox" data-type="assistant" checked>
+            <span class="filter-color assistant"></span>
+            <span>Assistant</span>
+          </label>
+          <label class="search-filter">
+            <input type="checkbox" data-type="thinking" checked>
+            <span class="filter-color thinking"></span>
+            <span>Thinking</span>
+          </label>
+          <label class="search-filter">
+            <input type="checkbox" data-type="tool_use" checked>
+            <span class="filter-color tool-use"></span>
+            <span>Tool Use</span>
+          </label>
+          <label class="search-filter">
+            <input type="checkbox" data-type="tool_result" checked>
+            <span class="filter-color tool-result"></span>
+            <span>Tool Result</span>
+          </label>
+        </div>
+        <div id="search-results-list"></div>
+        <div class="search-nav">
+          <button id="search-prev" title="Previous match (Shift+Enter)">&#8593; Prev</button>
+          <button id="search-next" title="Next match (Enter)">Next &#8595;</button>
+          <button id="search-clear" title="Clear search (Esc)">Clear</button>
         </div>
       </div>
 

@@ -188,6 +188,13 @@ export class Controls {
   }
 
   /**
+   * Get the current target point
+   */
+  public getTarget(): THREE.Vector3 {
+    return this.target.clone();
+  }
+
+  /**
    * Dispose of event listeners
    */
   public dispose(): void {
