@@ -6,167 +6,185 @@ This document tracks the implementation roadmap for `thinking-trace-viewer`.
 
 Before implementation, these research-backed principles guide feature decisions:
 
-| Principle | Implementation Impact |
-|-----------|----------------------|
-| Hierarchy > linear | Use tree/graph layout, not scrolling text |
-| Breadth-first exploration | Overview mode with drill-down |
-| Thinking = first-class | Visible by default, equal visual weight |
-| Traceability | Selection highlights source reasoning |
-| Progressive disclosure | Collapse/expand with summaries |
+| Principle | Implementation Impact | Status |
+|-----------|----------------------|--------|
+| Hierarchy > linear | Use tree/graph layout, not scrolling text | Done |
+| Breadth-first exploration | Overview mode with drill-down | Done |
+| Thinking = first-class | Visible by default, equal visual weight | Done |
+| Traceability | Selection highlights source reasoning | Done |
+| Progressive disclosure | Collapse/expand with summaries | Done |
 
 ---
 
-## Phase 1: Foundation
+## Phase 1: Foundation - COMPLETE
 
 ### 1.1 Project Setup
-- [ ] Initialize project structure (TypeScript, bundler, dev server)
-- [ ] Set up WebGL rendering context with Three.js
-- [ ] Create basic HTML shell for standalone viewer
-- [ ] Configure build pipeline (Vite)
-- [ ] Set up testing infrastructure (Vitest)
+- [x] Initialize project structure (TypeScript, bundler, dev server)
+- [x] Set up WebGL rendering context with Three.js
+- [x] Create basic HTML shell for standalone viewer
+- [x] Configure build pipeline (Vite)
+- [x] Set up testing infrastructure (Vitest)
+- [x] Create Taskfile.yml for common operations
 
 ### 1.2 Data Layer
-- [ ] Define TypeScript interfaces for trace data model
+- [x] Define TypeScript interfaces for trace data model
   - Conversation, Turn, ContentBlock, ToolCall, ThinkingBlock
-- [ ] Implement Claude Code file parser
-  - Handle extended thinking blocks
-  - Parse tool calls and results
-  - Extract metadata (tokens, timestamps)
-- [ ] Create data normalization layer for future agent support
-- [ ] Add file drag-and-drop handler
+- [x] Implement Claude Code file parser
+  - [x] Handle JSONL format (line-by-line JSON)
+  - [x] Parse extended thinking blocks
+  - [x] Parse tool calls and results
+  - [x] Extract metadata (tokens, timestamps, model, git branch, cwd)
+- [x] Create data normalization layer for future agent support
+- [x] Add file drag-and-drop handler
+- [x] Add file select button
 
 ### 1.3 Basic 3D Scene
-- [ ] Implement camera controls (orbit, pan, zoom)
-- [ ] Create scene graph structure for conversation
-- [ ] Basic lighting and materials
-- [ ] Responsive canvas sizing
+- [x] Implement camera controls (orbit, pan, zoom)
+- [x] Create scene graph structure for conversation
+- [x] Basic lighting and materials
+- [x] Responsive canvas sizing
+- [x] Node color coding by type (user, assistant, thinking, tool_use, tool_result)
 
 ---
 
-## Phase 2: Core Visualization
+## Phase 2: Core Visualization - COMPLETE
 
-### 2.1 Hierarchical Layout Engine
+### 2.1 Clustering & Layout Engine
 *Research: Users prefer tree structure over linear text*
 
-- [ ] Implement tree layout algorithm for turns
-- [ ] Position nodes spatially (X: sequence, Y: branching, Z: depth/detail)
-- [ ] Handle conversation branching (edit/retry scenarios)
-- [ ] Animate layout transitions
+- [x] Implement turn-pair clustering (user + assistant grouped)
+- [x] Spiral/helix layout for clusters
+- [x] "Slinky" focus effect (compress ends, expand focus area)
+- [x] Animated layout transitions (400ms easing)
+- [x] Expand/collapse clusters with animation
 
 ### 2.2 Node Rendering
 *Research: Different content types need distinct visual treatment*
 
-- [ ] Design visual encoding for turn types:
-  - User prompts (input nodes)
-  - Assistant outputs (response nodes)
-  - Thinking blocks (reasoning nodes)
-  - Tool calls (action nodes)
-  - Tool results (data nodes)
-- [ ] Implement node meshes/sprites
-- [ ] Add labels and previews
-- [ ] Color coding by type/role
+- [x] Visual encoding for turn types:
+  - User prompts (blue cube)
+  - Assistant outputs (green cube)
+  - Thinking blocks (purple sphere)
+  - Tool calls (orange cone)
+  - Tool results (red octahedron)
+  - Clusters (teal sphere, sized by content)
+- [x] Color legend panel
 
 ### 2.3 Thinking Block Visualization
 *Research: Reasoning is often more valuable than output*
 
-- [ ] Render thinking blocks as expandable nodes
-- [ ] Show token count indicator
-- [ ] Handle redacted thinking blocks gracefully
-- [ ] Text rendering for thinking content (SDF text or HTML overlay)
+- [x] Render thinking blocks as expandable nodes
+- [x] Show thinking content in detail panel
+- [x] Copy button for thinking content
 
 ### 2.4 Tool Call Visualization
 *Research: "Tool usage makes an agent come to life"*
 
-- [ ] Render tool calls as distinct node type
-- [ ] Show tool name, arguments preview
-- [ ] Connect tool calls to their results
-- [ ] Indicate tool execution duration
+- [x] Render tool calls as distinct node type
+- [x] Show tool name, arguments in detail panel
+- [x] Show tool results with error status
+- [x] Copy buttons for tool input/output
 
 ---
 
-## Phase 3: Interaction & Navigation
+## Phase 3: Interaction & Navigation - COMPLETE
 
 ### 3.1 Selection & Focus
 *Research: Traceability—link outputs to source reasoning*
 
-- [ ] Click to select nodes
-- [ ] Selection highlights related nodes (prompt → thinking → output chain)
-- [ ] Detail panel shows full content of selected node
-- [ ] Keyboard navigation (arrow keys, enter to select)
+- [x] Click to select nodes (raycasting)
+- [x] Detail panel shows full content of selected node
+- [x] Keyboard navigation (arrow keys, Home/End, Escape)
+- [x] Double-click to expand/collapse clusters
+- [x] Enter/Space to toggle selected cluster
+- [x] Backspace to collapse
 
 ### 3.2 Breadth-First Overview Mode
 *Research: Users want to see structure first, then drill down*
 
-- [ ] Default "overview" camera position showing full conversation
-- [ ] Collapsed node state showing summary/preview only
-- [ ] Click to expand/drill into subtrees
-- [ ] "Fit all" button to return to overview
+- [x] Default spiral layout showing all clusters
+- [x] Collapsed cluster state with preview
+- [x] Click to expand/drill into clusters
+- [x] Fit camera to show all nodes on load
 
 ### 3.3 Progressive Disclosure
 *Research: Collapse complexity while preserving context*
 
-- [ ] Collapse/expand individual nodes
-- [ ] Collapse/expand subtrees
-- [ ] Auto-summarize collapsed content (first N chars or AI summary)
-- [ ] Visual indicator for collapsed state
+- [x] Collapse/expand individual clusters
+- [x] Summary info on collapsed clusters (thinking count, tool count)
+- [x] Visual sizing based on content amount
+- [x] Animated transitions preserve mental map
 
-### 3.4 Search & Filter
-- [ ] Text search across all content
-- [ ] Filter by node type (show only thinking, only tool calls, etc.)
-- [ ] Highlight search matches in 3D view
-- [ ] Jump to next/previous match
+### 3.4 Metrics Charts
+- [x] Stacked bar charts for per-turn metrics
+- [x] Metrics: total tokens, input/output tokens, thinking count, tool count, content length
+- [x] Click chart bars to navigate to cluster
+- [x] Toggle individual metrics on/off
+- [x] Resizable metrics panel
 
 ---
 
-## Phase 4: Context & Metadata
+## Phase 4: Context & Metadata - COMPLETE
 
 ### 4.1 Token Visualization
-*Research: Users care about context capacity (Amp shows warnings at 80%)*
+*Research: Users care about context capacity*
 
-- [ ] Show token count per turn
-- [ ] Cumulative token usage indicator
-- [ ] Visual warning at high context usage
-- [ ] Token breakdown by type (prompt, thinking, output)
+- [x] Show token count per turn in metrics chart
+- [x] Token breakdown (input, output) selectable
 
-### 4.2 Timeline View
-- [ ] Optional timeline mode (X = time)
-- [ ] Show duration of thinking/tool execution
-- [ ] Timestamp display on hover
+### 4.2 Session Metadata Panel
+- [x] Model info display
+- [x] Git branch display
+- [x] Session duration
+- [x] Working directory
+- [x] Claude Code version
 
-### 4.3 Metadata Panel
-- [ ] Model info display
-- [ ] Conversation stats (total turns, tokens, duration)
-- [ ] Export metadata as JSON
+### 4.3 Detail Panel
+- [x] Content block type summary
+- [x] Text content preview
+- [x] Thinking preview
+- [x] Tool names used
+- [x] Copy buttons for all content
+- [x] Raw JSON toggle
 
 ---
 
-## Phase 5: Polish & UX
+## Phase 5: Polish & UX - PARTIAL
 
-### 5.1 Performance Optimization
+### 5.1 Recent Traces
+- [x] IndexedDB storage for recent traces
+- [x] List in drop overlay
+- [x] Click to reload
+- [x] Delete individual / clear all
+
+### 5.2 Deployment
+- [x] GitHub Actions workflow for GitHub Pages
+- [x] Vite base path configuration
+- [x] Production build tested
+
+### 5.3 UI Chrome
+- [x] Control panel (info, legend, detail, metrics)
+- [x] Back button to file selector
+- [ ] Help overlay / keyboard shortcuts guide
+- [ ] Loading states for large files
+
+### 5.4 Performance Optimization
 - [ ] Instanced rendering for many nodes
 - [ ] Level-of-detail (simplify distant nodes)
 - [ ] Lazy loading for large conversations
-- [ ] Virtual scrolling for text content
-- [ ] Memory profiling and optimization
 
-### 5.2 Accessibility
+### 5.5 Accessibility
+- [x] Keyboard navigation
 - [ ] 2D fallback mode (no WebGL required)
-- [ ] Keyboard-only navigation
 - [ ] Screen reader descriptions
 - [ ] High contrast mode
 
-### 5.3 UI Chrome
-- [ ] Control panel (zoom, filter, layout options)
-- [ ] Settings/preferences persistence
-- [ ] Help overlay / keyboard shortcuts guide
-- [ ] Loading states and error handling
-
 ---
 
-## Phase 6: Expansion
+## Phase 6: Expansion - PLANNED
 
 ### 6.1 Additional Agent Formats
-- [ ] Abstract parser interface
+- [ ] Abstract parser interface (partially done)
 - [ ] Amp thread format support
 - [ ] ChatGPT export format support
 - [ ] Document format specification for contributors
@@ -177,27 +195,34 @@ Before implementation, these research-backed principles guide feature decisions:
 - [ ] Detect sub-agent spawning in traces
 - [ ] Render sub-agents as nested hierarchies
 - [ ] Show parallel execution visually
-- [ ] Collapse sub-agent details by default
 
 ### 6.3 Embedding API
 - [ ] Define public component API
 - [ ] React wrapper component
-- [ ] Vue wrapper component
-- [ ] Create integration examples
 - [ ] Publish as npm package
 
-### 6.4 Sharing & Export
-*Research: Amp users value sharing threads in code reviews*
-
-- [ ] Export view as image (PNG/SVG)
-- [ ] Generate shareable link (if hosted)
-- [ ] Export filtered/annotated trace
+### 6.4 Search & Filter
+- [ ] Text search across all content
+- [ ] Filter by node type
+- [ ] Highlight search matches
 
 ---
 
-## Current Focus
+## Current Status
 
-**Active**: Phase 1.1 - Project Setup
+**Phases 1-4 Complete**: Core viewer functionality is working with:
+- Spiral cluster layout with slinky focus effect
+- Full expand/collapse interaction
+- Metrics dashboard with click-to-navigate
+- Detail panel with copy buttons
+- Session metadata display
+- Recent traces storage
+- GitHub Pages deployment
+
+**Next priorities**:
+1. Additional agent format support
+2. Search/filter functionality
+3. Performance optimization for large traces
 
 ---
 
@@ -206,17 +231,8 @@ Before implementation, these research-backed principles guide feature decisions:
 | Layer | Choice | Rationale |
 |-------|--------|-----------|
 | Language | TypeScript | Type safety, IDE support |
-| Rendering | Three.js (WebGL) | Mature, well-documented, WebGPU path available |
+| Rendering | Three.js (WebGL) | Mature, well-documented |
 | Build | Vite | Fast dev server, good defaults |
 | Testing | Vitest | Fast, Vite-compatible |
-| Text rendering | troika-three-text | SDF text in Three.js |
-| UI overlay | Preact or vanilla | Minimal footprint for embedding |
-
----
-
-## Notes
-
-- Keep bundle size minimal for embedding use case (<500KB ideal)
-- Mobile/touch support from the start (pinch zoom, tap select)
-- Design render abstraction to allow WebGPU migration later
-- Consider WASM for layout computation if performance-critical
+| Storage | IndexedDB | Recent traces persistence |
+| Deployment | GitHub Pages | Free static hosting |

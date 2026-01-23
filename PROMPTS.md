@@ -214,3 +214,9 @@ i want to deploy this on github pages.  create a deploy.yml for me in .github/wo
 ## 2026-01-23T01:58:19Z
 
 can we test this before push?
+
+---
+
+## 2026-01-23T02:00:54Z
+
+review all the work we have done and update the readme and other relevant document files

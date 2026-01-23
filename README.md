@@ -1,73 +1,141 @@
 # thinking-trace-viewer
 
-A WebGL/WebGPU visualization tool for exploring LLM conversations in 3D environments.
+A 3D visualization tool for exploring LLM conversation traces. Navigate complex conversations with thinking blocks, tool calls, and multi-turn interactions in an interactive WebGL environment.
 
-## Why This Tool?
+**[Live Demo](https://neomantra.github.io/thinking-trace-viewer/)** | [Documentation](#documentation)
 
-Current LLM tooling falls into two camps:
+## Features
 
-| Category | Examples | Focus |
-|----------|----------|-------|
-| **Workflow tools** | Amp, ChatGPT history | Thread persistence, sharing, search |
-| **Interpretability tools** | Anthropic research | Neural network internals |
+### Spiral Cluster Layout
+Conversations are organized as a **spiral helix** of turn clusters, providing a compact overview while maintaining spatial relationships. Each cluster represents a user+assistant turn pair.
 
-**The gap**: Neither helps users navigate the *structure within* a conversation—understanding how prompts lead to thinking, how thinking connects to outputs, and how tool calls fit into the flow.
+- **Slinky effect**: The spiral compresses at the ends and expands around your focus point
+- **Click to navigate**: Select any cluster to focus on it
+- **Expand/collapse**: Double-click or press Enter to expand clusters and see individual blocks
 
-`thinking-trace-viewer` fills this gap by treating conversation structure as a first-class visualization problem. Research shows that users find reasoning processes often more valuable than final outputs, yet current tools present conversations as "walls of text" that create cognitive barriers.
+### Interactive 3D Navigation
+- **Orbit controls**: Drag to rotate, scroll to zoom, right-drag to pan
+- **Keyboard navigation**: Arrow keys to move between nodes, Home/End for first/last
+- **Click selection**: Click any node to see its details
 
-## Overview
+### Metrics Dashboard
+A resizable panel shows per-turn metrics as stacked bar charts:
+- **Total Tokens** / **Input Tokens** / **Output Tokens**
+- **Thinking Blocks** count
+- **Tool Calls** count
+- **Content Length**
 
-`thinking-trace-viewer` provides an interactive way to dissect and visualize LLM conversation "traces"—including prompts, thinking processes, tool calls, outputs, and metadata. Designed as an embeddable UI component, it can be integrated into other applications or run standalone for local exploration.
+Click any bar to jump directly to that turn. Toggle metrics on/off with checkboxes.
 
-## Key Features
+### Detail Panel
+View full content of any selected node:
+- **Turn summary**: Block type counts, text previews
+- **Thinking content**: Full reasoning with copy button
+- **Tool calls**: Tool name and JSON input with copy button
+- **Tool results**: Output content with success/error status
+- **Raw JSON**: Toggle to see the underlying data structure
 
-### Structural Navigation
-- **Hierarchical visualization**: Tree/graph layout reveals conversation structure (not just linear text)
-- **Breadth-first exploration**: See the overview first, drill into details on demand
-- **Traceability**: Link outputs back to the prompts and thinking that produced them
+### Session Metadata
+Displays conversation context:
+- Model name and version
+- Git branch (if available)
+- Session duration
+- Working directory
 
-### Trace Dissection
-- **Thinking blocks**: Explore model reasoning as first-class content
-- **Tool calls**: Visualize when and why tools were invoked
-- **Metadata**: Token counts, timestamps, model info at each turn
-
-### 3D Visualization
-- **Spatial layout**: Use depth and position to convey relationships
-- **WebGL rendering**: Hardware-accelerated graphics (WebGPU planned)
-- **Progressive disclosure**: Collapsible sections for long conversations
-
-### Practical
-- **Drag-and-drop**: Load conversation files directly
-- **Embeddable**: Use as a component in IDEs, dashboards, or debugging tools
-- **Claude Code support**: Parse Claude Code conversation files (more agents planned)
+### Recent Traces
+Automatically saves recently viewed traces (IndexedDB) for quick access.
 
 ## Getting Started
 
-### Standalone Usage
+### Online
+Visit the [live demo](https://neomantra.github.io/thinking-trace-viewer/) and drag-and-drop a Claude Code `.jsonl` file.
 
-1. Clone the repository
-2. Open the viewer in your browser
-3. Drag and drop your conversation files to visualize them
+### Local Development
 
-### As an Embedded Component
+```bash
+# Clone the repository
+git clone https://github.com/neomantra/thinking-trace-viewer
+cd thinking-trace-viewer
 
-```javascript
-// Integration documentation coming soon
+# Install dependencies
+npm install
+
+# Start development server
+npm run dev
+```
+
+Open http://localhost:3000 and drop a conversation file.
+
+### Building
+
+```bash
+# Production build
+npm run build
+
+# Preview production build
+npm run preview
+
+# Run tests
+npm run test
 ```
 
 ## Supported Formats
 
-- Claude Code conversation files (`.json`)
-- Additional agent formats planned
+| Format | Extension | Source |
+|--------|-----------|--------|
+| Claude Code | `.jsonl` | `~/.claude/projects/*/*.jsonl` |
 
-## Design Principles
+Additional agent formats planned.
 
-Based on research into how users interact with LLM reasoning:
+## Keyboard Shortcuts
 
-1. **Structure over text**: Hierarchical display beats linear "wall of text"
-2. **Overview first**: Users prefer breadth-first exploration
-3. **Reasoning is content**: Thinking blocks deserve equal attention to outputs
-4. **Show connections**: Trace outputs back to their source reasoning
+| Key | Action |
+|-----|--------|
+| `Arrow Right/Down` | Select next node |
+| `Arrow Left/Up` | Select previous node |
+| `Home` | Select first node |
+| `End` | Select last node |
+| `Enter` / `Space` | Expand/collapse selected cluster |
+| `Backspace` | Collapse current cluster |
+| `Escape` | Clear selection |
+
+## Architecture
+
+```
+src/
+├── core/           # 3D rendering (Three.js scene, controls, viewer)
+├── data/           # Data types and parsers
+│   ├── types.ts    # TypeScript interfaces
+│   └── parsers/    # Format-specific parsers
+└── utils/          # File handling, storage utilities
+```
+
+### Tech Stack
+
+| Layer | Choice |
+|-------|--------|
+| Language | TypeScript |
+| 3D Rendering | Three.js (WebGL) |
+| Build Tool | Vite |
+| Testing | Vitest |
+
+## Deployment
+
+The project includes GitHub Actions workflow for automatic deployment to GitHub Pages.
+
+To enable:
+1. Go to repo Settings → Pages
+2. Set Source to "GitHub Actions"
+3. Push to `main` branch
+
+## Documentation
+
+| Document | Purpose |
+|----------|---------|
+| [AGENTS.md](./AGENTS.md) | Project overview and research |
+| [MEMORY.md](./MEMORY.md) | Architecture decisions |
+| [PLAN.md](./PLAN.md) | Implementation roadmap |
+| [etc/reports/](./etc/reports/) | Research notes |
 
 ## License
 

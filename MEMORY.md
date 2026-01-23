@@ -76,6 +76,8 @@ Treat conversation structure as a **visualization problem**, not a text display 
 
 **Rationale**: WebGL has broader browser support while WebGPU is still gaining adoption. Design abstractions to allow future migration.
 
+**Implementation**: Using Three.js which provides both WebGL and WebGPU renderers.
+
 ### Component Design
 
 **Decision**: Build as embeddable UI component
@@ -87,6 +89,53 @@ Treat conversation structure as a **visualization problem**, not a text display 
 **Decision**: Start with Claude Code, expand to other agents
 
 **Rationale**: Claude Code provides a well-documented format to build initial implementation. Abstract data ingestion to support additional formats (Amp, ChatGPT, etc.).
+
+**Implementation**: `TraceParser` interface allows pluggable parsers. Currently implemented: `claudeCodeParser` for JSONL format.
+
+### Clustering Layout
+
+**Decision**: Use turn-pair clustering with spiral/helix arrangement
+
+**Rationale**: Long conversations create overwhelming linear layouts. Grouping user+assistant turns into clusters reduces visual complexity while maintaining conversation structure.
+
+**Implementation**:
+- Each cluster = user message + assistant response pair
+- Clusters arranged in a spiral helix (DNA-like structure)
+- Cluster size varies based on content (thinking blocks, tool calls)
+
+### Slinky Focus Effect
+
+**Decision**: Variable vertical spacing based on focus distance
+
+**Rationale**: Compress less-relevant parts of the conversation while expanding the area of interest. This "focus+context" technique from visualization research maintains overview while providing detail.
+
+**Implementation**:
+- Clusters near focus point have `maxVerticalSpacing` (2.0)
+- Distant clusters have `minVerticalSpacing` (0.3)
+- Smooth cosine falloff over `focusRadius` (3 clusters)
+- Focus follows selection, animates smoothly
+
+### Animation Strategy
+
+**Decision**: 400ms eased animations for layout changes
+
+**Rationale**: Preserves user's "mental map" during transitions. Research shows animated transitions help users track changes in spatial visualizations.
+
+**Implementation**:
+- Cubic ease-out for smooth deceleration
+- Store start positions, interpolate to targets
+- Selection transfers to parent cluster when child collapses
+
+### Recent Traces Storage
+
+**Decision**: Use IndexedDB for recent trace persistence
+
+**Rationale**: Need to store potentially large JSONL files (multi-MB). localStorage has 5MB limit. IndexedDB handles larger data and is async.
+
+**Implementation**:
+- Store up to 10 recent traces
+- LRU eviction when limit exceeded
+- Store full file content for instant reload
 
 ## Data Model
 
@@ -168,9 +217,23 @@ ThinkingBlock
 ### What metadata is most useful to surface?
 **Answer**: Token counts (users care about context capacity), timestamps, model info. Amp research shows context usage warnings (e.g., "80% capacity") are valued.
 
+## Answered Questions
+
+### What visual encoding best distinguishes thinking vs. output vs. tool calls?
+**Answer**: Combination of color and geometry:
+- User: Blue cube
+- Assistant: Green cube
+- Thinking: Purple sphere (semi-transparent)
+- Tool use: Orange cone
+- Tool result: Red octahedron
+- Cluster: Teal sphere (sized by content)
+
+### How to handle very long conversations?
+**Answer**: Spiral clustering with slinky focus effect. Compress distant turns, expand around selection. Click metrics chart bars to jump to any turn.
+
 ## Open Questions
 
-- [ ] What visual encoding best distinguishes thinking vs. output vs. tool calls?
 - [ ] How to represent sub-agents and parallel execution?
 - [ ] Should we support annotation/commenting on traces?
 - [ ] What export formats would be useful (image, PDF, shareable link)?
+- [ ] How to handle branching conversations (edit/retry)?
