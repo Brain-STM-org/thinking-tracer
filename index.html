@@ -26,17 +26,283 @@
         position: relative;
       }
 
-      #split-container {
+      /* ============================================
+         Toolbar
+         ============================================ */
+      #toolbar {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 44px;
+        background: #2a2a40;
+        border-bottom: 1px solid #3a3a5a;
+        z-index: 300;
+        display: none;
+        align-items: center;
+        padding: 0 12px;
+        gap: 12px;
+      }
+
+      #toolbar.visible {
+        display: flex;
+      }
+
+      #toolbar-back {
+        background: none;
+        border: none;
+        color: #888;
+        font-size: 16px;
+        cursor: pointer;
+        padding: 6px 10px;
+        border-radius: 4px;
+        transition: all 0.15s;
+        flex-shrink: 0;
+      }
+
+      #toolbar-back:hover {
+        color: #fff;
+        background: rgba(255,255,255,0.1);
+      }
+
+      .toolbar-divider {
+        width: 1px;
+        height: 24px;
+        background: #3a3a5a;
+        flex-shrink: 0;
+      }
+
+      #toolbar-title {
+        font-size: 14px;
+        font-weight: 600;
+        color: #ddd;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        min-width: 0;
+        flex-shrink: 1;
+      }
+
+      #toolbar-meta {
+        display: flex;
+        gap: 6px;
+        align-items: center;
+        flex-shrink: 2;
+        overflow: hidden;
+      }
+
+      #toolbar-meta .meta-item {
+        padding: 2px 8px;
+        background: #3a3a5c;
+        border-radius: 4px;
+        font-size: 11px;
+        color: #aaa;
+        white-space: nowrap;
+      }
+
+      .toolbar-spacer {
+        flex: 1;
+        min-width: 0;
+      }
+
+      /* View mode switcher */
+      .view-mode-group {
+        display: flex;
+        gap: 0;
+        flex-shrink: 0;
+      }
+
+      .view-mode-btn {
+        padding: 6px 12px;
+        font-size: 11px;
+        font-family: inherit;
+        background: #1a1a2e;
+        color: #888;
+        border: 1px solid #4a4a6a;
+        cursor: pointer;
+        transition: all 0.15s;
+      }
+
+      .view-mode-btn:first-child {
+        border-radius: 4px 0 0 4px;
+      }
+
+      .view-mode-btn:last-child {
+        border-radius: 0 4px 4px 0;
+      }
+
+      .view-mode-btn:not(:first-child) {
+        border-left: none;
+      }
+
+      .view-mode-btn:hover {
+        background: #2a2a40;
+        color: #bbb;
+      }
+
+      .view-mode-btn.active {
+        background: #4a90d9;
+        color: #fff;
+        border-color: #4a90d9;
+      }
+
+      /* Sidebar toggle */
+      #sidebar-toggle {
+        padding: 6px 10px;
+        font-size: 14px;
+        font-family: inherit;
+        background: none;
+        color: #888;
+        border: 1px solid #4a4a6a;
+        border-radius: 4px;
+        cursor: pointer;
+        transition: all 0.15s;
+        flex-shrink: 0;
+      }
+
+      #sidebar-toggle:hover {
+        background: #3a3a50;
+        color: #bbb;
+      }
+
+      #sidebar-toggle.active {
+        background: #4a90d9;
+        color: #fff;
+        border-color: #4a90d9;
+      }
+
+      /* Responsive toolbar */
+      @media (max-width: 800px) {
+        #toolbar-meta { display: none; }
+      }
+
+      @media (max-width: 600px) {
+        #toolbar-title { display: none; }
+        #toolbar .toolbar-divider:first-of-type { display: none; }
+      }
+
+      /* ============================================
+         Main Layout
+         ============================================ */
+      #main-container {
         display: flex;
         width: 100%;
         height: 100%;
       }
 
+      #main-container.with-toolbar {
+        height: calc(100% - 44px);
+        margin-top: 44px;
+      }
+
+      /* Sidebar */
+      #sidebar {
+        width: 280px;
+        min-width: 200px;
+        max-width: 400px;
+        background: #252538;
+        border-right: 1px solid #3a3a5a;
+        display: none;
+        flex-direction: column;
+        overflow: hidden;
+        flex-shrink: 0;
+      }
+
+      #sidebar.visible {
+        display: flex;
+      }
+
+      #sidebar-content {
+        flex: 1;
+        overflow-y: auto;
+        padding: 0;
+      }
+
+      /* Sidebar sections (accordion) */
+      .sidebar-section {
+        border-bottom: 1px solid #3a3a5a;
+      }
+
+      .sidebar-section:last-child {
+        border-bottom: none;
+      }
+
+      .sidebar-section-header {
+        padding: 12px 16px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        cursor: pointer;
+        background: #2a2a40;
+        transition: background 0.15s;
+        user-select: none;
+      }
+
+      .sidebar-section-header:hover {
+        background: #32324a;
+      }
+
+      .sidebar-section-header .arrow {
+        font-size: 10px;
+        color: #666;
+        transition: transform 0.2s;
+      }
+
+      .sidebar-section.expanded .sidebar-section-header .arrow {
+        transform: rotate(90deg);
+      }
+
+      .sidebar-section-header h3 {
+        font-size: 12px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        color: #999;
+        margin: 0;
+        flex: 1;
+      }
+
+      .sidebar-section-content {
+        display: none;
+        padding: 12px 16px;
+        background: #1e1e2e;
+      }
+
+      .sidebar-section.expanded .sidebar-section-content {
+        display: block;
+      }
+
+      /* Sidebar resize handle */
+      #sidebar-resize {
+        width: 4px;
+        cursor: ew-resize;
+        background: transparent;
+        flex-shrink: 0;
+        transition: background 0.15s;
+      }
+
+      #sidebar-resize:hover,
+      #sidebar-resize.dragging {
+        background: #4a90d9;
+      }
+
+      /* Content area */
+      #content-area {
+        flex: 1;
+        display: flex;
+        min-width: 0;
+        position: relative;
+      }
+
       #canvas-pane {
         flex: 1;
-        min-width: 300px;
+        min-width: 200px;
         position: relative;
         overflow: hidden;
+      }
+
+      #canvas-pane.hidden {
+        display: none;
       }
 
       #canvas-container {
@@ -52,6 +318,11 @@
         position: relative;
         z-index: 100;
         transition: background 0.15s;
+        display: none;
+      }
+
+      #split-handle.visible {
+        display: block;
       }
 
       #split-handle:hover,
@@ -74,7 +345,6 @@
       #conversation-pane {
         width: 400px;
         min-width: 250px;
-        max-width: 60%;
         background: #1e1e2e;
         display: none;
         flex-direction: column;
@@ -83,6 +353,13 @@
 
       #conversation-pane.visible {
         display: flex;
+      }
+
+      #conversation-pane.full-width {
+        flex: 1;
+        width: auto;
+        max-width: none;
+        border-left: none;
       }
 
       #conversation-header {
@@ -113,7 +390,9 @@
         padding: 16px;
       }
 
-      /* Conversation blocks */
+      /* ============================================
+         Conversation blocks
+         ============================================ */
       .conv-turn {
         margin-bottom: 20px;
         scroll-margin-top: 20px;
@@ -254,17 +533,9 @@
         transition: background 0.15s;
       }
 
-      .conv-tool.tool-use .conv-tool-header {
-        color: #f39c12;
-      }
-
-      .conv-tool.tool-result .conv-tool-header {
-        color: #e74c3c;
-      }
-
-      .conv-tool.tool-result.success .conv-tool-header {
-        color: #27ae60;
-      }
+      .conv-tool.tool-use .conv-tool-header { color: #f39c12; }
+      .conv-tool.tool-result .conv-tool-header { color: #e74c3c; }
+      .conv-tool.tool-result.success .conv-tool-header { color: #27ae60; }
 
       .conv-tool-header:hover {
         background: rgba(255,255,255,0.05);
@@ -302,6 +573,9 @@
         display: block;
       }
 
+      /* ============================================
+         Drop Overlay
+         ============================================ */
       #drop-overlay {
         position: fixed;
         top: 0;
@@ -319,14 +593,8 @@
         transition: opacity 0.2s ease;
       }
 
-      #drop-overlay.active {
-        opacity: 1;
-      }
-
-      #drop-overlay.visible {
-        pointer-events: auto;
-        opacity: 1;
-      }
+      #drop-overlay.active { opacity: 1; }
+      #drop-overlay.visible { pointer-events: auto; opacity: 1; }
 
       #recent-traces {
         margin-top: 30px;
@@ -335,9 +603,7 @@
         padding: 0 20px;
       }
 
-      #recent-traces.hidden {
-        display: none;
-      }
+      #recent-traces.hidden { display: none; }
 
       .recent-header {
         display: flex;
@@ -394,16 +660,8 @@
         border-color: #4a90d9;
       }
 
-      .recent-item-icon {
-        font-size: 24px;
-        flex-shrink: 0;
-      }
-
-      .recent-item-info {
-        flex: 1;
-        min-width: 0;
-      }
-
+      .recent-item-icon { font-size: 24px; flex-shrink: 0; }
+      .recent-item-info { flex: 1; min-width: 0; }
       .recent-item-title {
         font-size: 14px;
         font-weight: 500;
@@ -412,13 +670,11 @@
         overflow: hidden;
         text-overflow: ellipsis;
       }
-
       .recent-item-meta {
         font-size: 12px;
         color: #888;
         margin-top: 2px;
       }
-
       .recent-item-delete {
         background: none;
         border: none;
@@ -430,32 +686,15 @@
         opacity: 0;
         transition: opacity 0.15s ease;
       }
-
-      .recent-item:hover .recent-item-delete {
-        opacity: 1;
-      }
-
+      .recent-item:hover .recent-item-delete { opacity: 1; }
       .recent-item-delete:hover {
         color: #e74c3c;
         background: rgba(231, 76, 60, 0.1);
       }
 
-      .drop-icon {
-        font-size: 64px;
-        margin-bottom: 20px;
-      }
-
-      .drop-text {
-        font-size: 24px;
-        color: #888;
-      }
-
-      .drop-subtext {
-        font-size: 14px;
-        color: #666;
-        margin-top: 10px;
-      }
-
+      .drop-icon { font-size: 64px; margin-bottom: 20px; }
+      .drop-text { font-size: 24px; color: #888; }
+      .drop-subtext { font-size: 14px; color: #666; margin-top: 10px; }
       .drop-divider {
         display: flex;
         align-items: center;
@@ -464,7 +703,6 @@
         color: #666;
         font-size: 14px;
       }
-
       .drop-divider::before,
       .drop-divider::after {
         content: '';
@@ -485,226 +723,19 @@
         cursor: pointer;
         transition: background 0.2s ease;
       }
+      #file-select-btn:hover { background: #5a9fe9; }
+      #file-select-btn:active { background: #3a80c9; }
+      #file-input { display: none; }
 
-      #file-select-btn:hover {
-        background: #5a9fe9;
-      }
+      /* ============================================
+         Sidebar Section Contents
+         ============================================ */
 
-      #file-select-btn:active {
-        background: #3a80c9;
-      }
-
-      #file-input {
-        display: none;
-      }
-
-      #info-panel {
-        position: fixed;
-        top: 20px;
-        left: 20px;
-        background: #3a3a5c;
-        border: 1px solid #6a6a9a;
-        padding: 15px 20px;
-        border-radius: 8px;
-        font-size: 14px;
-        z-index: 200;
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
-      }
-
-      #info-panel h1 {
-        font-size: 16px;
-        font-weight: 600;
-        margin-bottom: 8px;
-        color: #fff;
-      }
-
-      #info-panel p {
-        color: #ddd;
-        line-height: 1.5;
-      }
-
-      .panel-toggles {
-        display: flex;
-        gap: 6px;
-        margin-top: 10px;
-        padding-top: 10px;
-        border-top: 1px solid #4a4a6a;
-        flex-wrap: wrap;
-      }
-
-      .panel-toggle {
-        padding: 4px 10px;
-        font-size: 11px;
-        font-family: inherit;
-        background: #2a2a40;
-        color: #888;
-        border: 1px solid #4a4a6a;
-        border-radius: 4px;
-        cursor: pointer;
-        transition: all 0.15s;
-      }
-
-      .panel-toggle:hover {
-        background: #3a3a50;
-        color: #bbb;
-        border-color: #5a5a7a;
-      }
-
-      .panel-toggle.active {
-        background: #4a90d9;
-        color: #fff;
-        border-color: #4a90d9;
-      }
-
-      .panel-close-btn {
-        background: none;
-        border: none;
-        color: #666;
-        font-size: 14px;
-        cursor: pointer;
-        padding: 2px 6px;
-        line-height: 1;
-        border-radius: 3px;
-        flex-shrink: 0;
-      }
-
-      .panel-close-btn:hover {
-        color: #fff;
-        background: rgba(255,255,255,0.1);
-      }
-
-      .meta-row {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 8px;
-        margin-bottom: 10px;
-      }
-
-      .meta-item {
-        display: inline-block;
-        padding: 2px 8px;
-        background: #2a2a40;
-        border-radius: 4px;
-        font-size: 11px;
-        color: #aaa;
-        white-space: nowrap;
-      }
-
-      #back-btn {
-        margin-top: 12px;
-        padding: 6px 12px;
-        font-size: 12px;
-        font-family: inherit;
-        background: transparent;
-        color: #aaa;
-        border: 1px solid #5a5a7a;
-        border-radius: 4px;
-        cursor: pointer;
-        transition: all 0.15s ease;
-      }
-
-      #back-btn:hover {
-        background: #4a4a6a;
-        color: #fff;
-        border-color: #6a6a9a;
-      }
-
-      #stats {
-        position: fixed;
-        bottom: 20px;
-        left: 20px;
-        background: #3a3a5c;
-        border: 1px solid #6a6a9a;
-        padding: 10px 15px;
-        border-radius: 8px;
-        font-size: 12px;
-        font-family: monospace;
-        z-index: 200;
-        color: #ddd;
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
-      }
-
-      #metrics-panel {
-        position: fixed;
-        top: 20px;
-        left: 20px;
-        width: 260px;
-        min-width: 180px;
-        max-width: 500px;
-        background: #3a3a5c;
-        border: 1px solid #6a6a9a;
-        padding: 10px;
-        padding-right: 18px;
-        border-radius: 8px;
-        z-index: 199;
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
-        display: none;
-      }
-
-      #metrics-panel.visible {
-        display: block;
-      }
-
-      .metrics-resize-handle {
-        position: absolute;
-        right: 0;
-        top: 0;
-        bottom: 0;
-        width: 12px;
-        cursor: ew-resize;
-        background: linear-gradient(to right, transparent, rgba(255,255,255,0.05));
-        border-left: 1px solid rgba(255,255,255,0.1);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        opacity: 0.5;
-        transition: opacity 0.15s, background 0.15s;
-      }
-
-      .metrics-resize-handle:hover {
-        opacity: 1;
-        background: linear-gradient(to right, transparent, rgba(255,255,255,0.15));
-      }
-
-      .metrics-resize-handle::before {
-        content: '⋮⋮';
-        font-size: 10px;
-        color: #888;
-        letter-spacing: -2px;
-      }
-
-      .metrics-resize-handle:hover::before {
-        color: #bbb;
-      }
-
-      .metrics-header {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        margin-bottom: 8px;
-        padding-bottom: 6px;
-        border-bottom: 1px solid #4a4a6a;
-      }
-
-      .metrics-header h3 {
-        font-size: 11px;
-        font-weight: 600;
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
-        color: #999;
-        margin: 0;
-      }
-
-      .metrics-range {
-        font-size: 10px;
-        color: #666;
-        margin-left: auto;
-      }
-
+      /* Metrics */
       #metrics-stack {
         display: flex;
         flex-direction: column;
-        gap: 4px;
+        gap: 6px;
       }
 
       .metric-row {
@@ -714,16 +745,14 @@
         min-width: 0;
       }
 
-      .metric-row.hidden .metric-canvas {
-        display: none;
-      }
+      .metric-row.hidden .metric-canvas { display: none; }
 
       .metric-toggle {
         display: flex;
         align-items: center;
         gap: 4px;
         cursor: pointer;
-        min-width: 85px;
+        min-width: 80px;
       }
 
       .metric-toggle input {
@@ -739,9 +768,7 @@
         white-space: nowrap;
       }
 
-      .metric-row:not(.hidden) .metric-label {
-        color: #bbb;
-      }
+      .metric-row:not(.hidden) .metric-label { color: #bbb; }
 
       .metric-chart-container {
         flex: 1;
@@ -754,67 +781,28 @@
         cursor: pointer;
       }
 
-      .metric-chart-container:hover {
-        background: #323248;
-      }
+      .metric-chart-container:hover { background: #323248; }
 
-      /* Hide scrollbar but keep functionality */
-      .metric-chart-container::-webkit-scrollbar {
-        height: 4px;
-      }
-
-      .metric-chart-container::-webkit-scrollbar-track {
-        background: transparent;
-      }
-
-      .metric-chart-container::-webkit-scrollbar-thumb {
-        background: rgba(255,255,255,0.2);
-        border-radius: 2px;
-      }
-
-      .metric-chart-container::-webkit-scrollbar-thumb:hover {
-        background: rgba(255,255,255,0.4);
-      }
+      .metric-chart-container::-webkit-scrollbar { height: 4px; }
+      .metric-chart-container::-webkit-scrollbar-track { background: transparent; }
+      .metric-chart-container::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.2); border-radius: 2px; }
 
       .metric-canvas {
         height: 24px;
         display: block;
       }
 
-      #word-freq-panel {
-        position: fixed;
-        top: 20px;
-        left: 20px;
-        width: 260px;
-        background: #3a3a5c;
-        border: 1px solid #6a6a9a;
-        padding: 10px;
-        border-radius: 8px;
-        z-index: 198;
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
-        display: none;
+      .metrics-range {
+        font-size: 10px;
+        color: #666;
       }
 
-      #word-freq-panel.visible {
-        display: block;
-      }
-
-      .word-freq-header {
+      /* Word frequency */
+      #word-freq-header {
         display: flex;
         align-items: center;
         gap: 8px;
         margin-bottom: 10px;
-        padding-bottom: 6px;
-        border-bottom: 1px solid #4a4a6a;
-      }
-
-      .word-freq-header h3 {
-        font-size: 11px;
-        font-weight: 600;
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
-        color: #999;
-        margin: 0;
       }
 
       #word-freq-source {
@@ -825,7 +813,6 @@
         border: 1px solid #5a5a7a;
         border-radius: 3px;
         cursor: pointer;
-        margin-left: auto;
       }
 
       #word-freq-chart {
@@ -845,13 +832,8 @@
         transition: background 0.15s;
       }
 
-      .word-freq-row:hover {
-        background: rgba(255, 255, 255, 0.05);
-      }
-
-      .word-freq-row.active {
-        background: rgba(255, 255, 255, 0.1);
-      }
+      .word-freq-row:hover { background: rgba(255, 255, 255, 0.05); }
+      .word-freq-row.active { background: rgba(255, 255, 255, 0.1); }
 
       .word-freq-color {
         width: 10px;
@@ -869,7 +851,7 @@
       }
 
       .word-freq-label {
-        width: 60px;
+        width: 55px;
         font-size: 11px;
         color: #bbb;
         text-align: right;
@@ -879,10 +861,7 @@
         flex-shrink: 0;
       }
 
-      .word-freq-row.active .word-freq-label {
-        color: #fff;
-        font-weight: 500;
-      }
+      .word-freq-row.active .word-freq-label { color: #fff; font-weight: 500; }
 
       .word-freq-bar-container {
         flex: 1;
@@ -901,65 +880,22 @@
       }
 
       .word-freq-row:hover .word-freq-bar,
-      .word-freq-row.active .word-freq-bar {
-        opacity: 1;
-      }
+      .word-freq-row.active .word-freq-bar { opacity: 1; }
 
       .word-freq-count {
-        width: 30px;
+        width: 28px;
         font-size: 10px;
         color: #888;
         text-align: left;
         flex-shrink: 0;
       }
 
-      .word-freq-row.active .word-freq-count {
-        color: #bbb;
-      }
+      .word-freq-row.active .word-freq-count { color: #bbb; }
 
-      #search-panel {
-        position: fixed;
-        top: 20px;
-        right: 20px;
-        width: 280px;
-        background: #3a3a5c;
-        border: 1px solid #6a6a9a;
-        padding: 12px;
-        border-radius: 8px;
-        z-index: 201;
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
-        display: none;
-      }
-
-      #search-panel.visible {
-        display: block;
-      }
-
-      .search-panel-header {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        margin-bottom: 10px;
-        padding-bottom: 8px;
-        border-bottom: 1px solid #4a4a6a;
-      }
-
-      .search-panel-header h3 {
-        font-size: 11px;
-        font-weight: 600;
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
-        color: #999;
-        margin: 0;
-      }
-
-      .search-input-row {
-        margin-bottom: 10px;
-      }
-
+      /* Search */
       #search-input {
         width: 100%;
-        padding: 6px 10px;
+        padding: 8px 10px;
         font-size: 13px;
         font-family: inherit;
         background: #2a2a40;
@@ -967,23 +903,11 @@
         border: 1px solid #5a5a7a;
         border-radius: 4px;
         outline: none;
-        box-sizing: border-box;
+        margin-bottom: 10px;
       }
 
-      #search-input:focus {
-        border-color: #4a90d9;
-      }
-
-      #search-input::placeholder {
-        color: #666;
-      }
-
-      #search-results-count {
-        font-size: 11px;
-        color: #888;
-        white-space: nowrap;
-        margin-left: auto;
-      }
+      #search-input:focus { border-color: #4a90d9; }
+      #search-input::placeholder { color: #666; }
 
       .search-filters {
         display: flex;
@@ -996,7 +920,7 @@
         display: flex;
         align-items: center;
         gap: 4px;
-        font-size: 11px;
+        font-size: 10px;
         color: #aaa;
         cursor: pointer;
       }
@@ -1020,15 +944,16 @@
       .filter-color.tool-use { background: #f39c12; }
       .filter-color.tool-result { background: #e74c3c; }
 
-      #search-results-list {
-        max-height: 300px;
-        overflow-y: auto;
-        margin-bottom: 10px;
-        display: none;
+      #search-results-count {
+        font-size: 11px;
+        color: #888;
+        margin-bottom: 8px;
       }
 
-      #search-results-list.has-results {
-        display: block;
+      #search-results-list {
+        max-height: 200px;
+        overflow-y: auto;
+        margin-bottom: 10px;
       }
 
       .search-result-item {
@@ -1041,14 +966,8 @@
         transition: all 0.15s;
       }
 
-      .search-result-item:hover {
-        background: #3a3a50;
-      }
-
-      .search-result-item.active {
-        background: #3a4a60;
-        border-left-color: #fff;
-      }
+      .search-result-item:hover { background: #3a3a50; }
+      .search-result-item.active { background: #3a4a60; border-left-color: #fff; }
 
       .search-result-item.user { border-left-color: #4a90d9; }
       .search-result-item.assistant { border-left-color: #50c878; }
@@ -1064,10 +983,10 @@
       }
 
       .search-result-type {
-        font-size: 10px;
+        font-size: 9px;
         font-weight: 600;
         text-transform: uppercase;
-        padding: 1px 5px;
+        padding: 1px 4px;
         border-radius: 3px;
         color: #fff;
       }
@@ -1078,10 +997,7 @@
       .search-result-type.tool_use { background: #f39c12; }
       .search-result-type.tool_result { background: #e74c3c; }
 
-      .search-result-turn {
-        font-size: 10px;
-        color: #888;
-      }
+      .search-result-turn { font-size: 10px; color: #888; }
 
       .search-result-snippet {
         font-size: 11px;
@@ -1117,160 +1033,22 @@
         transition: all 0.15s;
       }
 
-      .search-nav button:hover {
-        background: #3a3a50;
-        color: #ddd;
-        border-color: #6a6a9a;
-      }
+      .search-nav button:hover { background: #3a3a50; color: #ddd; }
+      .search-nav button:disabled { opacity: 0.5; cursor: not-allowed; }
 
-      .search-nav button:disabled {
-        opacity: 0.5;
-        cursor: not-allowed;
-      }
-
-      #legend {
-        position: fixed;
-        bottom: 20px;
-        right: 20px;
-        background: #3a3a5c;
-        border: 1px solid #6a6a9a;
-        padding: 12px 16px;
-        border-radius: 8px;
-        font-size: 12px;
-        z-index: 200;
-        color: #ddd;
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
-        display: none;
-      }
-
-      #legend.visible {
-        display: block;
-      }
-
-      #legend h3 {
-        font-size: 11px;
-        font-weight: 600;
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
-        color: #999;
-        margin-bottom: 10px;
-      }
-
-      .legend-item {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        margin-bottom: 6px;
-      }
-
-      .legend-item:last-child {
-        margin-bottom: 0;
-      }
-
-      .legend-color {
-        width: 14px;
-        height: 14px;
-        border-radius: 3px;
-        flex-shrink: 0;
-      }
-
-      .legend-color.user { background: #4a90d9; }
-      .legend-color.assistant { background: #50c878; }
-      .legend-color.thinking { background: #9b59b6; }
-      .legend-color.tool-use { background: #f39c12; }
-      .legend-color.tool-result { background: #e74c3c; }
-
-      .legend-label {
-        color: #ccc;
-      }
-
-      #detail-panel {
-        position: fixed;
-        top: 20px;
-        right: 420px;
-        width: 320px;
-        max-height: calc(100vh - 100px);
-        background: #3a3a5c;
-        border: 1px solid #6a6a9a;
-        border-radius: 8px;
-        font-size: 13px;
-        z-index: 200;
-        color: #ddd;
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
-        display: none;
-        overflow: hidden;
-      }
-
-      #detail-panel.visible {
-        display: flex;
-        flex-direction: column;
-      }
-
-      #detail-panel-header {
-        padding: 10px 12px;
-        border-bottom: 1px solid #4a4a6a;
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        cursor: grab;
-        user-select: none;
-      }
-
-      #detail-panel-header:active {
-        cursor: grabbing;
-      }
-
-      #detail-panel-header h3 {
-        font-size: 11px;
-        font-weight: 600;
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
-        color: #999;
-        margin: 0;
-      }
-
-      #detail-panel-header .drag-hint {
-        font-size: 10px;
-        color: #555;
-        margin-left: auto;
-      }
-
-      #detail-panel-close {
-        background: none;
-        border: none;
-        color: #666;
-        font-size: 14px;
-        cursor: pointer;
-        padding: 2px 6px;
-        line-height: 1;
-        border-radius: 3px;
-      }
-
-      #detail-panel-close:hover {
-        color: #fff;
-        background: rgba(255,255,255,0.1);
-      }
-
+      /* Details */
       .detail-empty {
-        padding: 40px 20px;
+        padding: 20px;
         text-align: center;
         color: #666;
         font-style: italic;
       }
 
-      #detail-panel-content {
-        padding: 16px;
-        overflow-y: auto;
-        flex: 1;
-      }
-
       .detail-section {
-        margin-bottom: 16px;
+        margin-bottom: 14px;
       }
 
-      .detail-section:last-child {
-        margin-bottom: 0;
-      }
+      .detail-section:last-child { margin-bottom: 0; }
 
       .detail-section-label {
         font-size: 10px;
@@ -1295,15 +1073,8 @@
         transition: all 0.15s ease;
       }
 
-      .copy-btn:hover {
-        border-color: #7a7a9a;
-        color: #bbb;
-      }
-
-      .copy-btn.copied {
-        border-color: #50c878;
-        color: #50c878;
-      }
+      .copy-btn:hover { border-color: #7a7a9a; color: #bbb; }
+      .copy-btn.copied { border-color: #50c878; color: #50c878; }
 
       .detail-section-content {
         color: #ddd;
@@ -1311,15 +1082,16 @@
         white-space: pre-wrap;
         word-break: break-word;
         font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        font-size: 12px;
       }
 
       .detail-section-content.code {
-        font-family: 'SF Mono', Monaco, 'Cascadia Code', monospace;
-        font-size: 12px;
+        font-family: 'SF Mono', Monaco, monospace;
+        font-size: 11px;
         background: #2a2a40;
-        padding: 10px;
+        padding: 8px;
         border-radius: 4px;
-        max-height: 300px;
+        max-height: 200px;
         overflow-y: auto;
       }
 
@@ -1340,8 +1112,8 @@
       .detail-type-badge.cluster { background: #5a9a7a; color: #fff; }
 
       .detail-action-btn {
-        padding: 8px 16px;
-        font-size: 13px;
+        padding: 6px 12px;
+        font-size: 12px;
         font-family: inherit;
         background: #4a90d9;
         color: white;
@@ -1351,56 +1123,29 @@
         transition: background 0.15s ease;
       }
 
-      .detail-action-btn:hover {
-        background: #5a9fe9;
-      }
-
-      .detail-action-btn:active {
-        background: #3a80c9;
-      }
+      .detail-action-btn:hover { background: #5a9fe9; }
 
       .cluster-list {
         display: flex;
         flex-direction: column;
-        gap: 6px;
+        gap: 4px;
       }
 
       .cluster-list-item {
-        padding: 8px 10px;
+        padding: 6px 8px;
         background: #2a2a40;
         border-radius: 4px;
-        font-size: 12px;
+        font-size: 11px;
         line-height: 1.4;
         border-left: 3px solid #666;
         white-space: pre-wrap;
         word-break: break-word;
       }
 
-      .cluster-list-item.thinking {
-        border-left-color: #9b59b6;
-        font-family: 'SF Mono', Monaco, 'Cascadia Code', monospace;
-        color: #bbb;
-      }
-
-      .cluster-list-item.tool_use {
-        border-left-color: #f39c12;
-        font-weight: 500;
-      }
-
-      .cluster-list-item.tool_result {
-        border-left-color: #e74c3c;
-        font-family: 'SF Mono', Monaco, 'Cascadia Code', monospace;
-        color: #bbb;
-      }
-
-      .cluster-list-item.tool_result.success {
-        border-left-color: #27ae60;
-      }
-
-      .cluster-list-item.tool_result.error {
-        border-left-color: #e74c3c;
-        background: rgba(231, 76, 60, 0.1);
-      }
+      .cluster-list-item.thinking { border-left-color: #9b59b6; font-family: 'SF Mono', Monaco, monospace; color: #bbb; }
+      .cluster-list-item.tool_use { border-left-color: #f39c12; font-weight: 500; }
+      .cluster-list-item.tool_result { border-left-color: #e74c3c; font-family: 'SF Mono', Monaco, monospace; color: #bbb; }
+      .cluster-list-item.tool_result.success { border-left-color: #27ae60; }
 
       .raw-toggle-btn {
         background: none;
@@ -1413,37 +1158,264 @@
         transition: all 0.15s ease;
       }
 
-      .raw-toggle-btn:hover {
-        border-color: #7a7a9a;
-        color: #bbb;
-      }
+      .raw-toggle-btn:hover { border-color: #7a7a9a; color: #bbb; }
 
       .raw-data {
-        max-height: 400px;
+        max-height: 200px;
         overflow-y: auto;
-        font-size: 11px;
+        font-size: 10px;
         margin-top: 8px;
       }
+
+      /* ============================================
+         Legend (floating, bottom-right of canvas)
+         ============================================ */
+      #legend {
+        position: absolute;
+        bottom: 20px;
+        right: 20px;
+        background: rgba(58, 58, 92, 0.9);
+        border: 1px solid #6a6a9a;
+        padding: 10px 14px;
+        border-radius: 8px;
+        font-size: 11px;
+        z-index: 50;
+        color: #ddd;
+        display: none;
+      }
+
+      #legend.visible { display: block; }
+
+      #legend h3 {
+        font-size: 10px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        color: #999;
+        margin-bottom: 8px;
+      }
+
+      .legend-item {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-bottom: 4px;
+      }
+
+      .legend-item:last-child { margin-bottom: 0; }
+
+      .legend-color {
+        width: 12px;
+        height: 12px;
+        border-radius: 3px;
+        flex-shrink: 0;
+      }
+
+      .legend-color.user { background: #4a90d9; }
+      .legend-color.assistant { background: #50c878; }
+      .legend-color.thinking { background: #9b59b6; }
+      .legend-color.tool-use { background: #f39c12; }
+      .legend-color.tool-result { background: #e74c3c; }
+
+      .legend-label { color: #bbb; font-size: 11px; }
+
+      /* Stats (hidden by default, can show in sidebar or floating) */
+      #stats { display: none; }
     </style>
   </head>
   <body>
     <div id="app">
-      <div id="split-container">
-        <div id="canvas-pane">
-          <div id="canvas-container"></div>
+      <!-- Toolbar -->
+      <div id="toolbar">
+        <button id="toolbar-back" title="Back to file selection">&larr;</button>
+        <div class="toolbar-divider"></div>
+        <div id="toolbar-title">Thinking Tracer</div>
+        <div id="toolbar-meta"></div>
+        <div class="toolbar-spacer"></div>
+        <div class="view-mode-group">
+          <button class="view-mode-btn" data-mode="3d" title="3D View Only">3D</button>
+          <button class="view-mode-btn active" data-mode="split" title="Split View">Split</button>
+          <button class="view-mode-btn" data-mode="conversation" title="Conversation Only">Conv</button>
         </div>
-        <div id="split-handle"></div>
-        <div id="conversation-pane">
-          <div id="conversation-header">
-            <h3>Conversation</h3>
-            <span id="conversation-turn-indicator"></span>
+        <button id="sidebar-toggle" title="Toggle Sidebar">&#9776;</button>
+      </div>
+
+      <!-- Main container -->
+      <div id="main-container">
+        <!-- Sidebar -->
+        <div id="sidebar">
+          <div id="sidebar-content">
+            <!-- Metrics Section -->
+            <div class="sidebar-section expanded" data-section="metrics">
+              <div class="sidebar-section-header">
+                <span class="arrow">&#9658;</span>
+                <h3>Metrics</h3>
+                <span class="metrics-range"><span id="chart-range">1-N</span></span>
+              </div>
+              <div class="sidebar-section-content">
+                <div id="metrics-stack">
+                  <div class="metric-row" data-metric="totalTokens">
+                    <label class="metric-toggle">
+                      <input type="checkbox" checked>
+                      <span class="metric-label">Total Tokens</span>
+                    </label>
+                    <div class="metric-chart-container"><canvas class="metric-canvas"></canvas></div>
+                  </div>
+                  <div class="metric-row" data-metric="outputTokens">
+                    <label class="metric-toggle">
+                      <input type="checkbox" checked>
+                      <span class="metric-label">Output</span>
+                    </label>
+                    <div class="metric-chart-container"><canvas class="metric-canvas"></canvas></div>
+                  </div>
+                  <div class="metric-row" data-metric="inputTokens">
+                    <label class="metric-toggle">
+                      <input type="checkbox">
+                      <span class="metric-label">Input</span>
+                    </label>
+                    <div class="metric-chart-container"><canvas class="metric-canvas"></canvas></div>
+                  </div>
+                  <div class="metric-row" data-metric="thinkingCount">
+                    <label class="metric-toggle">
+                      <input type="checkbox" checked>
+                      <span class="metric-label">Thinking</span>
+                    </label>
+                    <div class="metric-chart-container"><canvas class="metric-canvas"></canvas></div>
+                  </div>
+                  <div class="metric-row" data-metric="toolCount">
+                    <label class="metric-toggle">
+                      <input type="checkbox" checked>
+                      <span class="metric-label">Tools</span>
+                    </label>
+                    <div class="metric-chart-container"><canvas class="metric-canvas"></canvas></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Words Section -->
+            <div class="sidebar-section expanded" data-section="words">
+              <div class="sidebar-section-header">
+                <span class="arrow">&#9658;</span>
+                <h3>Top Words</h3>
+              </div>
+              <div class="sidebar-section-content">
+                <div id="word-freq-header">
+                  <select id="word-freq-source">
+                    <option value="all">All Content</option>
+                    <option value="user">User Only</option>
+                    <option value="assistant">Assistant Only</option>
+                    <option value="thinking">Thinking Only</option>
+                  </select>
+                </div>
+                <div id="word-freq-chart"></div>
+              </div>
+            </div>
+
+            <!-- Search Section -->
+            <div class="sidebar-section" data-section="search">
+              <div class="sidebar-section-header">
+                <span class="arrow">&#9658;</span>
+                <h3>Search</h3>
+              </div>
+              <div class="sidebar-section-content">
+                <input type="text" id="search-input" placeholder="Search... (/)">
+                <div class="search-filters">
+                  <label class="search-filter">
+                    <input type="checkbox" data-type="user" checked>
+                    <span class="filter-color user"></span>
+                    <span>User</span>
+                  </label>
+                  <label class="search-filter">
+                    <input type="checkbox" data-type="assistant" checked>
+                    <span class="filter-color assistant"></span>
+                    <span>Asst</span>
+                  </label>
+                  <label class="search-filter">
+                    <input type="checkbox" data-type="thinking" checked>
+                    <span class="filter-color thinking"></span>
+                    <span>Think</span>
+                  </label>
+                  <label class="search-filter">
+                    <input type="checkbox" data-type="tool_use" checked>
+                    <span class="filter-color tool-use"></span>
+                    <span>Tool</span>
+                  </label>
+                  <label class="search-filter">
+                    <input type="checkbox" data-type="tool_result" checked>
+                    <span class="filter-color tool-result"></span>
+                    <span>Result</span>
+                  </label>
+                </div>
+                <div id="search-results-count"></div>
+                <div id="search-results-list"></div>
+                <div class="search-nav">
+                  <button id="search-prev" title="Previous (Shift+Enter)">&#8593; Prev</button>
+                  <button id="search-next" title="Next (Enter)">Next &#8595;</button>
+                  <button id="search-clear" title="Clear (Esc)">Clear</button>
+                </div>
+              </div>
+            </div>
+
+            <!-- Details Section -->
+            <div class="sidebar-section expanded" data-section="details">
+              <div class="sidebar-section-header">
+                <span class="arrow">&#9658;</span>
+                <h3>Details</h3>
+              </div>
+              <div class="sidebar-section-content">
+                <div id="detail-panel-content">
+                  <div class="detail-empty">&lt;no selection&gt;</div>
+                </div>
+              </div>
+            </div>
           </div>
-          <div id="conversation-content"></div>
+        </div>
+
+        <div id="sidebar-resize"></div>
+
+        <!-- Content area -->
+        <div id="content-area">
+          <div id="canvas-pane">
+            <div id="canvas-container"></div>
+            <div id="legend">
+              <h3>Node Types</h3>
+              <div class="legend-item">
+                <div class="legend-color user"></div>
+                <span class="legend-label">User</span>
+              </div>
+              <div class="legend-item">
+                <div class="legend-color assistant"></div>
+                <span class="legend-label">Assistant</span>
+              </div>
+              <div class="legend-item">
+                <div class="legend-color thinking"></div>
+                <span class="legend-label">Thinking</span>
+              </div>
+              <div class="legend-item">
+                <div class="legend-color tool-use"></div>
+                <span class="legend-label">Tool call</span>
+              </div>
+              <div class="legend-item">
+                <div class="legend-color tool-result"></div>
+                <span class="legend-label">Tool result</span>
+              </div>
+            </div>
+          </div>
+          <div id="split-handle"></div>
+          <div id="conversation-pane">
+            <div id="conversation-header">
+              <h3>Conversation</h3>
+              <span id="conversation-turn-indicator"></span>
+            </div>
+            <div id="conversation-content"></div>
+          </div>
         </div>
       </div>
 
+      <!-- Drop overlay -->
       <div id="drop-overlay" class="visible">
-        <div class="drop-icon">📁</div>
+        <div class="drop-icon">&#128193;</div>
         <div class="drop-text">Drop a conversation file to visualize</div>
         <div class="drop-subtext">Supports Claude Code .jsonl files</div>
         <div class="drop-divider">or</div>
@@ -1459,158 +1431,7 @@
         </div>
       </div>
 
-      <div id="info-panel">
-        <h1>Thinking Tracer</h1>
-        <p>Drag and drop a conversation file<br>to explore its structure in 3D</p>
-      </div>
-
       <div id="stats"></div>
-
-      <div id="metrics-panel">
-        <div class="metrics-resize-handle" id="metrics-resize-handle"></div>
-        <div class="metrics-header">
-          <h3>Metrics</h3>
-          <span class="metrics-range"><span id="chart-range">1-N</span></span>
-          <button class="panel-close-btn" data-panel="metrics" title="Close">&times;</button>
-        </div>
-        <div id="metrics-stack">
-          <div class="metric-row" data-metric="totalTokens">
-            <label class="metric-toggle">
-              <input type="checkbox" checked>
-              <span class="metric-label">Total Tokens</span>
-            </label>
-            <div class="metric-chart-container"><canvas class="metric-canvas"></canvas></div>
-          </div>
-          <div class="metric-row" data-metric="outputTokens">
-            <label class="metric-toggle">
-              <input type="checkbox" checked>
-              <span class="metric-label">Output</span>
-            </label>
-            <div class="metric-chart-container"><canvas class="metric-canvas"></canvas></div>
-          </div>
-          <div class="metric-row" data-metric="inputTokens">
-            <label class="metric-toggle">
-              <input type="checkbox">
-              <span class="metric-label">Input</span>
-            </label>
-            <div class="metric-chart-container"><canvas class="metric-canvas"></canvas></div>
-          </div>
-          <div class="metric-row" data-metric="thinkingCount">
-            <label class="metric-toggle">
-              <input type="checkbox" checked>
-              <span class="metric-label">Thinking</span>
-            </label>
-            <div class="metric-chart-container"><canvas class="metric-canvas"></canvas></div>
-          </div>
-          <div class="metric-row" data-metric="toolCount">
-            <label class="metric-toggle">
-              <input type="checkbox" checked>
-              <span class="metric-label">Tools</span>
-            </label>
-            <div class="metric-chart-container"><canvas class="metric-canvas"></canvas></div>
-          </div>
-          <div class="metric-row" data-metric="contentLength">
-            <label class="metric-toggle">
-              <input type="checkbox">
-              <span class="metric-label">Length</span>
-            </label>
-            <div class="metric-chart-container"><canvas class="metric-canvas"></canvas></div>
-          </div>
-        </div>
-      </div>
-
-      <div id="word-freq-panel">
-        <div class="word-freq-header">
-          <h3>Top Words</h3>
-          <select id="word-freq-source">
-            <option value="all">All Content</option>
-            <option value="user">User Only</option>
-            <option value="assistant">Assistant Only</option>
-            <option value="thinking">Thinking Only</option>
-          </select>
-          <button class="panel-close-btn" data-panel="words" title="Close">&times;</button>
-        </div>
-        <div id="word-freq-chart"></div>
-      </div>
-
-      <div id="search-panel">
-        <div class="search-panel-header">
-          <h3>Search</h3>
-          <span id="search-results-count"></span>
-          <button class="panel-close-btn" data-panel="search" title="Close">&times;</button>
-        </div>
-        <div class="search-input-row">
-          <input type="text" id="search-input" placeholder="Search... (/ to focus)">
-        </div>
-        <div class="search-filters">
-          <label class="search-filter">
-            <input type="checkbox" data-type="user" checked>
-            <span class="filter-color user"></span>
-            <span>User</span>
-          </label>
-          <label class="search-filter">
-            <input type="checkbox" data-type="assistant" checked>
-            <span class="filter-color assistant"></span>
-            <span>Assistant</span>
-          </label>
-          <label class="search-filter">
-            <input type="checkbox" data-type="thinking" checked>
-            <span class="filter-color thinking"></span>
-            <span>Thinking</span>
-          </label>
-          <label class="search-filter">
-            <input type="checkbox" data-type="tool_use" checked>
-            <span class="filter-color tool-use"></span>
-            <span>Tool Use</span>
-          </label>
-          <label class="search-filter">
-            <input type="checkbox" data-type="tool_result" checked>
-            <span class="filter-color tool-result"></span>
-            <span>Tool Result</span>
-          </label>
-        </div>
-        <div id="search-results-list"></div>
-        <div class="search-nav">
-          <button id="search-prev" title="Previous match (Shift+Enter)">&#8593; Prev</button>
-          <button id="search-next" title="Next match (Enter)">Next &#8595;</button>
-          <button id="search-clear" title="Clear search (Esc)">Clear</button>
-        </div>
-      </div>
-
-      <div id="legend">
-        <h3>Node Types</h3>
-        <div class="legend-item">
-          <div class="legend-color user"></div>
-          <span class="legend-label">User message</span>
-        </div>
-        <div class="legend-item">
-          <div class="legend-color assistant"></div>
-          <span class="legend-label">Assistant response</span>
-        </div>
-        <div class="legend-item">
-          <div class="legend-color thinking"></div>
-          <span class="legend-label">Thinking block</span>
-        </div>
-        <div class="legend-item">
-          <div class="legend-color tool-use"></div>
-          <span class="legend-label">Tool call</span>
-        </div>
-        <div class="legend-item">
-          <div class="legend-color tool-result"></div>
-          <span class="legend-label">Tool result</span>
-        </div>
-      </div>
-
-      <div id="detail-panel">
-        <div id="detail-panel-header">
-          <h3>Details</h3>
-          <span class="drag-hint">drag to move</span>
-          <button id="detail-panel-close" data-panel="details">&times;</button>
-        </div>
-        <div id="detail-panel-content">
-          <div class="detail-empty">&lt;no selection&gt;</div>
-        </div>
-      </div>
     </div>
 
     <script type="module" src="/src/main.ts"></script>

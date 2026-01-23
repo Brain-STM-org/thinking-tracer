@@ -746,6 +746,7 @@ export class Viewer {
   /**
    * Calculate spiral position for a cluster with slinky effect and secondary coiling
    * Creates a "coiled coil" - a spiral that follows a larger helical path
+   * Flows top-to-bottom to match conversation reading order
    */
   private getSpiralPosition(index: number): THREE.Vector3 {
     // Calculate progress along the path (for secondary coil)
@@ -758,7 +759,8 @@ export class Viewer {
     const coilAngle = pathProgress * this.coilAngleStep;
     const coilCenterX = Math.cos(coilAngle) * this.coilRadius;
     const coilCenterZ = Math.sin(coilAngle) * this.coilRadius;
-    const coilCenterY = pathProgress * this.coilVerticalStep;
+    // Negative Y so spiral flows downward (top-to-bottom like conversation)
+    const coilCenterY = -pathProgress * this.coilVerticalStep;
 
     // Primary spiral (tight coil around the secondary coil path)
     const spiralAngle = index * this.spiralAngleStep;

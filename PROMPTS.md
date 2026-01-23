@@ -340,3 +340,51 @@ i want '1-n' and '[dropdown]' to be right-justified and just next to the close b
 ## 2026-01-23T12:45:13Z
 
 looking good on that now.  the details pane cannot be moved? i want it moveable.  also it should be able to be toggled like the others.  if there is not selection and the detail pane is shown, just put something like "<no selection>" in its view.   i want it to default just to the left of the conversation pane's initial position, with it's right border near the conversation panes left border, with some small amount of padding
+
+---
+
+## 2026-01-23T13:03:35Z
+
+the search window needs to be resizable. also it should be positioned just to the right of the session window
+
+---
+
+## 2026-01-23T13:12:43Z
+
+the details box close button is not working
+
+---
+
+## 2026-01-23T13:15:20Z
+
+when scrolling the conversation, the conversation view is automatically rescrolled to its origin position.  i think it's trying to match the existing 3D node selection.   if we are just scrolling the conversation view, we don't want to change the scroll, only if there is a selection change.  otherwise it is hard to read the conversation!
+
+---
+
+## 2026-01-23T13:21:54Z
+
+since the conversation flows from top to bottomw, we should have our spiral start that way as well.  it will make the keyboard shortcuts make more sense too
+
+---
+
+## 2026-01-23T13:23:16Z
+
+start with the first node selected
+
+---
+
+## 2026-01-23T14:11:55Z
+
+the session info/ui bubble sorta blocks the content.  let's experiment moving it as a fixed toolbar at the top
+
+---
+
+## 2026-01-23T14:19:33Z
+
+that is looking great.  it doesn't flow well with a narrow window.  also it covers the default position of the details pane
+
+---
+
+## 2026-01-23T16:22:31Z
+
+this is a high-level change.  let's make it so one can show left pane only (3D), right pane only (rendered conversation), or split (both).  Aspects Metrics, Details, Word Stats, Search are relegated to a collapsible sidebar.

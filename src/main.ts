@@ -18,16 +18,21 @@ import {
 const container = document.getElementById('canvas-container');
 const dropOverlay = document.getElementById('drop-overlay');
 const statsEl = document.getElementById('stats');
-const infoPanel = document.getElementById('info-panel');
+const toolbar = document.getElementById('toolbar');
+const toolbarTitle = document.getElementById('toolbar-title');
+const toolbarMeta = document.getElementById('toolbar-meta');
+const toolbarBack = document.getElementById('toolbar-back');
+const mainContainer = document.getElementById('main-container');
+const sidebar = document.getElementById('sidebar');
+const sidebarToggle = document.getElementById('sidebar-toggle');
+const sidebarResize = document.getElementById('sidebar-resize');
 const fileSelectBtn = document.getElementById('file-select-btn');
 const fileInput = document.getElementById('file-input') as HTMLInputElement | null;
 const legend = document.getElementById('legend');
-const detailPanel = document.getElementById('detail-panel');
 const detailPanelContent = document.getElementById('detail-panel-content');
 const recentTracesEl = document.getElementById('recent-traces');
 const recentListEl = document.getElementById('recent-list');
 const recentClearBtn = document.getElementById('recent-clear-btn');
-const metricsPanel = document.getElementById('metrics-panel');
 const metricsStack = document.getElementById('metrics-stack');
 const chartRange = document.getElementById('chart-range');
 const splitHandle = document.getElementById('split-handle');
@@ -35,10 +40,8 @@ const canvasPane = document.getElementById('canvas-pane');
 const conversationPane = document.getElementById('conversation-pane');
 const conversationContent = document.getElementById('conversation-content');
 const conversationTurnIndicator = document.getElementById('conversation-turn-indicator');
-const wordFreqPanel = document.getElementById('word-freq-panel');
 const wordFreqChart = document.getElementById('word-freq-chart');
 const wordFreqSource = document.getElementById('word-freq-source') as HTMLSelectElement | null;
-const searchPanel = document.getElementById('search-panel');
 const searchInput = document.getElementById('search-input') as HTMLInputElement | null;
 const searchResultsCount = document.getElementById('search-results-count');
 const searchResultsList = document.getElementById('search-results-list');
@@ -50,13 +53,11 @@ const searchClearBtn = document.getElementById('search-clear');
 let currentFocusIndex = 0;
 type MetricKey = 'totalTokens' | 'outputTokens' | 'inputTokens' | 'thinkingCount' | 'toolCount' | 'contentLength';
 
-// Panel visibility state
-const panelState = {
-  metrics: true,
-  words: true,
-  search: false,
-  details: true,
-};
+// View mode: '3d' | 'split' | 'conversation'
+let viewMode: '3d' | 'split' | 'conversation' = 'split';
+
+// Sidebar visibility
+let sidebarVisible = true;
 
 if (!container) {
   throw new Error('Container element not found');
@@ -101,11 +102,24 @@ async function loadFile(content: string, filename: string, skipSave = false): Pr
       }
     }
 
-    // Hide initial overlay and update info
+    // Hide initial overlay and show toolbar
     if (dropOverlay) {
       dropOverlay.classList.remove('visible');
     }
-    if (infoPanel) {
+    if (toolbar) {
+      toolbar.classList.add('visible');
+    }
+    if (mainContainer) {
+      mainContainer.classList.add('with-toolbar');
+    }
+
+    // Update toolbar with session info
+    if (toolbarTitle) {
+      toolbarTitle.textContent = title;
+      toolbarTitle.title = title;
+    }
+
+    if (toolbarMeta) {
       const meta = conversation?.meta;
       const metaItems: string[] = [];
 
@@ -123,20 +137,8 @@ async function loadFile(content: string, filename: string, skipSave = false): Pr
         const shortCwd = meta.cwd.split('/').slice(-2).join('/');
         metaItems.push(`<span class="meta-item" title="${escapeHtml(meta.cwd)}">📁 ${escapeHtml(shortCwd)}</span>`);
       }
-      if (meta?.source_version) {
-        metaItems.push(`<span class="meta-item" title="Claude Code Version">v${escapeHtml(meta.source_version)}</span>`);
-      }
 
-      infoPanel.innerHTML = `
-        <h1>${escapeHtml(title)}</h1>
-        ${metaItems.length > 0 ? `<div class="meta-row">${metaItems.join('')}</div>` : ''}
-        <p>Click or use arrow keys to navigate<br>Esc to deselect, drag to orbit</p>
-        <button id="back-btn">← Open Another</button>
-      `;
-
-      // Wire up back button
-      const backBtn = document.getElementById('back-btn');
-      backBtn?.addEventListener('click', showFileSelector);
+      toolbarMeta.innerHTML = metaItems.join('');
     }
 
     // Show legend
@@ -144,20 +146,25 @@ async function loadFile(content: string, filename: string, skipSave = false): Pr
       legend.classList.add('visible');
     }
 
-    // Show conversation pane
-    updateConversationPaneVisibility(true);
+    // Apply view mode
+    applyViewMode();
 
-    // Add panel toggles to info panel
-    addPanelToggles();
-
-    // Draw initial charts and apply panel visibility
-    currentFocusIndex = Math.floor(viewer.getClusterCount() / 2);
-    setTimeout(() => applyPanelVisibility(), 50);
-
-    // Hide detail panel when loading new file
-    if (detailPanel) {
-      detailPanel.classList.remove('visible');
+    // Show sidebar
+    if (sidebar && sidebarVisible) {
+      sidebar.classList.add('visible');
+      sidebarToggle?.classList.add('active');
     }
+
+    // Apply panel visibility and select first node
+    currentFocusIndex = 0;
+    setTimeout(() => {
+      drawCharts(currentFocusIndex);
+      renderWordFrequencyChart();
+      // Select first cluster
+      if (viewer.getClusterCount() > 0) {
+        viewer.selectClusterByIndex(0);
+      }
+    }, 50);
 
     console.log(`Loaded: ${filename}`);
   } catch (error) {
@@ -295,23 +302,26 @@ async function showFileSelector(): Promise<void> {
     dropOverlay.classList.add('visible');
   }
 
+  // Hide toolbar
+  if (toolbar) {
+    toolbar.classList.remove('visible');
+  }
+  if (mainContainer) {
+    mainContainer.classList.remove('with-toolbar');
+  }
+
   // Hide legend
   if (legend) {
     legend.classList.remove('visible');
   }
 
-  // Hide all panels
-  metricsPanel?.classList.remove('visible');
-  wordFreqPanel?.classList.remove('visible');
-  searchPanel?.classList.remove('visible');
+  // Hide sidebar
+  sidebar?.classList.remove('visible');
 
   // Hide conversation pane
-  updateConversationPaneVisibility(false);
+  conversationPane?.classList.remove('visible');
+  splitHandle?.classList.remove('visible');
 
-  // Hide detail panel and clear selection
-  if (detailPanel) {
-    detailPanel.classList.remove('visible');
-  }
   viewer.clearSelection();
 }
 
@@ -324,187 +334,139 @@ function escapeHtml(text: string): string {
   return div.innerHTML;
 }
 
-// Detail panel close is now handled by the general panel close button handler
-
 // ============================================
-// Panel Toggle System
+// View Mode System
 // ============================================
 
 /**
- * Toggle a panel's visibility
+ * Apply the current view mode
  */
-function togglePanel(panel: 'metrics' | 'words' | 'search' | 'details'): void {
-  panelState[panel] = !panelState[panel];
-  applyPanelVisibility();
-  updateToggleButtons();
-}
-
-/**
- * Apply panel visibility based on state
- */
-function applyPanelVisibility(): void {
-  if (panelState.metrics) {
-    metricsPanel?.classList.add('visible');
-    positionMetricsPanel();
-    drawCharts(currentFocusIndex);
-  } else {
-    metricsPanel?.classList.remove('visible');
-  }
-
-  if (panelState.words && panelState.metrics) {
-    // Words panel only shows if metrics is also visible (since it's positioned below)
-    wordFreqPanel?.classList.add('visible');
-    positionWordFreqPanel();
-    renderWordFrequencyChart();
-  } else if (panelState.words && !panelState.metrics) {
-    // If metrics is hidden, position words at top
-    if (wordFreqPanel) {
-      wordFreqPanel.classList.add('visible');
-      const infoPanelRect = infoPanel?.getBoundingClientRect();
-      if (infoPanelRect) {
-        wordFreqPanel.style.top = `${infoPanelRect.bottom + 10}px`;
-      }
-      renderWordFrequencyChart();
-    }
-  } else {
-    wordFreqPanel?.classList.remove('visible');
-  }
-
-  if (panelState.search) {
-    searchPanel?.classList.add('visible');
-  } else {
-    searchPanel?.classList.remove('visible');
-  }
-
-  if (panelState.details) {
-    detailPanel?.classList.add('visible');
-    positionDetailPanel();
-  } else {
-    detailPanel?.classList.remove('visible');
-  }
-}
-
-/**
- * Position detail panel to the left of conversation pane
- */
-function positionDetailPanel(): void {
-  if (!detailPanel || !conversationPane) return;
-
-  // Only set initial position if not already positioned by dragging
-  if (!detailPanel.dataset.dragged) {
-    const convRect = conversationPane.getBoundingClientRect();
-    const panelWidth = detailPanel.offsetWidth || 320;
-    detailPanel.style.right = 'auto';
-    detailPanel.style.left = `${convRect.left - panelWidth - 15}px`;
-    detailPanel.style.top = '20px';
-  }
-}
-
-/**
- * Update toggle button states
- */
-function updateToggleButtons(): void {
-  document.querySelectorAll('.panel-toggle').forEach((btn) => {
-    const panel = (btn as HTMLElement).dataset.panel as 'metrics' | 'words' | 'search' | 'details';
-    if (panel && panelState[panel]) {
+function applyViewMode(): void {
+  // Update view mode buttons
+  document.querySelectorAll('.view-mode-btn').forEach((btn) => {
+    const mode = (btn as HTMLElement).dataset.mode;
+    if (mode === viewMode) {
       btn.classList.add('active');
     } else {
       btn.classList.remove('active');
     }
   });
+
+  // Apply layout based on mode
+  switch (viewMode) {
+    case '3d':
+      canvasPane?.classList.remove('hidden');
+      conversationPane?.classList.remove('visible', 'full-width');
+      splitHandle?.classList.remove('visible');
+      legend?.classList.add('visible');
+      break;
+    case 'split':
+      canvasPane?.classList.remove('hidden');
+      conversationPane?.classList.add('visible');
+      conversationPane?.classList.remove('full-width');
+      splitHandle?.classList.add('visible');
+      legend?.classList.add('visible');
+      renderConversation();
+      break;
+    case 'conversation':
+      canvasPane?.classList.add('hidden');
+      conversationPane?.classList.add('visible', 'full-width');
+      splitHandle?.classList.remove('visible');
+      legend?.classList.remove('visible');
+      renderConversation();
+      break;
+  }
+
 }
 
 /**
- * Add toggle buttons to info panel
+ * Set view mode
  */
-function addPanelToggles(): void {
-  if (!infoPanel) return;
-
-  // Check if toggles already exist
-  if (infoPanel.querySelector('.panel-toggles')) return;
-
-  const togglesDiv = document.createElement('div');
-  togglesDiv.className = 'panel-toggles';
-  togglesDiv.innerHTML = `
-    <button class="panel-toggle ${panelState.metrics ? 'active' : ''}" data-panel="metrics">Metrics</button>
-    <button class="panel-toggle ${panelState.words ? 'active' : ''}" data-panel="words">Words</button>
-    <button class="panel-toggle ${panelState.search ? 'active' : ''}" data-panel="search">Search</button>
-    <button class="panel-toggle ${panelState.details ? 'active' : ''}" data-panel="details">Details</button>
-  `;
-
-  infoPanel.appendChild(togglesDiv);
-
-  // Wire up toggle buttons
-  togglesDiv.querySelectorAll('.panel-toggle').forEach((btn) => {
-    btn.addEventListener('click', () => {
-      const panel = (btn as HTMLElement).dataset.panel as 'metrics' | 'words' | 'search' | 'details';
-      if (panel) togglePanel(panel);
-    });
-  });
+function setViewMode(mode: '3d' | 'split' | 'conversation'): void {
+  viewMode = mode;
+  applyViewMode();
 }
 
-// Wire up close buttons on panels
-document.querySelectorAll('.panel-close-btn').forEach((btn) => {
+// Wire up view mode buttons
+document.querySelectorAll('.view-mode-btn').forEach((btn) => {
   btn.addEventListener('click', () => {
-    const panel = (btn as HTMLElement).dataset.panel as 'metrics' | 'words' | 'search' | 'details';
-    if (panel) {
-      panelState[panel] = false;
-      applyPanelVisibility();
-      updateToggleButtons();
+    const mode = (btn as HTMLElement).dataset.mode as '3d' | 'split' | 'conversation';
+    if (mode) setViewMode(mode);
+  });
+});
+
+// ============================================
+// Sidebar System
+// ============================================
+
+/**
+ * Toggle sidebar visibility
+ */
+function toggleSidebar(): void {
+  sidebarVisible = !sidebarVisible;
+  if (sidebarVisible) {
+    sidebar?.classList.add('visible');
+    sidebarToggle?.classList.add('active');
+  } else {
+    sidebar?.classList.remove('visible');
+    sidebarToggle?.classList.remove('active');
+  }
+}
+
+// Wire up sidebar toggle
+if (sidebarToggle) {
+  sidebarToggle.addEventListener('click', toggleSidebar);
+}
+
+// Wire up toolbar back button
+if (toolbarBack) {
+  toolbarBack.addEventListener('click', showFileSelector);
+}
+
+// Wire up sidebar section accordion
+document.querySelectorAll('.sidebar-section-header').forEach((header) => {
+  header.addEventListener('click', () => {
+    const section = header.closest('.sidebar-section');
+    if (section) {
+      section.classList.toggle('expanded');
     }
   });
 });
 
 // ============================================
-// Detail Panel Dragging
+// Sidebar Resizing
 // ============================================
 
-if (detailPanel) {
-  const header = document.getElementById('detail-panel-header');
-  if (header) {
-    let isDragging = false;
-    let dragStartX = 0;
-    let dragStartY = 0;
-    let panelStartX = 0;
-    let panelStartY = 0;
+if (sidebarResize && sidebar) {
+  let isSidebarResizing = false;
+  let sidebarStartX = 0;
+  let sidebarStartWidth = 0;
 
-    header.addEventListener('mousedown', (e) => {
-      // Don't drag if clicking the close button
-      if ((e.target as HTMLElement).closest('.panel-close-btn')) return;
+  sidebarResize.addEventListener('mousedown', (e) => {
+    isSidebarResizing = true;
+    sidebarStartX = e.clientX;
+    sidebarStartWidth = sidebar.offsetWidth;
+    sidebarResize.classList.add('dragging');
+    document.body.style.cursor = 'ew-resize';
+    document.body.style.userSelect = 'none';
+    e.preventDefault();
+  });
 
-      isDragging = true;
-      dragStartX = e.clientX;
-      dragStartY = e.clientY;
+  document.addEventListener('mousemove', (e) => {
+    if (!isSidebarResizing) return;
+    const delta = e.clientX - sidebarStartX;
+    const newWidth = Math.min(400, Math.max(200, sidebarStartWidth + delta));
+    sidebar.style.width = `${newWidth}px`;
+  });
 
-      const rect = detailPanel.getBoundingClientRect();
-      panelStartX = rect.left;
-      panelStartY = rect.top;
-
-      document.body.style.cursor = 'grabbing';
-      document.body.style.userSelect = 'none';
-      e.preventDefault();
-    });
-
-    document.addEventListener('mousemove', (e) => {
-      if (!isDragging) return;
-
-      const dx = e.clientX - dragStartX;
-      const dy = e.clientY - dragStartY;
-
-      detailPanel.style.left = `${panelStartX + dx}px`;
-      detailPanel.style.top = `${panelStartY + dy}px`;
-      detailPanel.style.right = 'auto';
-      detailPanel.dataset.dragged = 'true';
-    });
-
-    document.addEventListener('mouseup', () => {
-      if (isDragging) {
-        isDragging = false;
-        document.body.style.cursor = '';
-        document.body.style.userSelect = '';
-      }
-    });
-  }
+  document.addEventListener('mouseup', () => {
+    if (isSidebarResizing) {
+      isSidebarResizing = false;
+      sidebarResize.classList.remove('dragging');
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+    }
+  });
 }
 
 
@@ -753,15 +715,7 @@ function formatDuration(ms: number): string {
   return `${hours}h ${remainingMinutes}m`;
 }
 
-/**
- * Position metrics panel below info panel
- */
-function positionMetricsPanel(): void {
-  if (!metricsPanel || !infoPanel) return;
-
-  const infoPanelRect = infoPanel.getBoundingClientRect();
-  metricsPanel.style.top = `${infoPanelRect.bottom + 10}px`;
-}
+// Metrics are now in sidebar - no positioning needed
 
 // Minimum bar width for readability
 const MIN_BAR_WIDTH = 4;
@@ -832,16 +786,12 @@ function drawMetricChart(canvas: HTMLCanvasElement, values: number[], focusIndex
  * Draw all visible metric charts
  */
 function drawCharts(focusIndex?: number): void {
-  if (!metricsPanel || !metricsStack) return;
+  if (!metricsStack) return;
 
   const metrics = viewer.getClusterMetrics();
   if (metrics.length === 0) {
-    metricsPanel.classList.remove('visible');
     return;
   }
-
-  metricsPanel.classList.add('visible');
-  positionMetricsPanel();
 
   // Update range label
   if (chartRange) {
@@ -930,7 +880,7 @@ viewer.onSelect((selection) => {
     return;
   }
 
-  if (detailPanel && detailPanelContent) {
+  if (detailPanelContent) {
     detailPanelContent.innerHTML = renderDetail(selection);
 
     // Wire up cluster toggle button
@@ -984,63 +934,20 @@ viewer.onSelect((selection) => {
   }
 });
 
-// Reposition panels on window resize
+// Redraw charts on window resize
 window.addEventListener('resize', () => {
-  if (metricsPanel?.classList.contains('visible')) {
-    positionMetricsPanel();
-    drawCharts(currentFocusIndex);
-  }
-  if (wordFreqPanel?.classList.contains('visible')) {
-    positionWordFreqPanel();
-  }
+  drawCharts(currentFocusIndex);
 });
 
-// Redraw charts when metrics panel is resized
-if (metricsPanel) {
+// Redraw charts when sidebar is resized
+if (sidebar) {
   const resizeObserver = new ResizeObserver(() => {
-    if (metricsPanel.classList.contains('visible')) {
-      // Small delay to let layout settle
-      requestAnimationFrame(() => {
-        drawCharts(currentFocusIndex);
-        if (wordFreqPanel?.classList.contains('visible')) {
-          positionWordFreqPanel();
-        }
-      });
-    }
+    // Small delay to let layout settle
+    requestAnimationFrame(() => {
+      drawCharts(currentFocusIndex);
+    });
   });
-  resizeObserver.observe(metricsPanel);
-
-  // Manual resize handle
-  const resizeHandle = document.getElementById('metrics-resize-handle');
-  if (resizeHandle) {
-    let isResizing = false;
-    let startX = 0;
-    let startWidth = 0;
-
-    resizeHandle.addEventListener('mousedown', (e) => {
-      isResizing = true;
-      startX = e.clientX;
-      startWidth = metricsPanel.offsetWidth;
-      document.body.style.cursor = 'ew-resize';
-      document.body.style.userSelect = 'none';
-      e.preventDefault();
-    });
-
-    document.addEventListener('mousemove', (e) => {
-      if (!isResizing) return;
-      const delta = e.clientX - startX;
-      const newWidth = Math.min(500, Math.max(180, startWidth + delta));
-      metricsPanel.style.width = `${newWidth}px`;
-    });
-
-    document.addEventListener('mouseup', () => {
-      if (isResizing) {
-        isResizing = false;
-        document.body.style.cursor = '';
-        document.body.style.userSelect = '';
-      }
-    });
-  }
+  resizeObserver.observe(sidebar);
 }
 
 // ============================================
@@ -1198,7 +1105,7 @@ function clearWordHighlights(): void {
  * Render word frequency chart
  */
 function renderWordFrequencyChart(): void {
-  if (!wordFreqChart || !wordFreqPanel) return;
+  if (!wordFreqChart) return;
 
   // Clear highlights when re-rendering (source changed)
   clearWordHighlights();
@@ -1245,16 +1152,7 @@ function renderWordFrequencyChart(): void {
   });
 }
 
-/**
- * Position word frequency panel below metrics panel
- */
-function positionWordFreqPanel(): void {
-  if (!wordFreqPanel || !metricsPanel) return;
-
-  const metricsPanelRect = metricsPanel.getBoundingClientRect();
-  wordFreqPanel.style.top = `${metricsPanelRect.bottom + 10}px`;
-  wordFreqPanel.style.width = `${metricsPanel.offsetWidth}px`;
-}
+// Word frequency is now in sidebar - no positioning needed
 
 
 // Wire up word frequency source selector
@@ -1310,6 +1208,7 @@ if (splitHandle && canvasPane && conversationPane) {
 // ============================================
 
 let isScrollingProgrammatically = false;
+let selectionFromConversationScroll = false;
 let scrollLockTimeout: ReturnType<typeof setTimeout> | null = null;
 
 /**
@@ -1491,7 +1390,13 @@ function setupScrollSync(): void {
 
       if (closestTurn) {
         const clusterIndex = parseInt((closestTurn as HTMLElement).dataset.clusterIndex || '0', 10);
+        // Mark that this selection came from conversation scroll - don't scroll back
+        selectionFromConversationScroll = true;
         viewer.selectClusterByIndex(clusterIndex);
+
+        // Update focus highlight without scrolling
+        conversationContent.querySelectorAll('.conv-turn.focused').forEach((t) => t.classList.remove('focused'));
+        (closestTurn as Element).classList.add('focused');
       }
     }, 150);
   });
@@ -1502,6 +1407,12 @@ function setupScrollSync(): void {
  */
 function scrollConversationToCluster(clusterIndex: number): void {
   if (!conversationContent) return;
+
+  // If selection came from conversation scroll, don't scroll back
+  if (selectionFromConversationScroll) {
+    selectionFromConversationScroll = false;
+    return;
+  }
 
   const turn = conversationContent.querySelector(`.conv-turn[data-cluster-index="${clusterIndex}"]`);
   if (turn) {
@@ -1525,19 +1436,8 @@ function scrollConversationToCluster(clusterIndex: number): void {
   }
 }
 
-/**
- * Show/hide conversation pane
- */
-function updateConversationPaneVisibility(visible: boolean): void {
-  if (conversationPane) {
-    if (visible) {
-      conversationPane.classList.add('visible');
-      renderConversation();
-    } else {
-      conversationPane.classList.remove('visible');
-    }
-  }
-}
+// Render conversation when view mode applies it
+// (applyViewMode handles visibility)
 
 // ============================================
 // Search Functionality
@@ -1560,9 +1460,8 @@ let searchDebounceTimer: ReturnType<typeof setTimeout> | null = null;
  */
 function getSearchFilters(): Set<string> {
   const filters = new Set<string>();
-  if (!searchPanel) return filters;
 
-  searchPanel.querySelectorAll('.search-filter input[type="checkbox"]').forEach((checkbox) => {
+  document.querySelectorAll('.search-filter input[type="checkbox"]').forEach((checkbox) => {
     const input = checkbox as HTMLInputElement;
     if (input.checked && input.dataset.type) {
       filters.add(input.dataset.type);
@@ -1896,21 +1795,25 @@ if (searchClearBtn) {
 }
 
 // Wire up filter checkboxes to re-search
-if (searchPanel) {
-  searchPanel.querySelectorAll('.search-filter input[type="checkbox"]').forEach((checkbox) => {
-    checkbox.addEventListener('change', handleSearchInput);
-  });
-}
+// Wire up search filter checkboxes
+document.querySelectorAll('.search-filter input[type="checkbox"]').forEach((checkbox) => {
+  checkbox.addEventListener('change', handleSearchInput);
+});
 
-// Global keyboard shortcut: / to focus search
+// Global keyboard shortcut: / to focus search (when sidebar visible)
 window.addEventListener('keydown', (e) => {
   // Don't trigger if already in an input
   if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) {
     return;
   }
 
-  if (e.key === '/' && searchInput && searchPanel?.classList.contains('visible')) {
+  if (e.key === '/' && searchInput && sidebarVisible) {
     e.preventDefault();
+    // Expand search section if collapsed
+    const searchSection = document.querySelector('.sidebar-section[data-section="search"]');
+    if (searchSection && !searchSection.classList.contains('expanded')) {
+      searchSection.classList.add('expanded');
+    }
     searchInput.focus();
     searchInput.select();
   }
