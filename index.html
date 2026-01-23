@@ -303,6 +303,128 @@
         box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
       }
 
+      #metrics-panel {
+        position: fixed;
+        top: 20px;
+        left: 20px;
+        width: 260px;
+        min-width: 180px;
+        max-width: 500px;
+        background: #3a3a5c;
+        border: 1px solid #6a6a9a;
+        padding: 10px;
+        border-radius: 8px;
+        z-index: 199;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+        display: none;
+        resize: horizontal;
+        overflow: hidden;
+      }
+
+      #metrics-panel.visible {
+        display: block;
+      }
+
+      #metrics-panel::-webkit-resizer {
+        background: transparent;
+      }
+
+      .metrics-resize-handle {
+        position: absolute;
+        right: 2px;
+        bottom: 2px;
+        width: 12px;
+        height: 12px;
+        cursor: ew-resize;
+        opacity: 0.4;
+      }
+
+      .metrics-resize-handle::before {
+        content: '⋮';
+        font-size: 14px;
+        color: #888;
+      }
+
+      #metrics-panel:hover .metrics-resize-handle {
+        opacity: 0.8;
+      }
+
+      .metrics-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 8px;
+        padding-bottom: 6px;
+        border-bottom: 1px solid #4a4a6a;
+      }
+
+      .metrics-header h3 {
+        font-size: 11px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        color: #999;
+        margin: 0;
+      }
+
+      .metrics-range {
+        font-size: 10px;
+        color: #666;
+      }
+
+      #metrics-stack {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+      }
+
+      .metric-row {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+
+      .metric-row.hidden .metric-canvas {
+        display: none;
+      }
+
+      .metric-toggle {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        cursor: pointer;
+        min-width: 85px;
+      }
+
+      .metric-toggle input {
+        width: 12px;
+        height: 12px;
+        margin: 0;
+        cursor: pointer;
+      }
+
+      .metric-label {
+        font-size: 10px;
+        color: #888;
+        white-space: nowrap;
+      }
+
+      .metric-row:not(.hidden) .metric-label {
+        color: #bbb;
+      }
+
+      .metric-canvas {
+        flex: 1;
+        height: 24px;
+        background: #2a2a40;
+        border-radius: 3px;
+        cursor: pointer;
+      }
+
+      .metric-canvas:hover {
+        background: #323248;
+      }
+
       #legend {
         position: fixed;
         bottom: 20px;
@@ -430,6 +552,30 @@
         letter-spacing: 0.5px;
         color: #888;
         margin-bottom: 6px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+
+      .copy-btn {
+        background: none;
+        border: 1px solid #5a5a7a;
+        color: #888;
+        font-size: 10px;
+        padding: 2px 6px;
+        border-radius: 3px;
+        cursor: pointer;
+        transition: all 0.15s ease;
+      }
+
+      .copy-btn:hover {
+        border-color: #7a7a9a;
+        color: #bbb;
+      }
+
+      .copy-btn.copied {
+        border-color: #50c878;
+        color: #50c878;
       }
 
       .detail-section-content {
@@ -528,6 +674,29 @@
         border-left-color: #e74c3c;
         background: rgba(231, 76, 60, 0.1);
       }
+
+      .raw-toggle-btn {
+        background: none;
+        border: 1px solid #5a5a7a;
+        color: #888;
+        font-size: 11px;
+        padding: 4px 8px;
+        border-radius: 4px;
+        cursor: pointer;
+        transition: all 0.15s ease;
+      }
+
+      .raw-toggle-btn:hover {
+        border-color: #7a7a9a;
+        color: #bbb;
+      }
+
+      .raw-data {
+        max-height: 400px;
+        overflow-y: auto;
+        font-size: 11px;
+        margin-top: 8px;
+      }
     </style>
   </head>
   <body>
@@ -557,6 +726,57 @@
       </div>
 
       <div id="stats"></div>
+
+      <div id="metrics-panel">
+        <div class="metrics-header">
+          <h3>Metrics</h3>
+          <span class="metrics-range"><span id="chart-range">1-N</span></span>
+        </div>
+        <div id="metrics-stack">
+          <div class="metric-row" data-metric="totalTokens">
+            <label class="metric-toggle">
+              <input type="checkbox" checked>
+              <span class="metric-label">Total Tokens</span>
+            </label>
+            <canvas class="metric-canvas"></canvas>
+          </div>
+          <div class="metric-row" data-metric="outputTokens">
+            <label class="metric-toggle">
+              <input type="checkbox" checked>
+              <span class="metric-label">Output</span>
+            </label>
+            <canvas class="metric-canvas"></canvas>
+          </div>
+          <div class="metric-row" data-metric="inputTokens">
+            <label class="metric-toggle">
+              <input type="checkbox">
+              <span class="metric-label">Input</span>
+            </label>
+            <canvas class="metric-canvas"></canvas>
+          </div>
+          <div class="metric-row" data-metric="thinkingCount">
+            <label class="metric-toggle">
+              <input type="checkbox" checked>
+              <span class="metric-label">Thinking</span>
+            </label>
+            <canvas class="metric-canvas"></canvas>
+          </div>
+          <div class="metric-row" data-metric="toolCount">
+            <label class="metric-toggle">
+              <input type="checkbox" checked>
+              <span class="metric-label">Tools</span>
+            </label>
+            <canvas class="metric-canvas"></canvas>
+          </div>
+          <div class="metric-row" data-metric="contentLength">
+            <label class="metric-toggle">
+              <input type="checkbox">
+              <span class="metric-label">Length</span>
+            </label>
+            <canvas class="metric-canvas"></canvas>
+          </div>
+        </div>
+      </div>
 
       <div id="legend">
         <h3>Node Types</h3>

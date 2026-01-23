@@ -923,6 +923,95 @@ export class Viewer {
   }
 
   /**
+   * Get the number of clusters
+   */
+  public getClusterCount(): number {
+    return this.clusters.length;
+  }
+
+  /**
+   * Metrics available per cluster
+   */
+  public getClusterMetrics(): Array<{
+    index: number;
+    totalTokens: number;
+    inputTokens: number;
+    outputTokens: number;
+    thinkingCount: number;
+    toolCount: number;
+    contentLength: number;
+  }> {
+    return this.clusters.map((cluster) => {
+      let totalTokens = 0;
+      let inputTokens = 0;
+      let outputTokens = 0;
+      let contentLength = 0;
+
+      // Get usage from assistant turn (that's where API reports tokens)
+      if (cluster.assistantTurn?.usage) {
+        const usage = cluster.assistantTurn.usage;
+        inputTokens = usage.input_tokens || 0;
+        outputTokens = usage.output_tokens || 0;
+        totalTokens = inputTokens + outputTokens;
+      }
+
+      // Calculate content length
+      if (cluster.userTurn) {
+        for (const block of cluster.userTurn.content) {
+          if (block.type === 'text') contentLength += block.text.length;
+        }
+      }
+      if (cluster.assistantTurn) {
+        for (const block of cluster.assistantTurn.content) {
+          if (block.type === 'text') contentLength += block.text.length;
+          if (block.type === 'thinking') contentLength += block.thinking.length;
+        }
+      }
+
+      return {
+        index: cluster.index,
+        totalTokens,
+        inputTokens,
+        outputTokens,
+        thinkingCount: cluster.thinkingCount,
+        toolCount: cluster.toolCount,
+        contentLength,
+      };
+    });
+  }
+
+  /**
+   * Get the current focus cluster index
+   */
+  public getFocusIndex(): number {
+    return this.focusClusterIndex;
+  }
+
+  /**
+   * Select a cluster by index
+   */
+  public selectClusterByIndex(index: number): void {
+    if (index < 0 || index >= this.clusters.length) return;
+
+    // Find the cluster node
+    const clusterNode = this.nodes.find(
+      n => n.type === 'cluster' && (n.data as TurnCluster).index === index
+    );
+
+    if (clusterNode && clusterNode.mesh.visible) {
+      this.selectNode(clusterNode);
+    } else {
+      // If cluster is expanded, find a visible child node
+      const childNode = this.nodes.find(
+        n => n.clusterIndex === index && n.type !== 'cluster' && n.mesh.visible
+      );
+      if (childNode) {
+        this.selectNode(childNode);
+      }
+    }
+  }
+
+  /**
    * Dispose of all resources
    */
   public dispose(): void {

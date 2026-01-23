@@ -28,6 +28,13 @@ const detailPanelClose = document.getElementById('detail-panel-close');
 const recentTracesEl = document.getElementById('recent-traces');
 const recentListEl = document.getElementById('recent-list');
 const recentClearBtn = document.getElementById('recent-clear-btn');
+const metricsPanel = document.getElementById('metrics-panel');
+const metricsStack = document.getElementById('metrics-stack');
+const chartRange = document.getElementById('chart-range');
+
+// Chart state
+let currentFocusIndex = 0;
+type MetricKey = 'totalTokens' | 'outputTokens' | 'inputTokens' | 'thinkingCount' | 'toolCount' | 'contentLength';
 
 if (!container) {
   throw new Error('Container element not found');
@@ -114,6 +121,10 @@ async function loadFile(content: string, filename: string, skipSave = false): Pr
     if (legend) {
       legend.classList.add('visible');
     }
+
+    // Draw initial charts
+    currentFocusIndex = Math.floor(viewer.getClusterCount() / 2);
+    drawCharts(currentFocusIndex);
 
     // Hide detail panel when loading new file
     if (detailPanel) {
@@ -261,6 +272,11 @@ async function showFileSelector(): Promise<void> {
     legend.classList.remove('visible');
   }
 
+  // Hide metrics panel
+  if (metricsPanel) {
+    metricsPanel.classList.remove('visible');
+  }
+
   // Hide detail panel and clear selection
   if (detailPanel) {
     detailPanel.classList.remove('visible');
@@ -285,34 +301,9 @@ if (detailPanelClose && detailPanel) {
   });
 }
 
-// Setup selection handler
-viewer.onSelect((selection) => {
-  if (!selection) {
-    if (detailPanel) {
-      detailPanel.classList.remove('visible');
-    }
-    return;
-  }
 
-  if (detailPanel && detailPanelContent) {
-    detailPanel.classList.add('visible');
-    detailPanelContent.innerHTML = renderDetail(selection);
-
-    // Wire up cluster toggle button
-    const toggleBtn = document.getElementById('toggle-cluster-btn');
-    toggleBtn?.addEventListener('click', () => {
-      const clusterIndex = parseInt(toggleBtn.dataset.clusterIndex || '0', 10);
-      viewer.toggleCluster(clusterIndex);
-    });
-
-    // Wire up collapse parent button
-    const collapseBtn = document.getElementById('collapse-parent-btn');
-    collapseBtn?.addEventListener('click', () => {
-      const clusterIndex = parseInt(collapseBtn.dataset.clusterIndex || '0', 10);
-      viewer.toggleCluster(clusterIndex);
-    });
-  }
-});
+// Track copyable content for clipboard
+let copyableContent: Record<string, string> = {};
 
 /**
  * Render detail panel content for a selection
@@ -320,8 +311,11 @@ viewer.onSelect((selection) => {
 function renderDetail(selection: { type: string; data: unknown; turnIndex: number; clusterIndex?: number }): string {
   const { type, data } = selection;
 
+  // Reset copyable content
+  copyableContent = {};
+
   let content = `<div class="detail-section">
-    <div class="detail-section-label">Type</div>
+    <div class="detail-section-label"><span>Type</span></div>
     <div class="detail-section-content">
       <span class="detail-type-badge ${type}">${type.replace('_', ' ')}</span>
     </div>
@@ -337,6 +331,10 @@ function renderDetail(selection: { type: string; data: unknown; turnIndex: numbe
       userTurn?: { content: Array<{ type: string; text?: string }> };
       assistantTurn?: { content: Array<{ type: string; text?: string; thinking?: string; name?: string; content?: string; is_error?: boolean }> };
     };
+    content += `<div class="detail-section">
+      <div class="detail-section-label">Turn</div>
+      <div class="detail-section-content"><strong>${cluster.index + 1}</strong> of ${viewer.getClusterCount()}</div>
+    </div>`;
     content += `<div class="detail-section">
       <div class="detail-section-label">Actions</div>
       <div class="detail-section-content">
@@ -413,7 +411,11 @@ function renderDetail(selection: { type: string; data: unknown; turnIndex: numbe
       }
     }
   } else if (selection.clusterIndex !== undefined) {
-    // Child node of a cluster - offer to collapse parent
+    // Child node of a cluster - show turn number and collapse option
+    content += `<div class="detail-section">
+      <div class="detail-section-label">Turn</div>
+      <div class="detail-section-content"><strong>${selection.clusterIndex + 1}</strong> of ${viewer.getClusterCount()}</div>
+    </div>`;
     content += `<div class="detail-section">
       <div class="detail-section-label">Actions</div>
       <div class="detail-section-content">
@@ -426,46 +428,97 @@ function renderDetail(selection: { type: string; data: unknown; turnIndex: numbe
 
   // Type-specific content
   if (type === 'user' || type === 'assistant') {
-    const turn = data as { content: Array<{ type: string; text?: string; thinking?: string }> };
+    const turn = data as { content: Array<{ type: string; text?: string; thinking?: string; name?: string }> };
+
+    // Show content block summary
+    const blockTypes = turn.content.reduce((acc, b) => {
+      acc[b.type] = (acc[b.type] || 0) + 1;
+      return acc;
+    }, {} as Record<string, number>);
+
+    const blockSummary = Object.entries(blockTypes)
+      .map(([t, count]) => `${count} ${t}`)
+      .join(', ');
+
+    if (blockSummary) {
+      content += `<div class="detail-section">
+        <div class="detail-section-label">Contains</div>
+        <div class="detail-section-content">${escapeHtml(blockSummary)}</div>
+      </div>`;
+    }
+
+    // Show text content if any
     const textBlocks = turn.content.filter(b => b.type === 'text');
     if (textBlocks.length > 0) {
       const text = textBlocks.map(b => b.text || '').join('\n\n');
+      copyableContent['text'] = text;
       content += `<div class="detail-section">
-        <div class="detail-section-label">Content</div>
+        <div class="detail-section-label"><span>Text</span><button class="copy-btn" data-copy-id="text">Copy</button></div>
         <div class="detail-section-content">${escapeHtml(truncate(text, 1000))}</div>
+      </div>`;
+    }
+
+    // Show thinking preview if any
+    const thinkingBlocks = turn.content.filter(b => b.type === 'thinking');
+    if (thinkingBlocks.length > 0) {
+      const thinking = thinkingBlocks.map(b => b.thinking || '').join('\n\n');
+      copyableContent['thinking'] = thinking;
+      content += `<div class="detail-section">
+        <div class="detail-section-label"><span>Thinking</span><button class="copy-btn" data-copy-id="thinking">Copy</button></div>
+        <div class="detail-section-content code">${escapeHtml(truncate(thinking, 500))}</div>
+      </div>`;
+    }
+
+    // Show tool calls if any
+    const toolBlocks = turn.content.filter(b => b.type === 'tool_use');
+    if (toolBlocks.length > 0) {
+      content += `<div class="detail-section">
+        <div class="detail-section-label">Tools Used</div>
+        <div class="detail-section-content">${toolBlocks.map(b => escapeHtml(b.name || 'unknown')).join(', ')}</div>
       </div>`;
     }
   } else if (type === 'thinking') {
     const block = data as { thinking?: string };
     if (block.thinking) {
+      copyableContent['thinking-block'] = block.thinking;
       content += `<div class="detail-section">
-        <div class="detail-section-label">Thinking</div>
+        <div class="detail-section-label"><span>Thinking</span><button class="copy-btn" data-copy-id="thinking-block">Copy</button></div>
         <div class="detail-section-content code">${escapeHtml(truncate(block.thinking, 2000))}</div>
       </div>`;
     }
   } else if (type === 'tool_use') {
     const block = data as { name?: string; input?: Record<string, unknown> };
     content += `<div class="detail-section">
-      <div class="detail-section-label">Tool</div>
+      <div class="detail-section-label"><span>Tool</span></div>
       <div class="detail-section-content"><strong>${escapeHtml(block.name || 'unknown')}</strong></div>
     </div>`;
     if (block.input) {
+      const inputJson = JSON.stringify(block.input, null, 2);
+      copyableContent['tool-input'] = inputJson;
       content += `<div class="detail-section">
-        <div class="detail-section-label">Input</div>
-        <div class="detail-section-content code">${escapeHtml(truncate(JSON.stringify(block.input, null, 2), 1500))}</div>
+        <div class="detail-section-label"><span>Input</span><button class="copy-btn" data-copy-id="tool-input">Copy</button></div>
+        <div class="detail-section-content code">${escapeHtml(truncate(inputJson, 1500))}</div>
       </div>`;
     }
   } else if (type === 'tool_result') {
     const block = data as { content?: string; is_error?: boolean };
+    const resultContent = String(block.content || '');
+    copyableContent['tool-result'] = resultContent;
     content += `<div class="detail-section">
-      <div class="detail-section-label">Result${block.is_error ? ' (Error)' : ''}</div>
-      <div class="detail-section-content code">${escapeHtml(truncate(String(block.content || ''), 2000))}</div>
+      <div class="detail-section-label"><span>Result${block.is_error ? ' (Error)' : ''}</span><button class="copy-btn" data-copy-id="tool-result">Copy</button></div>
+      <div class="detail-section-content code">${escapeHtml(truncate(resultContent, 2000))}</div>
     </div>`;
   }
 
+  // Add raw data toggle
+  const rawJson = JSON.stringify(data, null, 2);
+  copyableContent['raw-data'] = rawJson;
   content += `<div class="detail-section">
-    <div class="detail-section-label">Turn Index</div>
-    <div class="detail-section-content">${selection.turnIndex}</div>
+    <div class="detail-section-label">
+      <button id="toggle-raw-btn" class="raw-toggle-btn">Show Raw Data</button>
+      <button class="copy-btn" data-copy-id="raw-data" style="margin-left: 8px;">Copy</button>
+    </div>
+    <div id="raw-data-content" class="detail-section-content code raw-data" style="display: none;">${escapeHtml(truncate(rawJson, 10000))}</div>
   </div>`;
 
   return content;
@@ -492,6 +545,227 @@ function formatDuration(ms: number): string {
   const hours = Math.floor(minutes / 60);
   const remainingMinutes = minutes % 60;
   return `${hours}h ${remainingMinutes}m`;
+}
+
+/**
+ * Position metrics panel below info panel
+ */
+function positionMetricsPanel(): void {
+  if (!metricsPanel || !infoPanel) return;
+
+  const infoPanelRect = infoPanel.getBoundingClientRect();
+  metricsPanel.style.top = `${infoPanelRect.bottom + 10}px`;
+}
+
+/**
+ * Draw a single metric chart
+ */
+function drawMetricChart(canvas: HTMLCanvasElement, values: number[], focusIndex?: number, color = '#4a90d9'): void {
+  const maxValue = Math.max(...values, 1);
+
+  // Setup canvas with device pixel ratio for crisp rendering
+  const dpr = window.devicePixelRatio || 1;
+  const rect = canvas.getBoundingClientRect();
+  canvas.width = rect.width * dpr;
+  canvas.height = rect.height * dpr;
+
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return;
+
+  ctx.scale(dpr, dpr);
+
+  const width = rect.width;
+  const height = rect.height;
+  const padding = 2;
+  const barWidth = Math.max(1, (width - padding * 2) / values.length - 1);
+  const gap = 1;
+
+  // Clear
+  ctx.fillStyle = '#2a2a40';
+  ctx.fillRect(0, 0, width, height);
+
+  // Draw bars
+  for (let i = 0; i < values.length; i++) {
+    const value = values[i];
+    const barHeight = Math.max(1, (value / maxValue) * (height - padding * 2));
+    const x = padding + i * (barWidth + gap);
+    const y = height - padding - barHeight;
+
+    // Highlight focused bar
+    if (focusIndex !== undefined && i === focusIndex) {
+      ctx.fillStyle = '#ffffff';
+    } else {
+      ctx.fillStyle = color;
+    }
+
+    ctx.fillRect(x, y, barWidth, barHeight);
+  }
+}
+
+/**
+ * Draw all visible metric charts
+ */
+function drawCharts(focusIndex?: number): void {
+  if (!metricsPanel || !metricsStack) return;
+
+  const metrics = viewer.getClusterMetrics();
+  if (metrics.length === 0) {
+    metricsPanel.classList.remove('visible');
+    return;
+  }
+
+  metricsPanel.classList.add('visible');
+  positionMetricsPanel();
+
+  // Update range label
+  if (chartRange) {
+    chartRange.textContent = `1-${metrics.length}`;
+  }
+
+  // Color map for different metrics
+  const colors: Record<MetricKey, string> = {
+    totalTokens: '#4a90d9',
+    outputTokens: '#50c878',
+    inputTokens: '#9b59b6',
+    thinkingCount: '#9b59b6',
+    toolCount: '#f39c12',
+    contentLength: '#888888',
+  };
+
+  // Draw each visible chart
+  const rows = metricsStack.querySelectorAll('.metric-row');
+  rows.forEach((row) => {
+    const metricKey = row.getAttribute('data-metric') as MetricKey;
+    const canvas = row.querySelector('.metric-canvas') as HTMLCanvasElement;
+    const checkbox = row.querySelector('input[type="checkbox"]') as HTMLInputElement;
+
+    if (!metricKey || !canvas || !checkbox) return;
+
+    if (checkbox.checked) {
+      row.classList.remove('hidden');
+      const values = metrics.map(m => m[metricKey]);
+      drawMetricChart(canvas, values, focusIndex, colors[metricKey]);
+    } else {
+      row.classList.add('hidden');
+    }
+  });
+}
+
+// Setup metric toggles and click-to-select
+if (metricsStack) {
+  metricsStack.addEventListener('change', (e) => {
+    if ((e.target as HTMLElement).matches('input[type="checkbox"]')) {
+      drawCharts(currentFocusIndex);
+    }
+  });
+
+  // Click on chart to select cluster
+  metricsStack.addEventListener('click', (e) => {
+    const canvas = (e.target as HTMLElement).closest('.metric-canvas') as HTMLCanvasElement;
+    if (!canvas) return;
+
+    const rect = canvas.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const clusterCount = viewer.getClusterCount();
+    if (clusterCount === 0) return;
+
+    // Calculate which cluster was clicked
+    const padding = 2;
+    const barWidth = Math.max(1, (rect.width - padding * 2) / clusterCount - 1);
+    const gap = 1;
+    const clusterIndex = Math.floor((x - padding) / (barWidth + gap));
+
+    if (clusterIndex >= 0 && clusterIndex < clusterCount) {
+      viewer.selectClusterByIndex(clusterIndex);
+    }
+  });
+}
+
+// Update charts when selection changes
+viewer.onSelect((selection) => {
+  if (selection?.clusterIndex !== undefined) {
+    currentFocusIndex = selection.clusterIndex;
+    drawCharts(currentFocusIndex);
+  }
+
+  if (!selection) {
+    if (detailPanel) {
+      detailPanel.classList.remove('visible');
+    }
+    return;
+  }
+
+  if (detailPanel && detailPanelContent) {
+    detailPanel.classList.add('visible');
+    detailPanelContent.innerHTML = renderDetail(selection);
+
+    // Wire up cluster toggle button
+    const toggleBtn = document.getElementById('toggle-cluster-btn');
+    toggleBtn?.addEventListener('click', () => {
+      const clusterIndex = parseInt(toggleBtn.dataset.clusterIndex || '0', 10);
+      viewer.toggleCluster(clusterIndex);
+    });
+
+    // Wire up collapse parent button
+    const collapseBtn = document.getElementById('collapse-parent-btn');
+    collapseBtn?.addEventListener('click', () => {
+      const clusterIndex = parseInt(collapseBtn.dataset.clusterIndex || '0', 10);
+      viewer.toggleCluster(clusterIndex);
+    });
+
+    // Wire up raw data toggle
+    const rawToggleBtn = document.getElementById('toggle-raw-btn');
+    const rawDataContent = document.getElementById('raw-data-content');
+    rawToggleBtn?.addEventListener('click', () => {
+      if (rawDataContent) {
+        const isHidden = rawDataContent.style.display === 'none';
+        rawDataContent.style.display = isHidden ? 'block' : 'none';
+        rawToggleBtn.textContent = isHidden ? 'Hide Raw Data' : 'Show Raw Data';
+      }
+    });
+
+    // Wire up copy buttons
+    detailPanelContent.querySelectorAll('.copy-btn').forEach((btn) => {
+      btn.addEventListener('click', async () => {
+        const copyId = (btn as HTMLElement).dataset.copyId;
+        if (!copyId || !copyableContent[copyId]) return;
+
+        try {
+          await navigator.clipboard.writeText(copyableContent[copyId]);
+          btn.textContent = 'Copied!';
+          btn.classList.add('copied');
+          setTimeout(() => {
+            btn.textContent = 'Copy';
+            btn.classList.remove('copied');
+          }, 1500);
+        } catch (err) {
+          console.error('Failed to copy:', err);
+          btn.textContent = 'Failed';
+          setTimeout(() => {
+            btn.textContent = 'Copy';
+          }, 1500);
+        }
+      });
+    });
+  }
+});
+
+// Reposition metrics panel on window resize
+window.addEventListener('resize', () => {
+  if (metricsPanel?.classList.contains('visible')) {
+    positionMetricsPanel();
+    drawCharts(currentFocusIndex);
+  }
+});
+
+// Redraw charts when metrics panel is resized
+if (metricsPanel) {
+  const resizeObserver = new ResizeObserver(() => {
+    if (metricsPanel.classList.contains('visible')) {
+      drawCharts(currentFocusIndex);
+    }
+  });
+  resizeObserver.observe(metricsPanel);
 }
 
 // Load recent traces on startup

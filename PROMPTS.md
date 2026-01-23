@@ -154,3 +154,51 @@ i would like you to list everything in the cluster in the details pane
 ## 2026-01-23T01:02:09Z
 
 that's working well... i like the spiral coil.  we need it to take less space vertically, can we compress the coil on each end and shave it uncoiled in the area of focus, kinda like a slinky
+
+---
+
+## 2026-01-23T01:06:53Z
+
+identify each cluster with its ordinal location in the list.  show that in the details.
+
+---
+
+## 2026-01-23T01:12:56Z
+
+now add a chart in the lower left that has the cluster ordinal on the X axis and the tokens used on the Y.  is that even available? what other metrics are graphable ?
+
+---
+
+## 2026-01-23T01:25:20Z
+
+i like how that is, let's do a vertical stack of graphs of all of them and users can select which ones they want to hide
+
+---
+
+## 2026-01-23T01:27:52Z
+
+beautiful, put it under the session and add a picker so we can select the relevant trace (eg one that usees a lot of tokens, etc
+
+---
+
+## 2026-01-23T01:42:56Z
+
+the metrics overlap the session box, see attached
+
+---
+
+## 2026-01-23T01:44:44Z
+
+that works great.   so why are the assistant responses empty, is there data there?  can we have a way to expose the raw data in the panel?
+
+---
+
+## 2026-01-23T01:48:33Z
+
+for the text boxes in the detail pane, add clipboard copy button functionality for each respective box
+
+---
+
+## 2026-01-23T01:53:13Z
+
+allow the metrics window to be resized?
