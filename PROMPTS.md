@@ -424,3 +424,9 @@ there's a lot of flickering when resizing the split pane, perhaps don't clear th
 ## 2026-01-23T18:03:27Z
 
 that seems to be working well.  one issue is that when i resize with the slider, the slider position jumps.  perhaps there's a stale original position value that is getting used?
+
+---
+
+## 2026-01-23T18:15:08Z
+
+that works great,. now i want to add an export feature for the right-pane conversation content, into a choice of static HTML or markdown 

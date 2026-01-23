@@ -200,6 +200,78 @@
         border-color: #4a90d9;
       }
 
+      /* Export dropdown */
+      .export-dropdown {
+        position: relative;
+        flex-shrink: 0;
+      }
+
+      #export-btn {
+        padding: 6px 12px;
+        font-size: 12px;
+        font-family: inherit;
+        background: none;
+        color: #888;
+        border: 1px solid #4a4a6a;
+        border-radius: 4px;
+        cursor: pointer;
+        transition: all 0.15s;
+      }
+
+      #export-btn:hover {
+        background: #3a3a50;
+        color: #bbb;
+      }
+
+      #export-btn:disabled {
+        opacity: 0.4;
+        cursor: not-allowed;
+      }
+
+      .export-menu {
+        display: none;
+        position: absolute;
+        top: 100%;
+        right: 0;
+        margin-top: 4px;
+        background: #2a2a40;
+        border: 1px solid #4a4a6a;
+        border-radius: 4px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+        z-index: 1000;
+        min-width: 160px;
+      }
+
+      .export-dropdown.open .export-menu {
+        display: block;
+      }
+
+      .export-menu button {
+        display: block;
+        width: 100%;
+        padding: 10px 14px;
+        text-align: left;
+        font-size: 13px;
+        font-family: inherit;
+        background: none;
+        color: #ccc;
+        border: none;
+        cursor: pointer;
+        transition: background 0.15s;
+      }
+
+      .export-menu button:hover {
+        background: #3a3a5c;
+      }
+
+      .export-menu button:first-child {
+        border-radius: 4px 4px 0 0;
+      }
+
+      .export-menu button:last-child {
+        border-radius: 0 0 4px 4px;
+      }
+
       /* Sidebar toggle */
       #sidebar-toggle {
         padding: 6px 10px;
@@ -1325,6 +1397,13 @@
           <button class="view-mode-btn" data-mode="3d" title="3D View Only">3D</button>
           <button class="view-mode-btn active" data-mode="split" title="Split View">Split</button>
           <button class="view-mode-btn" data-mode="conversation" title="Conversation Only">Conv</button>
+        </div>
+        <div class="export-dropdown">
+          <button id="export-btn" title="Export Conversation" disabled>Export</button>
+          <div class="export-menu">
+            <button data-format="html">Export as HTML</button>
+            <button data-format="markdown">Export as Markdown</button>
+          </div>
         </div>
         <button id="sidebar-toggle" title="Toggle Sidebar">&#9776;</button>
       </div>
