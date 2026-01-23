@@ -297,13 +297,27 @@ viewer.onSelect((selection) => {
   if (detailPanel && detailPanelContent) {
     detailPanel.classList.add('visible');
     detailPanelContent.innerHTML = renderDetail(selection);
+
+    // Wire up cluster toggle button
+    const toggleBtn = document.getElementById('toggle-cluster-btn');
+    toggleBtn?.addEventListener('click', () => {
+      const clusterIndex = parseInt(toggleBtn.dataset.clusterIndex || '0', 10);
+      viewer.toggleCluster(clusterIndex);
+    });
+
+    // Wire up collapse parent button
+    const collapseBtn = document.getElementById('collapse-parent-btn');
+    collapseBtn?.addEventListener('click', () => {
+      const clusterIndex = parseInt(collapseBtn.dataset.clusterIndex || '0', 10);
+      viewer.toggleCluster(clusterIndex);
+    });
   }
 });
 
 /**
  * Render detail panel content for a selection
  */
-function renderDetail(selection: { type: string; data: unknown; turnIndex: number }): string {
+function renderDetail(selection: { type: string; data: unknown; turnIndex: number; clusterIndex?: number }): string {
   const { type, data } = selection;
 
   let content = `<div class="detail-section">
@@ -312,6 +326,103 @@ function renderDetail(selection: { type: string; data: unknown; turnIndex: numbe
       <span class="detail-type-badge ${type}">${type.replace('_', ' ')}</span>
     </div>
   </div>`;
+
+  // Add expand/collapse button for clusters
+  if (type === 'cluster') {
+    const cluster = data as {
+      expanded: boolean;
+      index: number;
+      thinkingCount: number;
+      toolCount: number;
+      userTurn?: { content: Array<{ type: string; text?: string }> };
+      assistantTurn?: { content: Array<{ type: string; text?: string; thinking?: string; name?: string; content?: string; is_error?: boolean }> };
+    };
+    content += `<div class="detail-section">
+      <div class="detail-section-label">Actions</div>
+      <div class="detail-section-content">
+        <button id="toggle-cluster-btn" class="detail-action-btn" data-cluster-index="${cluster.index}">
+          ${cluster.expanded ? '↩ Collapse' : '↗ Expand'}
+        </button>
+      </div>
+    </div>`;
+
+    // User message preview
+    if (cluster.userTurn) {
+      const userText = cluster.userTurn.content
+        .filter(b => b.type === 'text')
+        .map(b => b.text || '')
+        .join('\n');
+      if (userText) {
+        content += `<div class="detail-section">
+          <div class="detail-section-label">User</div>
+          <div class="detail-section-content">${escapeHtml(truncate(userText, 200))}</div>
+        </div>`;
+      }
+    }
+
+    // Assistant text preview
+    if (cluster.assistantTurn) {
+      const assistantText = cluster.assistantTurn.content
+        .filter(b => b.type === 'text')
+        .map(b => b.text || '')
+        .join('\n');
+      if (assistantText) {
+        content += `<div class="detail-section">
+          <div class="detail-section-label">Assistant</div>
+          <div class="detail-section-content">${escapeHtml(truncate(assistantText, 200))}</div>
+        </div>`;
+      }
+
+      // List thinking blocks
+      const thinkingBlocks = cluster.assistantTurn.content.filter(b => b.type === 'thinking');
+      if (thinkingBlocks.length > 0) {
+        content += `<div class="detail-section">
+          <div class="detail-section-label">Thinking (${thinkingBlocks.length})</div>
+          <div class="detail-section-content cluster-list">`;
+        for (const block of thinkingBlocks) {
+          const preview = truncate(block.thinking || '', 100);
+          content += `<div class="cluster-list-item thinking">${escapeHtml(preview)}</div>`;
+        }
+        content += `</div></div>`;
+      }
+
+      // List tool calls
+      const toolUses = cluster.assistantTurn.content.filter(b => b.type === 'tool_use');
+      if (toolUses.length > 0) {
+        content += `<div class="detail-section">
+          <div class="detail-section-label">Tool Calls (${toolUses.length})</div>
+          <div class="detail-section-content cluster-list">`;
+        for (const block of toolUses) {
+          content += `<div class="cluster-list-item tool_use">${escapeHtml(block.name || 'unknown')}</div>`;
+        }
+        content += `</div></div>`;
+      }
+
+      // List tool results
+      const toolResults = cluster.assistantTurn.content.filter(b => b.type === 'tool_result');
+      if (toolResults.length > 0) {
+        content += `<div class="detail-section">
+          <div class="detail-section-label">Tool Results (${toolResults.length})</div>
+          <div class="detail-section-content cluster-list">`;
+        for (const block of toolResults) {
+          const status = block.is_error ? 'error' : 'success';
+          const preview = truncate(String(block.content || ''), 80);
+          content += `<div class="cluster-list-item tool_result ${status}">${escapeHtml(preview)}</div>`;
+        }
+        content += `</div></div>`;
+      }
+    }
+  } else if (selection.clusterIndex !== undefined) {
+    // Child node of a cluster - offer to collapse parent
+    content += `<div class="detail-section">
+      <div class="detail-section-label">Actions</div>
+      <div class="detail-section-content">
+        <button id="collapse-parent-btn" class="detail-action-btn" data-cluster-index="${selection.clusterIndex}">
+          ↩ Collapse Turn
+        </button>
+      </div>
+    </div>`;
+  }
 
   // Type-specific content
   if (type === 'user' || type === 'assistant') {

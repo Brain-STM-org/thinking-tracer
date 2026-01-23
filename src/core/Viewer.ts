@@ -21,23 +21,42 @@ export interface ViewerStats {
 }
 
 /** Node types for visualization */
-type NodeType = 'user' | 'assistant' | 'thinking' | 'tool_use' | 'tool_result';
+type NodeType = 'user' | 'assistant' | 'thinking' | 'tool_use' | 'tool_result' | 'cluster';
 
 /** Visual node in the scene */
 interface VisualNode {
   mesh: THREE.Mesh;
   type: NodeType;
-  data: Turn | ContentBlock;
+  data: Turn | ContentBlock | TurnCluster;
   turnIndex: number;
+  clusterIndex?: number;
   originalMaterial: THREE.Material;
+  targetPosition?: THREE.Vector3;
+  targetScale?: number;
+}
+
+/** A cluster of turns (user + assistant pair) */
+interface TurnCluster {
+  index: number;
+  userTurn?: Turn;
+  assistantTurn?: Turn;
+  userTurnIndex?: number;
+  assistantTurnIndex?: number;
+  expanded: boolean;
+  thinkingCount: number;
+  toolCount: number;
 }
 
 /** Selection info passed to callback */
 export interface SelectionInfo {
   type: NodeType;
-  data: Turn | ContentBlock;
+  data: Turn | ContentBlock | TurnCluster;
   turnIndex: number;
+  clusterIndex?: number;
 }
+
+// Animation duration in ms
+const ANIMATION_DURATION = 400;
 
 export class Viewer {
   private scene: Scene;
@@ -45,6 +64,7 @@ export class Viewer {
   private container: HTMLElement;
   private conversation: Conversation | null = null;
   private nodes: VisualNode[] = [];
+  private clusters: TurnCluster[] = [];
   private statsCallback?: (stats: ViewerStats) => void;
   private selectCallback?: (selection: SelectionInfo | null) => void;
 
@@ -53,9 +73,30 @@ export class Viewer {
   private raycaster = new THREE.Raycaster();
   private mouse = new THREE.Vector2();
 
+  // Animation state
+  private animating = false;
+  private animationStart = 0;
+  private animatingNodes: VisualNode[] = [];
+
+  // Double-click detection
+  private lastClickTime = 0;
+  private lastClickedNode: VisualNode | null = null;
+
   // Materials for different node types
   private materials: Record<NodeType, THREE.MeshStandardMaterial>;
   private highlightMaterial: THREE.MeshStandardMaterial;
+
+  // Layout parameters
+  private readonly spiralRadius = 4;
+  private readonly spiralAngleStep = Math.PI / 3; // 60 degrees per cluster
+  private readonly expandedSpacing = 2;
+  private readonly blockSpacing = 1.2;
+
+  // Slinky effect parameters
+  private focusClusterIndex = 0;
+  private readonly minVerticalSpacing = 0.3;  // Compressed spacing at ends
+  private readonly maxVerticalSpacing = 2.0;  // Expanded spacing at focus
+  private readonly focusRadius = 3;           // How many clusters around focus get expanded
 
   constructor(options: ViewerOptions) {
     const container =
@@ -82,6 +123,7 @@ export class Viewer {
       thinking: new THREE.MeshStandardMaterial({ color: 0x9b59b6, roughness: 0.3, transparent: true, opacity: 0.8 }),
       tool_use: new THREE.MeshStandardMaterial({ color: 0xf39c12, roughness: 0.4 }),
       tool_result: new THREE.MeshStandardMaterial({ color: 0xe74c3c, roughness: 0.4 }),
+      cluster: this.createClusterMaterial(),
     };
 
     // Highlight material for selected nodes
@@ -98,8 +140,20 @@ export class Viewer {
     this.setupKeyboardHandler();
 
     // Start render loop
-    this.scene.start(() => {
+    this.scene.start((deltaTime) => {
       this.controls.update();
+      this.updateAnimation(deltaTime);
+    });
+  }
+
+  /**
+   * Create gradient-like material for clusters
+   */
+  private createClusterMaterial(): THREE.MeshStandardMaterial {
+    return new THREE.MeshStandardMaterial({
+      color: 0x5a9a7a, // Blend of user blue and assistant green
+      roughness: 0.3,
+      metalness: 0.1,
     });
   }
 
@@ -160,23 +214,61 @@ export class Viewer {
           event.preventDefault();
           this.selectLast();
           break;
+        case 'Enter':
+        case ' ':
+          event.preventDefault();
+          this.toggleSelectedCluster();
+          break;
+        case 'Backspace':
+          event.preventDefault();
+          this.collapseSelected();
+          break;
       }
     });
+  }
+
+  /**
+   * Toggle expand/collapse of selected cluster
+   */
+  private toggleSelectedCluster(): void {
+    if (!this.selectedNode) return;
+
+    if (this.selectedNode.type === 'cluster') {
+      const cluster = this.selectedNode.data as TurnCluster;
+      this.toggleCluster(cluster.index);
+    } else if (this.selectedNode.clusterIndex !== undefined) {
+      // If a child node is selected, toggle its parent cluster
+      this.toggleCluster(this.selectedNode.clusterIndex);
+    }
+  }
+
+  /**
+   * Collapse the selected node's cluster
+   */
+  private collapseSelected(): void {
+    if (!this.selectedNode) return;
+
+    if (this.selectedNode.clusterIndex !== undefined) {
+      const cluster = this.clusters[this.selectedNode.clusterIndex];
+      if (cluster.expanded) {
+        this.toggleCluster(cluster.index);
+      }
+    }
   }
 
   /**
    * Select the next node
    */
   private selectNext(): void {
-    if (this.nodes.length === 0) return;
+    const selectableNodes = this.getSelectableNodes();
+    if (selectableNodes.length === 0) return;
 
     if (!this.selectedNode) {
-      // Select first node
-      this.selectNode(this.nodes[0]);
+      this.selectNode(selectableNodes[0]);
     } else {
-      const currentIndex = this.nodes.indexOf(this.selectedNode);
-      const nextIndex = (currentIndex + 1) % this.nodes.length;
-      this.selectNode(this.nodes[nextIndex]);
+      const currentIndex = selectableNodes.indexOf(this.selectedNode);
+      const nextIndex = (currentIndex + 1) % selectableNodes.length;
+      this.selectNode(selectableNodes[nextIndex]);
     }
   }
 
@@ -184,24 +276,32 @@ export class Viewer {
    * Select the previous node
    */
   private selectPrevious(): void {
-    if (this.nodes.length === 0) return;
+    const selectableNodes = this.getSelectableNodes();
+    if (selectableNodes.length === 0) return;
 
     if (!this.selectedNode) {
-      // Select last node
-      this.selectNode(this.nodes[this.nodes.length - 1]);
+      this.selectNode(selectableNodes[selectableNodes.length - 1]);
     } else {
-      const currentIndex = this.nodes.indexOf(this.selectedNode);
-      const prevIndex = currentIndex === 0 ? this.nodes.length - 1 : currentIndex - 1;
-      this.selectNode(this.nodes[prevIndex]);
+      const currentIndex = selectableNodes.indexOf(this.selectedNode);
+      const prevIndex = currentIndex === 0 ? selectableNodes.length - 1 : currentIndex - 1;
+      this.selectNode(selectableNodes[prevIndex]);
     }
+  }
+
+  /**
+   * Get nodes that are currently selectable (visible)
+   */
+  private getSelectableNodes(): VisualNode[] {
+    return this.nodes.filter(n => n.mesh.visible && n.mesh.scale.x > 0.01);
   }
 
   /**
    * Select the first node
    */
   private selectFirst(): void {
-    if (this.nodes.length > 0) {
-      this.selectNode(this.nodes[0]);
+    const selectableNodes = this.getSelectableNodes();
+    if (selectableNodes.length > 0) {
+      this.selectNode(selectableNodes[0]);
     }
   }
 
@@ -209,8 +309,9 @@ export class Viewer {
    * Select the last node
    */
   private selectLast(): void {
-    if (this.nodes.length > 0) {
-      this.selectNode(this.nodes[this.nodes.length - 1]);
+    const selectableNodes = this.getSelectableNodes();
+    if (selectableNodes.length > 0) {
+      this.selectNode(selectableNodes[selectableNodes.length - 1]);
     }
   }
 
@@ -224,18 +325,32 @@ export class Viewer {
 
     this.raycaster.setFromCamera(this.mouse, this.scene.camera);
 
-    const meshes = this.nodes.map(n => n.mesh);
-    const intersects = this.raycaster.intersectObjects(meshes);
+    const visibleMeshes = this.nodes.filter(n => n.mesh.visible).map(n => n.mesh);
+    const intersects = this.raycaster.intersectObjects(visibleMeshes);
 
     if (intersects.length > 0) {
       const mesh = intersects[0].object as THREE.Mesh;
       const node = this.nodes.find(n => n.mesh === mesh);
 
       if (node) {
-        this.selectNode(node);
+        const now = Date.now();
+        const isDoubleClick = (now - this.lastClickTime < 400) && (this.lastClickedNode === node);
+
+        if (isDoubleClick && node.type === 'cluster') {
+          // Double-click on cluster: toggle expand/collapse
+          const cluster = node.data as TurnCluster;
+          this.toggleCluster(cluster.index);
+        } else {
+          // Single click: select
+          this.selectNode(node);
+        }
+
+        this.lastClickTime = now;
+        this.lastClickedNode = node;
       }
     } else {
       this.clearSelection();
+      this.lastClickedNode = null;
     }
   }
 
@@ -252,11 +367,17 @@ export class Viewer {
     this.selectedNode = node;
     node.mesh.material = this.highlightMaterial;
 
+    // Update focus to the selected cluster (slinky effect)
+    if (node.clusterIndex !== undefined) {
+      this.setFocus(node.clusterIndex);
+    }
+
     // Notify callback
     this.selectCallback?.({
       type: node.type,
       data: node.data,
       turnIndex: node.turnIndex,
+      clusterIndex: node.clusterIndex,
     });
   }
 
@@ -276,6 +397,37 @@ export class Viewer {
    */
   public onSelect(callback: (selection: SelectionInfo | null) => void): void {
     this.selectCallback = callback;
+  }
+
+  /**
+   * Toggle a cluster's expanded state
+   */
+  public toggleCluster(clusterIndex: number): void {
+    if (this.animating) return;
+
+    const cluster = this.clusters[clusterIndex];
+    if (!cluster) return;
+
+    cluster.expanded = !cluster.expanded;
+    this.animateLayout();
+  }
+
+  /**
+   * Expand all clusters
+   */
+  public expandAll(): void {
+    if (this.animating) return;
+    this.clusters.forEach(c => c.expanded = true);
+    this.animateLayout();
+  }
+
+  /**
+   * Collapse all clusters
+   */
+  public collapseAll(): void {
+    if (this.animating) return;
+    this.clusters.forEach(c => c.expanded = false);
+    this.animateLayout();
   }
 
   /**
@@ -315,6 +467,70 @@ export class Viewer {
   }
 
   /**
+   * Build clusters from turns
+   */
+  private buildClusters(): void {
+    this.clusters = [];
+
+    if (!this.conversation) return;
+
+    const { turns } = this.conversation;
+    let clusterIndex = 0;
+
+    for (let i = 0; i < turns.length; i++) {
+      const turn = turns[i];
+
+      if (turn.role === 'user') {
+        // Start a new cluster with user turn
+        const cluster: TurnCluster = {
+          index: clusterIndex,
+          userTurn: turn,
+          userTurnIndex: i,
+          expanded: false,
+          thinkingCount: 0,
+          toolCount: 0,
+        };
+
+        // Look for following assistant turn
+        if (i + 1 < turns.length && turns[i + 1].role === 'assistant') {
+          const assistantTurn = turns[i + 1];
+          cluster.assistantTurn = assistantTurn;
+          cluster.assistantTurnIndex = i + 1;
+
+          // Count thinking and tool blocks
+          for (const block of assistantTurn.content) {
+            if (block.type === 'thinking') cluster.thinkingCount++;
+            if (block.type === 'tool_use') cluster.toolCount++;
+          }
+
+          i++; // Skip the assistant turn in next iteration
+        }
+
+        this.clusters.push(cluster);
+        clusterIndex++;
+      } else if (turn.role === 'assistant' && this.clusters.length === 0) {
+        // Orphan assistant turn at the start
+        const cluster: TurnCluster = {
+          index: clusterIndex,
+          assistantTurn: turn,
+          assistantTurnIndex: i,
+          expanded: false,
+          thinkingCount: 0,
+          toolCount: 0,
+        };
+
+        for (const block of turn.content) {
+          if (block.type === 'thinking') cluster.thinkingCount++;
+          if (block.type === 'tool_use') cluster.toolCount++;
+        }
+
+        this.clusters.push(cluster);
+        clusterIndex++;
+      }
+    }
+  }
+
+  /**
    * Build the 3D visualization from the loaded conversation
    */
   private buildVisualization(): void {
@@ -324,66 +540,97 @@ export class Viewer {
     this.clearSelection();
     this.clearNodes();
 
-    const { turns } = this.conversation;
+    // Build cluster structure
+    this.buildClusters();
 
-    // Layout parameters
-    const turnSpacing = 3;
-    const blockSpacing = 1.5;
-    const startX = -((turns.length - 1) * turnSpacing) / 2;
+    // Create nodes for each cluster and its contents
+    for (const cluster of this.clusters) {
+      // Create cluster node (collapsed representation)
+      const clusterNode = this.createClusterNode(cluster);
+      this.nodes.push(clusterNode);
+      this.scene.add(clusterNode.mesh);
 
-    turns.forEach((turn, turnIndex) => {
-      const x = startX + turnIndex * turnSpacing;
-      let y = 0;
+      // Create child nodes (hidden initially)
+      if (cluster.userTurn && cluster.userTurnIndex !== undefined) {
+        const userNode = this.createNode('user', cluster.userTurn, cluster.userTurnIndex, cluster.index);
+        userNode.mesh.visible = false;
+        userNode.mesh.scale.setScalar(0.01);
+        this.nodes.push(userNode);
+        this.scene.add(userNode.mesh);
+      }
 
-      // Create main turn node
-      const turnNode = this.createNode(
-        turn.role === 'user' ? 'user' : 'assistant',
-        turn,
-        turnIndex
-      );
-      turnNode.mesh.position.set(x, y, 0);
-      this.scene.add(turnNode.mesh);
-      this.nodes.push(turnNode);
+      if (cluster.assistantTurn && cluster.assistantTurnIndex !== undefined) {
+        const assistantNode = this.createNode('assistant', cluster.assistantTurn, cluster.assistantTurnIndex, cluster.index);
+        assistantNode.mesh.visible = false;
+        assistantNode.mesh.scale.setScalar(0.01);
+        this.nodes.push(assistantNode);
+        this.scene.add(assistantNode.mesh);
 
-      // Create nodes for thinking blocks and tool calls
-      turn.content.forEach((block) => {
-        if (block.type === 'thinking') {
-          y -= blockSpacing;
-          const thinkingNode = this.createNode('thinking', block, turnIndex);
-          thinkingNode.mesh.position.set(x, y, 1);
-          thinkingNode.mesh.scale.setScalar(0.6);
-          this.scene.add(thinkingNode.mesh);
-          this.nodes.push(thinkingNode);
-        } else if (block.type === 'tool_use') {
-          y -= blockSpacing;
-          const toolNode = this.createNode('tool_use', block, turnIndex);
-          toolNode.mesh.position.set(x + 0.5, y, 0.5);
-          toolNode.mesh.scale.setScalar(0.5);
-          this.scene.add(toolNode.mesh);
-          this.nodes.push(toolNode);
-        } else if (block.type === 'tool_result') {
-          const resultNode = this.createNode('tool_result', block, turnIndex);
-          resultNode.mesh.position.set(x + 1, y, 0.5);
-          resultNode.mesh.scale.setScalar(0.4);
-          this.scene.add(resultNode.mesh);
-          this.nodes.push(resultNode);
+        // Create thinking and tool nodes
+        for (const block of cluster.assistantTurn.content) {
+          if (block.type === 'thinking') {
+            const thinkingNode = this.createNode('thinking', block, cluster.assistantTurnIndex, cluster.index);
+            thinkingNode.mesh.visible = false;
+            thinkingNode.mesh.scale.setScalar(0.01);
+            this.nodes.push(thinkingNode);
+            this.scene.add(thinkingNode.mesh);
+          } else if (block.type === 'tool_use') {
+            const toolNode = this.createNode('tool_use', block, cluster.assistantTurnIndex, cluster.index);
+            toolNode.mesh.visible = false;
+            toolNode.mesh.scale.setScalar(0.01);
+            this.nodes.push(toolNode);
+            this.scene.add(toolNode.mesh);
+          } else if (block.type === 'tool_result') {
+            const resultNode = this.createNode('tool_result', block, cluster.assistantTurnIndex, cluster.index);
+            resultNode.mesh.visible = false;
+            resultNode.mesh.scale.setScalar(0.01);
+            this.nodes.push(resultNode);
+            this.scene.add(resultNode.mesh);
+          }
         }
-      });
-    });
+      }
+    }
 
-    // Position camera to see all nodes
+    // Set initial focus to middle of conversation
+    this.focusClusterIndex = Math.floor(this.clusters.length / 2);
+
+    // Apply initial layout
+    this.applyLayout(false);
     this.fitCamera();
+  }
+
+  /**
+   * Create a cluster node
+   */
+  private createClusterNode(cluster: TurnCluster): VisualNode {
+    // Size based on content
+    const baseSize = 0.8;
+    const sizeBonus = Math.min(0.5, (cluster.thinkingCount + cluster.toolCount) * 0.1);
+    const size = baseSize + sizeBonus;
+
+    const geometry = new THREE.SphereGeometry(size, 24, 24);
+    const material = this.materials.cluster;
+    const mesh = new THREE.Mesh(geometry, material);
+
+    return {
+      mesh,
+      type: 'cluster',
+      data: cluster,
+      turnIndex: cluster.userTurnIndex ?? cluster.assistantTurnIndex ?? 0,
+      clusterIndex: cluster.index,
+      originalMaterial: material,
+    };
   }
 
   /**
    * Create a visual node
    */
-  private createNode(type: NodeType, data: Turn | ContentBlock, turnIndex: number): VisualNode {
+  private createNode(type: NodeType, data: Turn | ContentBlock, turnIndex: number, clusterIndex?: number): VisualNode {
     const geometry = this.getGeometryForType(type);
     const material = this.materials[type];
     const mesh = new THREE.Mesh(geometry, material);
 
-    return { mesh, type, data, turnIndex, originalMaterial: material };
+    return { mesh, type, data, turnIndex, clusterIndex, originalMaterial: material };
   }
 
   /**
@@ -392,18 +639,205 @@ export class Viewer {
   private getGeometryForType(type: NodeType): THREE.BufferGeometry {
     switch (type) {
       case 'user':
-        return new THREE.BoxGeometry(1, 1, 1);
+        return new THREE.BoxGeometry(0.8, 0.8, 0.8);
       case 'assistant':
-        return new THREE.BoxGeometry(1.2, 1.2, 1.2);
+        return new THREE.BoxGeometry(1, 1, 1);
       case 'thinking':
-        return new THREE.SphereGeometry(0.5, 16, 16);
+        return new THREE.SphereGeometry(0.4, 16, 16);
       case 'tool_use':
-        return new THREE.ConeGeometry(0.4, 0.8, 6);
+        return new THREE.ConeGeometry(0.3, 0.6, 6);
       case 'tool_result':
-        return new THREE.OctahedronGeometry(0.4);
+        return new THREE.OctahedronGeometry(0.3);
+      case 'cluster':
+        return new THREE.SphereGeometry(0.8, 24, 24);
       default:
         return new THREE.BoxGeometry(0.5, 0.5, 0.5);
     }
+  }
+
+  /**
+   * Calculate vertical spacing for a cluster based on distance from focus
+   * Uses a smooth falloff to create the "slinky" effect
+   */
+  private getVerticalSpacing(index: number): number {
+    const distanceFromFocus = Math.abs(index - this.focusClusterIndex);
+
+    if (distanceFromFocus >= this.focusRadius) {
+      return this.minVerticalSpacing;
+    }
+
+    // Smooth cosine falloff from max at focus to min at edge
+    const t = distanceFromFocus / this.focusRadius;
+    const falloff = (Math.cos(t * Math.PI) + 1) / 2; // 1 at center, 0 at edge
+
+    return this.minVerticalSpacing + (this.maxVerticalSpacing - this.minVerticalSpacing) * falloff;
+  }
+
+  /**
+   * Calculate spiral position for a cluster with slinky effect
+   */
+  private getSpiralPosition(index: number): THREE.Vector3 {
+    const angle = index * this.spiralAngleStep;
+    const x = Math.cos(angle) * this.spiralRadius;
+    const z = Math.sin(angle) * this.spiralRadius;
+
+    // Calculate cumulative Y by summing spacing for all clusters up to this one
+    let y = 0;
+    for (let i = 0; i < index; i++) {
+      y += this.getVerticalSpacing(i);
+    }
+
+    return new THREE.Vector3(x, y, z);
+  }
+
+  /**
+   * Update focus and re-layout
+   */
+  private setFocus(clusterIndex: number): void {
+    if (clusterIndex === this.focusClusterIndex) return;
+    this.focusClusterIndex = Math.max(0, Math.min(clusterIndex, this.clusters.length - 1));
+    this.animateLayout();
+  }
+
+  /**
+   * Apply layout to all nodes
+   */
+  private applyLayout(animate: boolean): void {
+    for (const cluster of this.clusters) {
+      const clusterPos = this.getSpiralPosition(cluster.index);
+      const clusterNode = this.nodes.find(n => n.type === 'cluster' && (n.data as TurnCluster).index === cluster.index);
+
+      if (!clusterNode) continue;
+
+      if (cluster.expanded) {
+        // Hide cluster node
+        clusterNode.targetScale = 0.01;
+        clusterNode.targetPosition = clusterPos.clone();
+
+        // Position child nodes
+        let offsetY = 0;
+        const childNodes = this.nodes.filter(n => n.clusterIndex === cluster.index && n.type !== 'cluster');
+
+        for (const node of childNodes) {
+          node.mesh.visible = true;
+
+          const pos = clusterPos.clone();
+          pos.y += offsetY;
+
+          // Offset different types
+          if (node.type === 'thinking') {
+            pos.x += 1;
+            pos.z += 0.5;
+          } else if (node.type === 'tool_use') {
+            pos.x += 0.8;
+            pos.z -= 0.5;
+          } else if (node.type === 'tool_result') {
+            pos.x += 1.2;
+            pos.z -= 0.3;
+          }
+
+          node.targetPosition = pos;
+          node.targetScale = 1;
+
+          if (node.type === 'user' || node.type === 'assistant') {
+            offsetY -= this.expandedSpacing;
+          } else {
+            offsetY -= this.blockSpacing;
+          }
+        }
+      } else {
+        // Show cluster node
+        clusterNode.targetPosition = clusterPos;
+        clusterNode.targetScale = 1;
+
+        // Hide child nodes
+        const childNodes = this.nodes.filter(n => n.clusterIndex === cluster.index && n.type !== 'cluster');
+        for (const node of childNodes) {
+          node.targetPosition = clusterPos.clone();
+          node.targetScale = 0.01;
+        }
+      }
+    }
+
+    if (animate) {
+      this.startAnimation();
+    } else {
+      // Apply immediately
+      for (const node of this.nodes) {
+        if (node.targetPosition) {
+          node.mesh.position.copy(node.targetPosition);
+        }
+        if (node.targetScale !== undefined) {
+          node.mesh.scale.setScalar(node.targetScale);
+          node.mesh.visible = node.targetScale > 0.01;
+        }
+      }
+    }
+  }
+
+  /**
+   * Start layout animation
+   */
+  private startAnimation(): void {
+    this.animating = true;
+    this.animationStart = Date.now();
+    this.animatingNodes = this.nodes.filter(n => n.targetPosition || n.targetScale !== undefined);
+
+    // Store starting positions
+    for (const node of this.animatingNodes) {
+      (node as any).startPosition = node.mesh.position.clone();
+      (node as any).startScale = node.mesh.scale.x;
+    }
+  }
+
+  /**
+   * Update animation frame
+   */
+  private updateAnimation(_deltaTime: number): void {
+    if (!this.animating) return;
+
+    const elapsed = Date.now() - this.animationStart;
+    const progress = Math.min(1, elapsed / ANIMATION_DURATION);
+
+    // Ease out cubic
+    const eased = 1 - Math.pow(1 - progress, 3);
+
+    for (const node of this.animatingNodes) {
+      const startPos = (node as any).startPosition as THREE.Vector3;
+      const startScale = (node as any).startScale as number;
+
+      if (node.targetPosition && startPos) {
+        node.mesh.position.lerpVectors(startPos, node.targetPosition, eased);
+      }
+
+      if (node.targetScale !== undefined && startScale !== undefined) {
+        const newScale = startScale + (node.targetScale - startScale) * eased;
+        node.mesh.scale.setScalar(newScale);
+        node.mesh.visible = newScale > 0.01;
+      }
+    }
+
+    if (progress >= 1) {
+      this.animating = false;
+      this.animatingNodes = [];
+
+      // If selected node became invisible, select the cluster instead
+      if (this.selectedNode && !this.selectedNode.mesh.visible) {
+        const clusterNode = this.nodes.find(
+          n => n.type === 'cluster' && n.clusterIndex === this.selectedNode?.clusterIndex
+        );
+        if (clusterNode) {
+          this.selectNode(clusterNode);
+        }
+      }
+    }
+  }
+
+  /**
+   * Animate to new layout positions
+   */
+  private animateLayout(): void {
+    this.applyLayout(true);
   }
 
   /**
@@ -423,8 +857,11 @@ export class Viewer {
   private fitCamera(): void {
     if (this.nodes.length === 0) return;
 
+    const visibleNodes = this.nodes.filter(n => n.mesh.visible);
+    if (visibleNodes.length === 0) return;
+
     const box = new THREE.Box3();
-    for (const node of this.nodes) {
+    for (const node of visibleNodes) {
       box.expandByObject(node.mesh);
     }
 
@@ -433,7 +870,11 @@ export class Viewer {
     const maxDim = Math.max(size.x, size.y, size.z);
 
     this.controls.setTarget(center.x, center.y, center.z);
-    this.scene.camera.position.set(center.x, center.y, center.z + maxDim * 1.5);
+    this.scene.camera.position.set(
+      center.x + maxDim * 0.8,
+      center.y + maxDim * 0.5,
+      center.z + maxDim * 1.2
+    );
   }
 
   /**

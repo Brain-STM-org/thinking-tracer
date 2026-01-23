@@ -464,6 +464,70 @@
       .detail-type-badge.thinking { background: #9b59b6; color: #fff; }
       .detail-type-badge.tool_use { background: #f39c12; color: #fff; }
       .detail-type-badge.tool_result { background: #e74c3c; color: #fff; }
+      .detail-type-badge.cluster { background: #5a9a7a; color: #fff; }
+
+      .detail-action-btn {
+        padding: 8px 16px;
+        font-size: 13px;
+        font-family: inherit;
+        background: #4a90d9;
+        color: white;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        transition: background 0.15s ease;
+      }
+
+      .detail-action-btn:hover {
+        background: #5a9fe9;
+      }
+
+      .detail-action-btn:active {
+        background: #3a80c9;
+      }
+
+      .cluster-list {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+      }
+
+      .cluster-list-item {
+        padding: 8px 10px;
+        background: #2a2a40;
+        border-radius: 4px;
+        font-size: 12px;
+        line-height: 1.4;
+        border-left: 3px solid #666;
+        white-space: pre-wrap;
+        word-break: break-word;
+      }
+
+      .cluster-list-item.thinking {
+        border-left-color: #9b59b6;
+        font-family: 'SF Mono', Monaco, 'Cascadia Code', monospace;
+        color: #bbb;
+      }
+
+      .cluster-list-item.tool_use {
+        border-left-color: #f39c12;
+        font-weight: 500;
+      }
+
+      .cluster-list-item.tool_result {
+        border-left-color: #e74c3c;
+        font-family: 'SF Mono', Monaco, 'Cascadia Code', monospace;
+        color: #bbb;
+      }
+
+      .cluster-list-item.tool_result.success {
+        border-left-color: #27ae60;
+      }
+
+      .cluster-list-item.tool_result.error {
+        border-left-color: #e74c3c;
+        background: rgba(231, 76, 60, 0.1);
+      }
     </style>
   </head>
   <body>

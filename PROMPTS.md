@@ -124,3 +124,33 @@ add a way to go back to the selection screen
 ## 2026-01-23T00:34:56Z
 
 is there any interesting session metadata to display in the session box?   
+
+---
+
+## 2026-01-23T00:40:45Z
+
+it's really annoying to see this long line of traces.  can we curl them up so we can have clusters of traces floating around and unfurl them?  research how that has generally done with graphs in UX research and suggest how we would do it here
+
+---
+
+## 2026-01-23T00:48:48Z
+
+yes, do phase 1
+
+---
+
+## 2026-01-23T00:56:30Z
+
+can we expand the selected cluster in the info panel?
+
+---
+
+## 2026-01-23T00:58:22Z
+
+i would like you to list everything in the cluster in the details pane
+
+---
+
+## 2026-01-23T01:02:09Z
+
+that's working well... i like the spiral coil.  we need it to take less space vertically, can we compress the coil on each end and shave it uncoiled in the area of focus, kinda like a slinky
