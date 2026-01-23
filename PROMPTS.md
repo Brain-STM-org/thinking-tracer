@@ -610,3 +610,33 @@ in the conversation pane, if the line fits with some buffer, you don't need to s
 ## 2026-01-23T21:20:03Z
 
 hmm, that's not working, there is long content there and it's not getting treated properly
+
+---
+
+## 2026-01-23T21:23:19Z
+
+for the 3D view, i want to toggle between the clusters and the indiviual components (like expand/reveal all), can we try that out?
+
+---
+
+## 2026-01-23T21:26:11Z
+
+can you draw lines between related nodes?
+
+---
+
+## 2026-01-23T21:34:20Z
+
+in the metrics panel, add a rightmost column to show the "total" or whatever the relevant output is for a metric.   Is it possible to produce metrics for clusters?
+
+---
+
+## 2026-01-23T21:37:40Z
+
+just like "top words" can be selected and highlighted, so should search terms
+
+---
+
+## 2026-01-23T21:39:07Z
+
+Make clear in the main page and the README that this has export functionality for both HTML and Markdown, that's pretty handy!

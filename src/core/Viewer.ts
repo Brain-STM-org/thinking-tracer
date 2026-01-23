@@ -101,6 +101,10 @@ export class Viewer {
   private materials: Record<NodeType, THREE.MeshStandardMaterial>;
   private highlightMaterial: THREE.MeshStandardMaterial;
 
+  // Connection lines between nodes
+  private connectionLines: THREE.Line[] = [];
+  private lineMaterial: THREE.LineBasicMaterial;
+
   // Layout parameters - primary spiral (tight coil)
   private readonly spiralRadius = 2.5;        // Radius of the tight spiral
   private readonly spiralAngleStep = Math.PI / 2.5; // Angle per cluster on tight spiral
@@ -154,6 +158,13 @@ export class Viewer {
       color: 0xffffff,
       roughness: 0.2,
       emissive: 0x444444,
+    });
+
+    // Line material for connections
+    this.lineMaterial = new THREE.LineBasicMaterial({
+      color: 0x666688,
+      transparent: true,
+      opacity: 0.6,
     });
 
     // Setup click handler
@@ -717,6 +728,7 @@ export class Viewer {
 
     // Apply initial layout
     this.applyLayout(false);
+    this.updateConnectionLines();
     this.fitCamera();
   }
 
@@ -961,6 +973,9 @@ export class Viewer {
         }
       }
 
+      // Update connection lines during animation
+      this.updateConnectionLines();
+
       if (progress >= 1) {
         this.animating = false;
         this.animatingNodes = [];
@@ -1010,6 +1025,44 @@ export class Viewer {
   }
 
   /**
+   * Update connection lines between nodes in expanded clusters
+   */
+  private updateConnectionLines(): void {
+    // Remove existing lines
+    for (const line of this.connectionLines) {
+      this.scene.remove(line);
+      line.geometry.dispose();
+    }
+    this.connectionLines = [];
+
+    // Create lines for each expanded cluster
+    for (const cluster of this.clusters) {
+      if (!cluster.expanded) continue;
+
+      // Get all visible nodes in this cluster in order
+      const clusterNodes = this.nodes.filter(
+        n => n.clusterIndex === cluster.index && n.type !== 'cluster' && n.mesh.visible
+      );
+
+      if (clusterNodes.length < 2) continue;
+
+      // Sort by Y position (top to bottom)
+      clusterNodes.sort((a, b) => b.mesh.position.y - a.mesh.position.y);
+
+      // Create line connecting all nodes
+      const points: THREE.Vector3[] = [];
+      for (const node of clusterNodes) {
+        points.push(node.mesh.position.clone());
+      }
+
+      const geometry = new THREE.BufferGeometry().setFromPoints(points);
+      const line = new THREE.Line(geometry, this.lineMaterial);
+      this.scene.add(line);
+      this.connectionLines.push(line);
+    }
+  }
+
+  /**
    * Clear all nodes from the scene
    */
   private clearNodes(): void {
@@ -1018,6 +1071,13 @@ export class Viewer {
       node.mesh.geometry.dispose();
     }
     this.nodes = [];
+
+    // Also clear connection lines
+    for (const line of this.connectionLines) {
+      this.scene.remove(line);
+      line.geometry.dispose();
+    }
+    this.connectionLines = [];
   }
 
   /**

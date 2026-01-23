@@ -57,6 +57,10 @@ const searchClearBtn = document.getElementById('search-clear');
 const exportBtn = document.getElementById('export-btn');
 const exportDropdown = document.querySelector('.export-dropdown');
 const exportMenu = document.querySelector('.export-menu');
+const expandToggle = document.getElementById('expand-toggle');
+
+// Track expanded state
+let allExpanded = false;
 
 // Chart state
 let currentFocusIndex = 0;
@@ -278,6 +282,14 @@ async function loadFile(content: string, filename: string, skipSave = false, cus
 
     // Apply panel visibility and select first node
     currentFocusIndex = 0;
+
+    // Reset expand toggle state
+    allExpanded = false;
+    if (expandToggle) {
+      expandToggle.textContent = 'Expand';
+      expandToggle.classList.remove('expanded');
+    }
+
     setTimeout(() => {
       drawCharts(currentFocusIndex);
       renderWordFrequencyChart();
@@ -610,6 +622,22 @@ if (sidebarToggle) {
 // Wire up toolbar back button
 if (toolbarBack) {
   toolbarBack.addEventListener('click', showFileSelector);
+}
+
+// Wire up expand/collapse toggle
+if (expandToggle) {
+  expandToggle.addEventListener('click', () => {
+    allExpanded = !allExpanded;
+    if (allExpanded) {
+      viewer.expandAll();
+      expandToggle.textContent = 'Collapse';
+      expandToggle.classList.add('expanded');
+    } else {
+      viewer.collapseAll();
+      expandToggle.textContent = 'Expand';
+      expandToggle.classList.remove('expanded');
+    }
+  });
 }
 
 // Wire up editable title
@@ -1094,17 +1122,37 @@ function drawCharts(focusIndex?: number): void {
     contentLength: '#888888',
   };
 
-  // Draw each visible chart
+  // Draw each visible chart and update totals
   const rows = metricsStack.querySelectorAll('.metric-row');
   rows.forEach((row) => {
     const metricKey = row.getAttribute('data-metric') as MetricKey;
     const canvas = row.querySelector('.metric-canvas') as HTMLCanvasElement;
+    const totalEl = row.querySelector('.metric-total') as HTMLElement;
 
     if (!metricKey || !canvas) return;
 
     const values = metrics.map(m => m[metricKey]);
     drawMetricChart(canvas, values, focusIndex, colors[metricKey]);
+
+    // Update total
+    if (totalEl) {
+      const total = values.reduce((sum, v) => sum + v, 0);
+      totalEl.textContent = formatMetricValue(total);
+    }
   });
+}
+
+/**
+ * Format metric value for display (compact numbers)
+ */
+function formatMetricValue(value: number): string {
+  if (value >= 1000000) {
+    return (value / 1000000).toFixed(1) + 'M';
+  }
+  if (value >= 1000) {
+    return (value / 1000).toFixed(1) + 'K';
+  }
+  return value.toString();
 }
 
 // Setup metric click-to-select
@@ -1878,6 +1926,8 @@ let searchResults: SearchResult[] = [];
 let currentSearchIndex = -1;
 let searchDebounceTimer: ReturnType<typeof setTimeout> | null = null;
 let regexMode = false;
+let searchHighlightedClusters: number[] = [];
+const SEARCH_HIGHLIGHT_COLOR = 0xff6b6b; // Coral red for search highlights
 
 /**
  * Get enabled search filters from checkboxes
@@ -2199,6 +2249,12 @@ function clearSearch(): void {
   searchResults = [];
   currentSearchIndex = -1;
 
+  // Clear search highlights
+  for (const clusterIndex of searchHighlightedClusters) {
+    viewer.unhighlightCluster(clusterIndex);
+  }
+  searchHighlightedClusters = [];
+
   // Clear filters
   viewer.setSearchFilter(null);
   filterConversation(null);
@@ -2228,11 +2284,23 @@ function handleSearchInput(): void {
     searchResults = performSearch(query);
     currentSearchIndex = searchResults.length > 0 ? 0 : -1;
 
-    // Apply search filter to 3D view and conversation
+    // Clear previous search highlights
+    for (const clusterIndex of searchHighlightedClusters) {
+      viewer.unhighlightCluster(clusterIndex);
+    }
+    searchHighlightedClusters = [];
+
+    // Apply search filter and highlights to 3D view and conversation
     if (searchResults.length > 0) {
       const matchingClusters = [...new Set(searchResults.map(r => r.clusterIndex))];
       viewer.setSearchFilter(matchingClusters);
       filterConversation(matchingClusters);
+
+      // Highlight matching clusters
+      for (const clusterIndex of matchingClusters) {
+        viewer.highlightCluster(clusterIndex, SEARCH_HIGHLIGHT_COLOR);
+        searchHighlightedClusters.push(clusterIndex);
+      }
     } else {
       viewer.setSearchFilter(null);
       filterConversation(null);

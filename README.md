@@ -51,6 +51,13 @@ Displays conversation context:
 ### Recent Traces
 Automatically saves recently viewed traces (IndexedDB) for quick access.
 
+### Export
+Export conversations in two formats for sharing or documentation:
+- **HTML**: Self-contained styled document with collapsible sections
+- **Markdown**: Clean text format for documentation, GitHub issues, or further processing
+
+Access export options from the conversation view toolbar.
+
 ## Getting Started
 
 ### Online
