@@ -19,6 +19,9 @@ interface ClaudeCodeLine {
   parentUuid?: string | null;
   sessionId?: string;
   timestamp?: string;
+  version?: string;
+  cwd?: string;
+  gitBranch?: string;
   message?: {
     role?: string;
     content?: unknown[] | string;
@@ -209,9 +212,27 @@ export const claudeCodeParser: TraceParser = {
       const lines = parseJsonl(data);
 
       // Extract session info from first message line
-      const firstMsg = lines.find(l => l.type === 'user' || l.type === 'assistant');
+      const messageLines = lines.filter(l => l.type === 'user' || l.type === 'assistant');
+      const firstMsg = messageLines[0];
+      const lastMsg = messageLines[messageLines.length - 1];
+
       const sessionId = firstMsg?.sessionId;
       const firstTimestamp = firstMsg?.timestamp;
+      const lastTimestamp = lastMsg?.timestamp;
+
+      // Calculate duration
+      let durationMs: number | undefined;
+      if (firstTimestamp && lastTimestamp) {
+        const start = new Date(firstTimestamp).getTime();
+        const end = new Date(lastTimestamp).getTime();
+        if (!isNaN(start) && !isNaN(end)) {
+          durationMs = end - start;
+        }
+      }
+
+      // Find model from assistant messages
+      const modelLine = messageLines.find(l => l.type === 'assistant' && l.message?.model);
+      const model = modelLine?.message?.model;
 
       // Parse all message lines into turns
       const turns: Turn[] = [];
@@ -222,13 +243,15 @@ export const claudeCodeParser: TraceParser = {
         }
       }
 
-      // Calculate total usage
+      // Calculate total usage with cache tokens
       let totalUsage: TokenUsage = {};
       for (const turn of turns) {
         if (turn.usage) {
           totalUsage = {
             input_tokens: (totalUsage.input_tokens || 0) + (turn.usage.input_tokens || 0),
             output_tokens: (totalUsage.output_tokens || 0) + (turn.usage.output_tokens || 0),
+            cache_read_input_tokens: (totalUsage.cache_read_input_tokens || 0) + (turn.usage.cache_read_input_tokens || 0),
+            cache_creation_input_tokens: (totalUsage.cache_creation_input_tokens || 0) + (turn.usage.cache_creation_input_tokens || 0),
           };
         }
       }
@@ -237,7 +260,13 @@ export const claudeCodeParser: TraceParser = {
         id: sessionId,
         title: sessionId ? `Session ${sessionId.slice(0, 8)}...` : 'Claude Code Session',
         created_at: firstTimestamp,
+        updated_at: lastTimestamp,
+        model: model,
         source: 'claude-code',
+        source_version: firstMsg?.version,
+        cwd: firstMsg?.cwd,
+        git_branch: firstMsg?.gitBranch,
+        duration_ms: durationMs,
         total_usage: totalUsage,
       };
 

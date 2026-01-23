@@ -118,3 +118,9 @@ create a palette of recently used traces, you can store it in an appropriate loc
 ## 2026-01-23T00:32:24Z
 
 add a way to go back to the selection screen
+
+---
+
+## 2026-01-23T00:34:56Z
+
+is there any interesting session metadata to display in the session box?   

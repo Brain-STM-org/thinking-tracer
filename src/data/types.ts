@@ -106,6 +106,14 @@ export interface ConversationMeta {
   model?: string;
   /** Source agent/application */
   source?: string;
+  /** Source application version */
+  source_version?: string;
+  /** Working directory */
+  cwd?: string;
+  /** Git branch */
+  git_branch?: string;
+  /** Duration in milliseconds */
+  duration_ms?: number;
   /** Total token usage */
   total_usage?: TokenUsage;
 }

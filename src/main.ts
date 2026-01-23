@@ -77,8 +77,30 @@ async function loadFile(content: string, filename: string, skipSave = false): Pr
       dropOverlay.classList.remove('visible');
     }
     if (infoPanel) {
+      const meta = conversation?.meta;
+      const metaItems: string[] = [];
+
+      // Add metadata items
+      if (meta?.model) {
+        metaItems.push(`<span class="meta-item" title="Model">${escapeHtml(meta.model)}</span>`);
+      }
+      if (meta?.git_branch) {
+        metaItems.push(`<span class="meta-item" title="Git Branch">⎇ ${escapeHtml(meta.git_branch)}</span>`);
+      }
+      if (meta?.duration_ms !== undefined) {
+        metaItems.push(`<span class="meta-item" title="Duration">⏱ ${formatDuration(meta.duration_ms)}</span>`);
+      }
+      if (meta?.cwd) {
+        const shortCwd = meta.cwd.split('/').slice(-2).join('/');
+        metaItems.push(`<span class="meta-item" title="${escapeHtml(meta.cwd)}">📁 ${escapeHtml(shortCwd)}</span>`);
+      }
+      if (meta?.source_version) {
+        metaItems.push(`<span class="meta-item" title="Claude Code Version">v${escapeHtml(meta.source_version)}</span>`);
+      }
+
       infoPanel.innerHTML = `
         <h1>${escapeHtml(title)}</h1>
+        ${metaItems.length > 0 ? `<div class="meta-row">${metaItems.join('')}</div>` : ''}
         <p>Click or use arrow keys to navigate<br>Esc to deselect, drag to orbit</p>
         <button id="back-btn">← Open Another</button>
       `;
@@ -344,6 +366,21 @@ function renderDetail(selection: { type: string; data: unknown; turnIndex: numbe
 function truncate(text: string, maxLength: number): string {
   if (text.length <= maxLength) return text;
   return text.slice(0, maxLength) + '...';
+}
+
+/**
+ * Format duration in milliseconds to human readable string
+ */
+function formatDuration(ms: number): string {
+  if (ms < 1000) return `${ms}ms`;
+  const seconds = Math.floor(ms / 1000);
+  if (seconds < 60) return `${seconds}s`;
+  const minutes = Math.floor(seconds / 60);
+  const remainingSeconds = seconds % 60;
+  if (minutes < 60) return `${minutes}m ${remainingSeconds}s`;
+  const hours = Math.floor(minutes / 60);
+  const remainingMinutes = minutes % 60;
+  return `${hours}h ${remainingMinutes}m`;
 }
 
 // Load recent traces on startup
