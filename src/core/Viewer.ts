@@ -101,17 +101,22 @@ export class Viewer {
   private materials: Record<NodeType, THREE.MeshStandardMaterial>;
   private highlightMaterial: THREE.MeshStandardMaterial;
 
-  // Layout parameters
-  private readonly spiralRadius = 4;
-  private readonly spiralAngleStep = Math.PI / 3; // 60 degrees per cluster
+  // Layout parameters - primary spiral (tight coil)
+  private readonly spiralRadius = 2.5;        // Radius of the tight spiral
+  private readonly spiralAngleStep = Math.PI / 2.5; // Angle per cluster on tight spiral
   private readonly expandedSpacing = 2;
   private readonly blockSpacing = 1.2;
 
+  // Secondary coil parameters (the path the spiral follows)
+  private readonly coilRadius = 6;            // Radius of the larger coil path
+  private readonly coilAngleStep = Math.PI / 8; // Slower rotation for the coil path
+  private readonly coilVerticalStep = 1.5;    // Vertical rise per coil rotation
+
   // Slinky effect parameters
   private focusClusterIndex = 0;
-  private readonly minVerticalSpacing = 0.3;  // Compressed spacing at ends
-  private readonly maxVerticalSpacing = 2.0;  // Expanded spacing at focus
-  private readonly focusRadius = 3;           // How many clusters around focus get expanded
+  private readonly minVerticalSpacing = 0.2;  // Compressed spacing at ends
+  private readonly maxVerticalSpacing = 1.5;  // Expanded spacing at focus
+  private readonly focusRadius = 4;           // How many clusters around focus get expanded
 
   constructor(options: ViewerOptions) {
     const container =
@@ -739,20 +744,41 @@ export class Viewer {
   }
 
   /**
-   * Calculate spiral position for a cluster with slinky effect
+   * Calculate spiral position for a cluster with slinky effect and secondary coiling
+   * Creates a "coiled coil" - a spiral that follows a larger helical path
    */
   private getSpiralPosition(index: number): THREE.Vector3 {
-    const angle = index * this.spiralAngleStep;
-    const x = Math.cos(angle) * this.spiralRadius;
-    const z = Math.sin(angle) * this.spiralRadius;
-
-    // Calculate cumulative Y by summing spacing for all clusters up to this one
-    let y = 0;
+    // Calculate progress along the path (for secondary coil)
+    let pathProgress = 0;
     for (let i = 0; i < index; i++) {
-      y += this.getVerticalSpacing(i);
+      pathProgress += this.getVerticalSpacing(i);
     }
 
-    return new THREE.Vector3(x, y, z);
+    // Secondary coil (the larger path that the spiral center follows)
+    const coilAngle = pathProgress * this.coilAngleStep;
+    const coilCenterX = Math.cos(coilAngle) * this.coilRadius;
+    const coilCenterZ = Math.sin(coilAngle) * this.coilRadius;
+    const coilCenterY = pathProgress * this.coilVerticalStep;
+
+    // Primary spiral (tight coil around the secondary coil path)
+    const spiralAngle = index * this.spiralAngleStep;
+
+    // Calculate the tangent direction of the coil path for proper orientation
+    const tangentAngle = coilAngle + Math.PI / 2;
+    const tangentX = Math.cos(tangentAngle);
+    const tangentZ = Math.sin(tangentAngle);
+
+    // Spiral offset perpendicular to the coil path
+    // Use the tangent and up vector to create the spiral plane
+    const spiralOffsetX = Math.cos(spiralAngle) * this.spiralRadius * tangentX;
+    const spiralOffsetZ = Math.cos(spiralAngle) * this.spiralRadius * tangentZ;
+    const spiralOffsetY = Math.sin(spiralAngle) * this.spiralRadius;
+
+    return new THREE.Vector3(
+      coilCenterX + spiralOffsetX,
+      coilCenterY + spiralOffsetY,
+      coilCenterZ + spiralOffsetZ
+    );
   }
 
   /**

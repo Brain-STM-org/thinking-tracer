@@ -286,3 +286,9 @@ looking great... when we select a node, let's bring it to the center and it can 
 ## 2026-01-23T03:38:00Z
 
 we are zooming far too close, i should have been clearer, i like the zoom level, mostly (you can pull it in just a little from where it was *before last step*) but make the diameter of the selected sphere 25%, so scale it in size
+
+---
+
+## 2026-01-23T11:39:55Z
+
+can we coil the existing spiral coil as well so it takes up more 3-d space rather than one long column of coil?
