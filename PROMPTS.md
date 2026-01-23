@@ -100,3 +100,9 @@ much better!  great work.   now onto functionality, which Claude Code JSON file 
 ## 2026-01-22T23:58:18Z
 
 make a legend for the different node colors.  we will want to display a summary of the content in their 3D space , but we can also have click-testing and have a side panel with concrete details of selection
+
+---
+
+## 2026-01-23T00:26:54Z
+
+add keyboard navigation through the blocks.

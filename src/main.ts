@@ -55,7 +55,7 @@ function loadFile(content: string, filename: string): void {
       const title = conversation?.meta.title || filename;
       infoPanel.innerHTML = `
         <h1>${escapeHtml(title)}</h1>
-        <p>Click nodes to inspect<br>Drag to orbit, scroll to zoom</p>
+        <p>Click or use arrow keys to navigate<br>Esc to deselect, drag to orbit</p>
       `;
     }
 

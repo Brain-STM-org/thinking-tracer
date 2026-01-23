@@ -94,6 +94,9 @@ export class Viewer {
     // Setup click handler
     this.setupClickHandler();
 
+    // Setup keyboard handler
+    this.setupKeyboardHandler();
+
     // Start render loop
     this.scene.start(() => {
       this.controls.update();
@@ -123,6 +126,92 @@ export class Viewer {
         this.handleClick(event);
       }
     });
+  }
+
+  /**
+   * Setup keyboard navigation
+   */
+  private setupKeyboardHandler(): void {
+    window.addEventListener('keydown', (event) => {
+      // Don't handle if focus is on an input element
+      if (event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement) {
+        return;
+      }
+
+      switch (event.key) {
+        case 'ArrowRight':
+        case 'ArrowDown':
+          event.preventDefault();
+          this.selectNext();
+          break;
+        case 'ArrowLeft':
+        case 'ArrowUp':
+          event.preventDefault();
+          this.selectPrevious();
+          break;
+        case 'Escape':
+          this.clearSelection();
+          break;
+        case 'Home':
+          event.preventDefault();
+          this.selectFirst();
+          break;
+        case 'End':
+          event.preventDefault();
+          this.selectLast();
+          break;
+      }
+    });
+  }
+
+  /**
+   * Select the next node
+   */
+  private selectNext(): void {
+    if (this.nodes.length === 0) return;
+
+    if (!this.selectedNode) {
+      // Select first node
+      this.selectNode(this.nodes[0]);
+    } else {
+      const currentIndex = this.nodes.indexOf(this.selectedNode);
+      const nextIndex = (currentIndex + 1) % this.nodes.length;
+      this.selectNode(this.nodes[nextIndex]);
+    }
+  }
+
+  /**
+   * Select the previous node
+   */
+  private selectPrevious(): void {
+    if (this.nodes.length === 0) return;
+
+    if (!this.selectedNode) {
+      // Select last node
+      this.selectNode(this.nodes[this.nodes.length - 1]);
+    } else {
+      const currentIndex = this.nodes.indexOf(this.selectedNode);
+      const prevIndex = currentIndex === 0 ? this.nodes.length - 1 : currentIndex - 1;
+      this.selectNode(this.nodes[prevIndex]);
+    }
+  }
+
+  /**
+   * Select the first node
+   */
+  private selectFirst(): void {
+    if (this.nodes.length > 0) {
+      this.selectNode(this.nodes[0]);
+    }
+  }
+
+  /**
+   * Select the last node
+   */
+  private selectLast(): void {
+    if (this.nodes.length > 0) {
+      this.selectNode(this.nodes[this.nodes.length - 1]);
+    }
   }
 
   /**
