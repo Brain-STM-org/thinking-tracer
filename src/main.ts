@@ -24,13 +24,17 @@ const fileInput = document.getElementById('file-input') as HTMLInputElement | nu
 const legend = document.getElementById('legend');
 const detailPanel = document.getElementById('detail-panel');
 const detailPanelContent = document.getElementById('detail-panel-content');
-const detailPanelClose = document.getElementById('detail-panel-close');
 const recentTracesEl = document.getElementById('recent-traces');
 const recentListEl = document.getElementById('recent-list');
 const recentClearBtn = document.getElementById('recent-clear-btn');
 const metricsPanel = document.getElementById('metrics-panel');
 const metricsStack = document.getElementById('metrics-stack');
 const chartRange = document.getElementById('chart-range');
+const splitHandle = document.getElementById('split-handle');
+const canvasPane = document.getElementById('canvas-pane');
+const conversationPane = document.getElementById('conversation-pane');
+const conversationContent = document.getElementById('conversation-content');
+const conversationTurnIndicator = document.getElementById('conversation-turn-indicator');
 const wordFreqPanel = document.getElementById('word-freq-panel');
 const wordFreqChart = document.getElementById('word-freq-chart');
 const wordFreqSource = document.getElementById('word-freq-source') as HTMLSelectElement | null;
@@ -45,6 +49,14 @@ const searchClearBtn = document.getElementById('search-clear');
 // Chart state
 let currentFocusIndex = 0;
 type MetricKey = 'totalTokens' | 'outputTokens' | 'inputTokens' | 'thinkingCount' | 'toolCount' | 'contentLength';
+
+// Panel visibility state
+const panelState = {
+  metrics: true,
+  words: true,
+  search: false,
+  details: true,
+};
 
 if (!container) {
   throw new Error('Container element not found');
@@ -132,15 +144,15 @@ async function loadFile(content: string, filename: string, skipSave = false): Pr
       legend.classList.add('visible');
     }
 
-    // Show search panel
-    updateSearchPanelVisibility(true);
+    // Show conversation pane
+    updateConversationPaneVisibility(true);
 
-    // Draw initial charts
+    // Add panel toggles to info panel
+    addPanelToggles();
+
+    // Draw initial charts and apply panel visibility
     currentFocusIndex = Math.floor(viewer.getClusterCount() / 2);
-    drawCharts(currentFocusIndex);
-
-    // Show word frequency panel (after metrics panel is positioned)
-    setTimeout(() => updateWordFreqPanelVisibility(true), 50);
+    setTimeout(() => applyPanelVisibility(), 50);
 
     // Hide detail panel when loading new file
     if (detailPanel) {
@@ -288,16 +300,13 @@ async function showFileSelector(): Promise<void> {
     legend.classList.remove('visible');
   }
 
-  // Hide metrics panel
-  if (metricsPanel) {
-    metricsPanel.classList.remove('visible');
-  }
+  // Hide all panels
+  metricsPanel?.classList.remove('visible');
+  wordFreqPanel?.classList.remove('visible');
+  searchPanel?.classList.remove('visible');
 
-  // Hide search panel
-  updateSearchPanelVisibility(false);
-
-  // Hide word frequency panel
-  updateWordFreqPanelVisibility(false);
+  // Hide conversation pane
+  updateConversationPaneVisibility(false);
 
   // Hide detail panel and clear selection
   if (detailPanel) {
@@ -315,12 +324,187 @@ function escapeHtml(text: string): string {
   return div.innerHTML;
 }
 
-// Setup detail panel close button
-if (detailPanelClose && detailPanel) {
-  detailPanelClose.addEventListener('click', () => {
-    detailPanel.classList.remove('visible');
-    viewer.clearSelection();
+// Detail panel close is now handled by the general panel close button handler
+
+// ============================================
+// Panel Toggle System
+// ============================================
+
+/**
+ * Toggle a panel's visibility
+ */
+function togglePanel(panel: 'metrics' | 'words' | 'search' | 'details'): void {
+  panelState[panel] = !panelState[panel];
+  applyPanelVisibility();
+  updateToggleButtons();
+}
+
+/**
+ * Apply panel visibility based on state
+ */
+function applyPanelVisibility(): void {
+  if (panelState.metrics) {
+    metricsPanel?.classList.add('visible');
+    positionMetricsPanel();
+    drawCharts(currentFocusIndex);
+  } else {
+    metricsPanel?.classList.remove('visible');
+  }
+
+  if (panelState.words && panelState.metrics) {
+    // Words panel only shows if metrics is also visible (since it's positioned below)
+    wordFreqPanel?.classList.add('visible');
+    positionWordFreqPanel();
+    renderWordFrequencyChart();
+  } else if (panelState.words && !panelState.metrics) {
+    // If metrics is hidden, position words at top
+    if (wordFreqPanel) {
+      wordFreqPanel.classList.add('visible');
+      const infoPanelRect = infoPanel?.getBoundingClientRect();
+      if (infoPanelRect) {
+        wordFreqPanel.style.top = `${infoPanelRect.bottom + 10}px`;
+      }
+      renderWordFrequencyChart();
+    }
+  } else {
+    wordFreqPanel?.classList.remove('visible');
+  }
+
+  if (panelState.search) {
+    searchPanel?.classList.add('visible');
+  } else {
+    searchPanel?.classList.remove('visible');
+  }
+
+  if (panelState.details) {
+    detailPanel?.classList.add('visible');
+    positionDetailPanel();
+  } else {
+    detailPanel?.classList.remove('visible');
+  }
+}
+
+/**
+ * Position detail panel to the left of conversation pane
+ */
+function positionDetailPanel(): void {
+  if (!detailPanel || !conversationPane) return;
+
+  // Only set initial position if not already positioned by dragging
+  if (!detailPanel.dataset.dragged) {
+    const convRect = conversationPane.getBoundingClientRect();
+    const panelWidth = detailPanel.offsetWidth || 320;
+    detailPanel.style.right = 'auto';
+    detailPanel.style.left = `${convRect.left - panelWidth - 15}px`;
+    detailPanel.style.top = '20px';
+  }
+}
+
+/**
+ * Update toggle button states
+ */
+function updateToggleButtons(): void {
+  document.querySelectorAll('.panel-toggle').forEach((btn) => {
+    const panel = (btn as HTMLElement).dataset.panel as 'metrics' | 'words' | 'search' | 'details';
+    if (panel && panelState[panel]) {
+      btn.classList.add('active');
+    } else {
+      btn.classList.remove('active');
+    }
   });
+}
+
+/**
+ * Add toggle buttons to info panel
+ */
+function addPanelToggles(): void {
+  if (!infoPanel) return;
+
+  // Check if toggles already exist
+  if (infoPanel.querySelector('.panel-toggles')) return;
+
+  const togglesDiv = document.createElement('div');
+  togglesDiv.className = 'panel-toggles';
+  togglesDiv.innerHTML = `
+    <button class="panel-toggle ${panelState.metrics ? 'active' : ''}" data-panel="metrics">Metrics</button>
+    <button class="panel-toggle ${panelState.words ? 'active' : ''}" data-panel="words">Words</button>
+    <button class="panel-toggle ${panelState.search ? 'active' : ''}" data-panel="search">Search</button>
+    <button class="panel-toggle ${panelState.details ? 'active' : ''}" data-panel="details">Details</button>
+  `;
+
+  infoPanel.appendChild(togglesDiv);
+
+  // Wire up toggle buttons
+  togglesDiv.querySelectorAll('.panel-toggle').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const panel = (btn as HTMLElement).dataset.panel as 'metrics' | 'words' | 'search' | 'details';
+      if (panel) togglePanel(panel);
+    });
+  });
+}
+
+// Wire up close buttons on panels
+document.querySelectorAll('.panel-close-btn').forEach((btn) => {
+  btn.addEventListener('click', () => {
+    const panel = (btn as HTMLElement).dataset.panel as 'metrics' | 'words' | 'search' | 'details';
+    if (panel) {
+      panelState[panel] = false;
+      applyPanelVisibility();
+      updateToggleButtons();
+    }
+  });
+});
+
+// ============================================
+// Detail Panel Dragging
+// ============================================
+
+if (detailPanel) {
+  const header = document.getElementById('detail-panel-header');
+  if (header) {
+    let isDragging = false;
+    let dragStartX = 0;
+    let dragStartY = 0;
+    let panelStartX = 0;
+    let panelStartY = 0;
+
+    header.addEventListener('mousedown', (e) => {
+      // Don't drag if clicking the close button
+      if ((e.target as HTMLElement).closest('.panel-close-btn')) return;
+
+      isDragging = true;
+      dragStartX = e.clientX;
+      dragStartY = e.clientY;
+
+      const rect = detailPanel.getBoundingClientRect();
+      panelStartX = rect.left;
+      panelStartY = rect.top;
+
+      document.body.style.cursor = 'grabbing';
+      document.body.style.userSelect = 'none';
+      e.preventDefault();
+    });
+
+    document.addEventListener('mousemove', (e) => {
+      if (!isDragging) return;
+
+      const dx = e.clientX - dragStartX;
+      const dy = e.clientY - dragStartY;
+
+      detailPanel.style.left = `${panelStartX + dx}px`;
+      detailPanel.style.top = `${panelStartY + dy}px`;
+      detailPanel.style.right = 'auto';
+      detailPanel.dataset.dragged = 'true';
+    });
+
+    document.addEventListener('mouseup', () => {
+      if (isDragging) {
+        isDragging = false;
+        document.body.style.cursor = '';
+        document.body.style.userSelect = '';
+      }
+    });
+  }
 }
 
 
@@ -728,22 +912,25 @@ if (metricsStack) {
   });
 }
 
-// Update charts when selection changes
+// Update charts and conversation when selection changes
 viewer.onSelect((selection) => {
   if (selection?.clusterIndex !== undefined) {
     currentFocusIndex = selection.clusterIndex;
     drawCharts(currentFocusIndex);
+
+    // Sync conversation scroll to selection
+    scrollConversationToCluster(selection.clusterIndex);
   }
 
   if (!selection) {
-    if (detailPanel) {
-      detailPanel.classList.remove('visible');
+    // Show empty state instead of hiding
+    if (detailPanelContent) {
+      detailPanelContent.innerHTML = '<div class="detail-empty">&lt;no selection&gt;</div>';
     }
     return;
   }
 
   if (detailPanel && detailPanelContent) {
-    detailPanel.classList.add('visible');
     detailPanelContent.innerHTML = renderDetail(selection);
 
     // Wire up cluster toggle button
@@ -1069,24 +1256,287 @@ function positionWordFreqPanel(): void {
   wordFreqPanel.style.width = `${metricsPanel.offsetWidth}px`;
 }
 
-/**
- * Show/hide word frequency panel
- */
-function updateWordFreqPanelVisibility(visible: boolean): void {
-  if (wordFreqPanel) {
-    if (visible) {
-      wordFreqPanel.classList.add('visible');
-      positionWordFreqPanel();
-      renderWordFrequencyChart();
-    } else {
-      wordFreqPanel.classList.remove('visible');
-    }
-  }
-}
 
 // Wire up word frequency source selector
 if (wordFreqSource) {
   wordFreqSource.addEventListener('change', renderWordFrequencyChart);
+}
+
+// ============================================
+// Split Pane Resizing
+// ============================================
+
+let isSplitDragging = false;
+
+if (splitHandle && canvasPane && conversationPane) {
+  splitHandle.addEventListener('mousedown', (e) => {
+    isSplitDragging = true;
+    splitHandle.classList.add('dragging');
+    document.body.style.cursor = 'ew-resize';
+    document.body.style.userSelect = 'none';
+    e.preventDefault();
+  });
+
+  document.addEventListener('mousemove', (e) => {
+    if (!isSplitDragging) return;
+
+    const containerWidth = document.body.clientWidth;
+    const newCanvasWidth = e.clientX;
+    const minCanvasWidth = 300;
+    const minConvWidth = 250;
+
+    if (newCanvasWidth >= minCanvasWidth && (containerWidth - newCanvasWidth - 6) >= minConvWidth) {
+      canvasPane.style.flex = 'none';
+      canvasPane.style.width = `${newCanvasWidth}px`;
+      conversationPane.style.width = `${containerWidth - newCanvasWidth - 6}px`;
+    }
+  });
+
+  document.addEventListener('mouseup', () => {
+    if (isSplitDragging) {
+      isSplitDragging = false;
+      splitHandle.classList.remove('dragging');
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+
+      // Trigger resize for Three.js canvas
+      window.dispatchEvent(new Event('resize'));
+    }
+  });
+}
+
+// ============================================
+// Conversation View
+// ============================================
+
+let isScrollingProgrammatically = false;
+let scrollLockTimeout: ReturnType<typeof setTimeout> | null = null;
+
+/**
+ * Render the conversation in the side panel
+ */
+function renderConversation(): void {
+  if (!conversationContent) return;
+
+  const conversation = viewer.getConversation();
+  if (!conversation) {
+    conversationContent.innerHTML = '<div style="color: #666; text-align: center; padding: 40px;">No conversation loaded</div>';
+    return;
+  }
+
+  const clusterCount = viewer.getClusterCount();
+  const searchableContent = viewer.getSearchableContent();
+
+  let html = '';
+
+  for (let i = 0; i < searchableContent.length; i++) {
+    const cluster = searchableContent[i];
+
+    html += `<div class="conv-turn" data-cluster-index="${i}">`;
+
+    // User message
+    if (cluster.userText) {
+      html += `
+        <div class="conv-user">
+          <div class="conv-user-label">User</div>
+          <div class="conv-user-content">${escapeHtml(cluster.userText)}</div>
+        </div>
+      `;
+    }
+
+    // Assistant section
+    html += `<div class="conv-assistant">`;
+
+    // Thinking blocks
+    for (let t = 0; t < cluster.thinkingBlocks.length; t++) {
+      const thinking = cluster.thinkingBlocks[t];
+      html += `
+        <div class="conv-thinking" data-thinking-index="${t}">
+          <div class="conv-thinking-header">
+            <span class="arrow">▶</span>
+            <span>Thinking</span>
+            <span style="color: #666; font-weight: normal;">(${thinking.length.toLocaleString()} chars)</span>
+          </div>
+          <div class="conv-thinking-content">${escapeHtml(thinking)}</div>
+        </div>
+      `;
+    }
+
+    // Tool calls and results (interleaved)
+    for (let t = 0; t < cluster.toolUses.length; t++) {
+      const toolUse = cluster.toolUses[t];
+      html += `
+        <div class="conv-tool tool-use" data-tool-index="${t}">
+          <div class="conv-tool-header">
+            <span class="arrow">▶</span>
+            <span class="conv-tool-name">${escapeHtml(toolUse.name)}</span>
+          </div>
+          <div class="conv-tool-content">${escapeHtml(toolUse.input)}</div>
+        </div>
+      `;
+
+      // Matching tool result (if exists)
+      if (t < cluster.toolResults.length) {
+        const toolResult = cluster.toolResults[t];
+        const isError = toolResult.isError;
+        html += `
+          <div class="conv-tool tool-result ${isError ? '' : 'success'}" data-result-index="${t}">
+            <div class="conv-tool-header">
+              <span class="arrow">▶</span>
+              <span>${isError ? '✗ Error' : '✓ Result'}</span>
+            </div>
+            <div class="conv-tool-content">${escapeHtml(truncateText(toolResult.content, 2000))}</div>
+          </div>
+        `;
+      }
+    }
+
+    // Assistant text
+    if (cluster.assistantText) {
+      html += `<div class="conv-text">${escapeHtml(cluster.assistantText)}</div>`;
+    }
+
+    html += `</div>`; // close .conv-assistant
+    html += `</div>`; // close .conv-turn
+  }
+
+  conversationContent.innerHTML = html;
+
+  // Wire up collapsible sections
+  conversationContent.querySelectorAll('.conv-thinking-header, .conv-tool-header').forEach((header) => {
+    header.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const parent = header.parentElement;
+      parent?.classList.toggle('expanded');
+    });
+  });
+
+  // Wire up turn click to select in 3D
+  conversationContent.querySelectorAll('.conv-turn').forEach((turn) => {
+    turn.addEventListener('click', () => {
+      const clusterIndex = parseInt((turn as HTMLElement).dataset.clusterIndex || '0', 10);
+
+      // Lock scroll sync briefly since we're already at this turn
+      isScrollingProgrammatically = true;
+      if (scrollLockTimeout) clearTimeout(scrollLockTimeout);
+
+      // Highlight this turn
+      conversationContent!.querySelectorAll('.conv-turn.focused').forEach((t) => t.classList.remove('focused'));
+      turn.classList.add('focused');
+
+      // Select in 3D (this will try to scroll back to us, but we're locked)
+      viewer.selectClusterByIndex(clusterIndex);
+
+      // Unlock after a short delay
+      scrollLockTimeout = setTimeout(() => {
+        isScrollingProgrammatically = false;
+      }, 300);
+    });
+  });
+
+  // Setup scroll sync (conversation scroll → 3D selection)
+  setupScrollSync();
+
+  // Update turn indicator
+  if (conversationTurnIndicator) {
+    conversationTurnIndicator.textContent = `${clusterCount} turns`;
+  }
+}
+
+/**
+ * Truncate text for display
+ */
+function truncateText(text: string, maxLength: number): string {
+  if (text.length <= maxLength) return text;
+  return text.slice(0, maxLength) + '\n... (truncated)';
+}
+
+/**
+ * Setup scroll sync - scrolling conversation selects 3D node
+ */
+function setupScrollSync(): void {
+  if (!conversationContent) return;
+
+  let scrollTimeout: ReturnType<typeof setTimeout> | null = null;
+
+  conversationContent.addEventListener('scroll', () => {
+    // Skip if we're programmatically scrolling (from 3D selection)
+    if (isScrollingProgrammatically) {
+      return;
+    }
+
+    // Debounce scroll handling
+    if (scrollTimeout) clearTimeout(scrollTimeout);
+    scrollTimeout = setTimeout(() => {
+      // Double-check we're not in programmatic scroll
+      if (isScrollingProgrammatically) return;
+
+      const turns = conversationContent.querySelectorAll('.conv-turn');
+      const containerRect = conversationContent.getBoundingClientRect();
+      const containerCenter = containerRect.top + containerRect.height / 3; // Focus on upper third
+
+      let closestTurn: Element | null = null;
+      let closestDistance = Infinity;
+
+      turns.forEach((turn) => {
+        const rect = turn.getBoundingClientRect();
+        const turnCenter = rect.top + rect.height / 2;
+        const distance = Math.abs(turnCenter - containerCenter);
+
+        if (distance < closestDistance) {
+          closestDistance = distance;
+          closestTurn = turn;
+        }
+      });
+
+      if (closestTurn) {
+        const clusterIndex = parseInt((closestTurn as HTMLElement).dataset.clusterIndex || '0', 10);
+        viewer.selectClusterByIndex(clusterIndex);
+      }
+    }, 150);
+  });
+}
+
+/**
+ * Scroll conversation to a specific cluster
+ */
+function scrollConversationToCluster(clusterIndex: number): void {
+  if (!conversationContent) return;
+
+  const turn = conversationContent.querySelector(`.conv-turn[data-cluster-index="${clusterIndex}"]`);
+  if (turn) {
+    // Lock scroll sync to prevent feedback loop
+    isScrollingProgrammatically = true;
+
+    // Clear any existing timeout
+    if (scrollLockTimeout) clearTimeout(scrollLockTimeout);
+
+    // Remove previous focus
+    conversationContent.querySelectorAll('.conv-turn.focused').forEach((t) => t.classList.remove('focused'));
+    // Add focus to current
+    turn.classList.add('focused');
+    // Smooth scroll into view
+    turn.scrollIntoView({ behavior: 'smooth', block: 'center' });
+
+    // Unlock after scroll animation completes (give it plenty of time)
+    scrollLockTimeout = setTimeout(() => {
+      isScrollingProgrammatically = false;
+    }, 600);
+  }
+}
+
+/**
+ * Show/hide conversation pane
+ */
+function updateConversationPaneVisibility(visible: boolean): void {
+  if (conversationPane) {
+    if (visible) {
+      conversationPane.classList.add('visible');
+      renderConversation();
+    } else {
+      conversationPane.classList.remove('visible');
+    }
+  }
 }
 
 // ============================================
@@ -1465,20 +1915,6 @@ window.addEventListener('keydown', (e) => {
     searchInput.select();
   }
 });
-
-/**
- * Show/hide search panel based on loaded state
- */
-function updateSearchPanelVisibility(visible: boolean): void {
-  if (searchPanel) {
-    if (visible) {
-      searchPanel.classList.add('visible');
-    } else {
-      searchPanel.classList.remove('visible');
-      clearSearch();
-    }
-  }
-}
 
 // Load recent traces on startup
 refreshRecentTraces();
