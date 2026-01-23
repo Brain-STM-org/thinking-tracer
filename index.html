@@ -81,6 +81,60 @@
         text-overflow: ellipsis;
         min-width: 0;
         flex-shrink: 1;
+        position: relative;
+        cursor: text;
+        padding: 2px 4px;
+        margin: -2px -4px;
+        border-radius: 4px;
+        transition: background 0.15s;
+      }
+
+      #toolbar-title:hover {
+        background: rgba(255,255,255,0.05);
+      }
+
+      #toolbar-title::after {
+        content: attr(data-full-title);
+        position: absolute;
+        left: 0;
+        top: 100%;
+        margin-top: 8px;
+        padding: 8px 12px;
+        background: #1a1a2e;
+        border: 1px solid #4a4a6a;
+        border-radius: 6px;
+        font-size: 13px;
+        font-weight: 400;
+        color: #eee;
+        white-space: normal;
+        max-width: 400px;
+        word-break: break-word;
+        z-index: 400;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+        opacity: 0;
+        visibility: hidden;
+        transition: opacity 0.15s, visibility 0.15s;
+        pointer-events: none;
+      }
+
+      #toolbar-title:hover::after {
+        opacity: 1;
+        visibility: visible;
+      }
+
+      #toolbar-title.editing {
+        background: #1a1a2e;
+        border: 1px solid #4a90d9;
+        border-radius: 4px;
+        padding: 2px 8px;
+        margin: -2px -8px;
+        outline: none;
+        min-width: 100px;
+        max-width: 400px;
+      }
+
+      #toolbar-title.editing::after {
+        display: none;
       }
 
       #toolbar-meta {
@@ -670,6 +724,20 @@
         overflow: hidden;
         text-overflow: ellipsis;
       }
+
+      .recent-item-title.custom {
+        color: #7ab8ff;
+      }
+
+      .recent-item-path {
+        font-size: 11px;
+        color: #666;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        margin-top: 2px;
+        font-family: 'SF Mono', Monaco, monospace;
+      }
       .recent-item-meta {
         font-size: 12px;
         color: #888;
@@ -692,9 +760,30 @@
         background: rgba(231, 76, 60, 0.1);
       }
 
-      .drop-icon { font-size: 64px; margin-bottom: 20px; }
-      .drop-text { font-size: 24px; color: #888; }
-      .drop-subtext { font-size: 14px; color: #666; margin-top: 10px; }
+      .drop-header {
+        text-align: center;
+        margin-bottom: 40px;
+        max-width: 500px;
+      }
+
+      .drop-title {
+        font-size: 32px;
+        font-weight: 700;
+        color: #fff;
+        margin: 0 0 16px 0;
+        letter-spacing: -0.5px;
+      }
+
+      .drop-intro {
+        font-size: 15px;
+        color: #888;
+        line-height: 1.6;
+        margin: 0;
+      }
+
+      .drop-icon { font-size: 48px; margin-bottom: 16px; opacity: 0.8; }
+      .drop-text { font-size: 20px; color: #888; }
+      .drop-subtext { font-size: 13px; color: #666; margin-top: 8px; }
       .drop-divider {
         display: flex;
         align-items: center;
@@ -1415,9 +1504,13 @@
 
       <!-- Drop overlay -->
       <div id="drop-overlay" class="visible">
+        <div class="drop-header">
+          <h1 class="drop-title">Thinking Tracer</h1>
+          <p class="drop-intro">Explore Claude's reasoning process in 3D. Visualize conversation traces to understand thinking patterns, tool usage, and response flow.</p>
+        </div>
         <div class="drop-icon">&#128193;</div>
         <div class="drop-text">Drop a conversation file to visualize</div>
-        <div class="drop-subtext">Supports Claude Code .jsonl files</div>
+        <div class="drop-subtext">Supports Claude Code .jsonl trace files</div>
         <div class="drop-divider">or</div>
         <button id="file-select-btn">Select File</button>
         <input type="file" id="file-input" accept=".json,.jsonl">

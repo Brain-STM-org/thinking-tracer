@@ -388,3 +388,39 @@ that is looking great.  it doesn't flow well with a narrow window.  also it cove
 ## 2026-01-23T16:22:31Z
 
 this is a high-level change.  let's make it so one can show left pane only (3D), right pane only (rendered conversation), or split (both).  Aspects Metrics, Details, Word Stats, Search are relegated to a collapsible sidebar.
+
+---
+
+## 2026-01-23T16:44:00Z
+
+this is looking great.  on the session name aspect, add a tooltip that shows the whole name
+
+---
+
+## 2026-01-23T17:31:11Z
+
+is the session name from the JSONL file itself?  I'd like to make a custom name for this app that can persist on the "opening" page. and can be edited in-place at the top.  does that make sense?
+
+---
+
+## 2026-01-23T17:36:24Z
+
+while i'm editing it, the keyboard events are getting routed to other parts of the UI
+
+---
+
+## 2026-01-23T17:53:03Z
+
+in the open page, include the file path in the recent traces,  with a full tooltip.   also put a title about Thinking Tracer, with an introduction about the tool, so people know what is going to appear when they start using it
+
+---
+
+## 2026-01-23T17:55:42Z
+
+there's a lot of flickering when resizing the split pane, perhaps don't clear the center 3d image until the next frame is ready? or is there some other way to handle that?
+
+---
+
+## 2026-01-23T18:03:27Z
+
+that seems to be working well.  one issue is that when i resize with the slider, the slider position jumps.  perhaps there's a stale original position value that is getting used?

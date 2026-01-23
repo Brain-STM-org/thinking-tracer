@@ -14,6 +14,8 @@ export interface RecentTrace {
   filename: string;
   /** Title from parsed conversation */
   title: string;
+  /** Custom user-defined name (overrides title if set) */
+  customName?: string;
   /** When it was last opened */
   lastOpened: number;
   /** Number of turns */
@@ -178,6 +180,30 @@ export async function getTraceById(id: string): Promise<RecentTrace | null> {
     const request = store.get(id);
 
     request.onsuccess = () => resolve(request.result || null);
+    request.onerror = () => reject(request.error);
+  });
+}
+
+/**
+ * Update the custom name for a trace
+ */
+export async function updateTraceCustomName(id: string, customName: string): Promise<void> {
+  const db = await openDB();
+  const trace = await getTraceById(id);
+
+  if (!trace) {
+    throw new Error('Trace not found');
+  }
+
+  // Update the custom name (empty string clears it)
+  trace.customName = customName.trim() || undefined;
+
+  return new Promise((resolve, reject) => {
+    const transaction = db.transaction(STORE_NAME, 'readwrite');
+    const store = transaction.objectStore(STORE_NAME);
+    const request = store.put(trace);
+
+    request.onsuccess = () => resolve();
     request.onerror = () => reject(request.error);
   });
 }

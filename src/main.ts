@@ -9,6 +9,7 @@ import {
   getRecentTraces,
   deleteRecentTrace,
   clearRecentTraces,
+  updateTraceCustomName,
   formatSize,
   formatRelativeTime,
   type RecentTrace,
@@ -38,6 +39,7 @@ const chartRange = document.getElementById('chart-range');
 const splitHandle = document.getElementById('split-handle');
 const canvasPane = document.getElementById('canvas-pane');
 const conversationPane = document.getElementById('conversation-pane');
+const contentArea = document.getElementById('content-area');
 const conversationContent = document.getElementById('conversation-content');
 const conversationTurnIndicator = document.getElementById('conversation-turn-indicator');
 const wordFreqChart = document.getElementById('word-freq-chart');
@@ -58,6 +60,9 @@ let viewMode: '3d' | 'split' | 'conversation' = 'split';
 
 // Sidebar visibility
 let sidebarVisible = true;
+
+// Current trace info for name editing
+let currentTraceId: string | null = null;
 
 if (!container) {
   throw new Error('Container element not found');
@@ -82,20 +87,39 @@ viewer.onStats((stats) => {
 });
 
 /**
+ * Generate a simple hash for content identification (matches recent-traces.ts)
+ */
+function hashContent(content: string): string {
+  let hash = 0;
+  for (let i = 0; i < Math.min(content.length, 10000); i++) {
+    const char = content.charCodeAt(i);
+    hash = ((hash << 5) - hash) + char;
+    hash = hash & hash;
+  }
+  return `${hash.toString(16)}-${content.length}`;
+}
+
+/**
  * Load a conversation file
  */
-async function loadFile(content: string, filename: string, skipSave = false): Promise<void> {
+async function loadFile(content: string, filename: string, skipSave = false, customName?: string): Promise<void> {
   try {
     viewer.loadJSON(content);
 
     const conversation = viewer.getConversation();
-    const title = conversation?.meta.title || filename;
+    const originalTitle = conversation?.meta.title || filename;
     const turnCount = conversation?.turns.length || 0;
+
+    // Track current trace for name editing
+    currentTraceId = hashContent(content);
+
+    // Use custom name if provided, otherwise use original title
+    const displayName = customName || originalTitle;
 
     // Save to recent traces (unless loading from recent)
     if (!skipSave) {
       try {
-        await saveRecentTrace(filename, title, turnCount, content);
+        await saveRecentTrace(filename, originalTitle, turnCount, content);
         await refreshRecentTraces();
       } catch (err) {
         console.warn('Failed to save to recent traces:', err);
@@ -113,10 +137,11 @@ async function loadFile(content: string, filename: string, skipSave = false): Pr
       mainContainer.classList.add('with-toolbar');
     }
 
-    // Update toolbar with session info
+    // Update toolbar with session info (editable)
     if (toolbarTitle) {
-      toolbarTitle.textContent = title;
-      toolbarTitle.title = title;
+      toolbarTitle.textContent = displayName;
+      toolbarTitle.dataset.fullTitle = displayName;
+      toolbarTitle.dataset.originalTitle = originalTitle;
     }
 
     if (toolbarMeta) {
@@ -184,7 +209,8 @@ async function loadRecentTrace(trace: RecentTrace): Promise<void> {
     console.warn('Failed to update recent trace:', err);
   }
 
-  await loadFile(trace.content, trace.filename, true);
+  // Pass custom name if it exists
+  await loadFile(trace.content, trace.filename, true, trace.customName);
 }
 
 /**
@@ -231,11 +257,20 @@ async function refreshRecentTraces(): Promise<void> {
  * Render a recent trace item
  */
 function renderRecentItem(trace: RecentTrace): string {
+  const displayName = trace.customName || trace.title;
+  const hasCustomName = !!trace.customName;
+
+  // Shorten path for display, show full in tooltip
+  const shortPath = trace.filename.length > 50
+    ? '...' + trace.filename.slice(-47)
+    : trace.filename;
+
   return `
     <div class="recent-item" data-id="${trace.id}">
       <div class="recent-item-icon">📄</div>
       <div class="recent-item-info">
-        <div class="recent-item-title">${escapeHtml(trace.title)}</div>
+        <div class="recent-item-title ${hasCustomName ? 'custom' : ''}">${escapeHtml(displayName)}</div>
+        <div class="recent-item-path" title="${escapeHtml(trace.filename)}">${escapeHtml(shortPath)}</div>
         <div class="recent-item-meta">
           ${trace.turnCount} turns · ${formatSize(trace.size)} · ${formatRelativeTime(trace.lastOpened)}
         </div>
@@ -421,6 +456,84 @@ if (sidebarToggle) {
 // Wire up toolbar back button
 if (toolbarBack) {
   toolbarBack.addEventListener('click', showFileSelector);
+}
+
+// Wire up editable title
+if (toolbarTitle) {
+  // Make title editable on double-click
+  toolbarTitle.addEventListener('dblclick', () => {
+    if (!currentTraceId) return;
+
+    toolbarTitle.contentEditable = 'true';
+    toolbarTitle.classList.add('editing');
+    toolbarTitle.focus();
+
+    // Select all text
+    const range = document.createRange();
+    range.selectNodeContents(toolbarTitle);
+    const selection = window.getSelection();
+    selection?.removeAllRanges();
+    selection?.addRange(range);
+  });
+
+  // Save on blur or Enter
+  const saveTitle = async () => {
+    if (toolbarTitle.contentEditable !== 'true') return;
+
+    toolbarTitle.contentEditable = 'false';
+    toolbarTitle.classList.remove('editing');
+
+    const newName = toolbarTitle.textContent?.trim() || '';
+    const originalTitle = toolbarTitle.dataset.originalTitle || '';
+
+    // If name matches original, clear custom name
+    const customName = newName === originalTitle ? '' : newName;
+
+    // Update display and tooltip
+    const displayName = customName || originalTitle;
+    toolbarTitle.textContent = displayName;
+    toolbarTitle.dataset.fullTitle = displayName;
+
+    // Save to storage
+    if (currentTraceId) {
+      try {
+        await updateTraceCustomName(currentTraceId, customName);
+        await refreshRecentTraces();
+      } catch (err) {
+        console.warn('Failed to save custom name:', err);
+      }
+    }
+  };
+
+  toolbarTitle.addEventListener('blur', saveTitle);
+
+  // Stop all key events from propagating while editing
+  const stopIfEditing = (e: Event) => {
+    if (toolbarTitle.contentEditable === 'true') {
+      e.stopPropagation();
+    }
+  };
+
+  toolbarTitle.addEventListener('keydown', (e) => {
+    if (toolbarTitle.contentEditable === 'true') {
+      e.stopPropagation();
+
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        toolbarTitle.blur();
+      } else if (e.key === 'Escape') {
+        e.preventDefault();
+        // Restore original display name
+        const originalTitle = toolbarTitle.dataset.originalTitle || '';
+        toolbarTitle.textContent = originalTitle;
+        toolbarTitle.contentEditable = 'false';
+        toolbarTitle.classList.remove('editing');
+      }
+    }
+  });
+
+  toolbarTitle.addEventListener('keyup', stopIfEditing);
+  toolbarTitle.addEventListener('keypress', stopIfEditing);
 }
 
 // Wire up sidebar section accordion
@@ -1166,7 +1279,7 @@ if (wordFreqSource) {
 
 let isSplitDragging = false;
 
-if (splitHandle && canvasPane && conversationPane) {
+if (splitHandle && canvasPane && conversationPane && contentArea) {
   splitHandle.addEventListener('mousedown', (e) => {
     isSplitDragging = true;
     splitHandle.classList.add('dragging');
@@ -1178,15 +1291,17 @@ if (splitHandle && canvasPane && conversationPane) {
   document.addEventListener('mousemove', (e) => {
     if (!isSplitDragging) return;
 
-    const containerWidth = document.body.clientWidth;
-    const newCanvasWidth = e.clientX;
+    // Get position relative to content area, not viewport
+    const contentRect = contentArea.getBoundingClientRect();
+    const relativeX = e.clientX - contentRect.left;
+    const containerWidth = contentRect.width;
     const minCanvasWidth = 300;
     const minConvWidth = 250;
 
-    if (newCanvasWidth >= minCanvasWidth && (containerWidth - newCanvasWidth - 6) >= minConvWidth) {
+    if (relativeX >= minCanvasWidth && (containerWidth - relativeX - 6) >= minConvWidth) {
       canvasPane.style.flex = 'none';
-      canvasPane.style.width = `${newCanvasWidth}px`;
-      conversationPane.style.width = `${containerWidth - newCanvasWidth - 6}px`;
+      canvasPane.style.width = `${relativeX}px`;
+      conversationPane.style.width = `${containerWidth - relativeX - 6}px`;
     }
   });
 

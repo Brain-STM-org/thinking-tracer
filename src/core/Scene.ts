@@ -72,9 +72,14 @@ export class Scene {
     const width = this.container.clientWidth;
     const height = this.container.clientHeight;
 
+    if (width === 0 || height === 0) return;
+
     this.camera.aspect = width / height;
     this.camera.updateProjectionMatrix();
     this.renderer.setSize(width, height);
+
+    // Render immediately to prevent flicker
+    this.renderer.render(this.scene, this.camera);
   }
 
   /**
