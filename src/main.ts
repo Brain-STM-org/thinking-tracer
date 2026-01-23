@@ -36,6 +36,7 @@ const recentListEl = document.getElementById('recent-list');
 const recentClearBtn = document.getElementById('recent-clear-btn');
 const metricsStack = document.getElementById('metrics-stack');
 const chartRange = document.getElementById('chart-range');
+const chartTooltip = document.getElementById('chart-tooltip');
 const splitHandle = document.getElementById('split-handle');
 const canvasPane = document.getElementById('canvas-pane');
 const conversationPane = document.getElementById('conversation-pane');
@@ -879,9 +880,16 @@ function drawMetricChart(canvas: HTMLCanvasElement, values: number[], focusIndex
   ctx.fillRect(0, 0, canvasWidth, height);
 
   // Draw bars
+  const minBarHeight = 3; // Minimum visible height for non-zero values
   for (let i = 0; i < values.length; i++) {
     const value = values[i];
-    const barHeight = Math.max(1, (value / maxValue) * (height - CHART_PADDING * 2));
+
+    // Skip zero values entirely
+    if (value === 0) continue;
+
+    // Non-zero values get at least minBarHeight so they're visible
+    const scaledHeight = (value / maxValue) * (height - CHART_PADDING * 2);
+    const barHeight = Math.max(minBarHeight, scaledHeight);
     const x = CHART_PADDING + i * (barWidth + BAR_GAP);
     const y = height - CHART_PADDING - barHeight;
 
@@ -979,6 +987,61 @@ if (metricsStack) {
 
     if (clusterIndex >= 0 && clusterIndex < clusterCount) {
       viewer.selectClusterByIndex(clusterIndex);
+    }
+  });
+
+  // Chart tooltip on hover
+  metricsStack.addEventListener('mousemove', (e) => {
+    if (!chartTooltip) return;
+
+    const container = (e.target as HTMLElement).closest('.metric-chart-container');
+    const row = (e.target as HTMLElement).closest('.metric-row');
+    const canvas = container?.querySelector('.metric-canvas') as HTMLCanvasElement;
+
+    if (!container || !row || !canvas) {
+      chartTooltip.classList.remove('visible');
+      return;
+    }
+
+    const metricKey = row.getAttribute('data-metric') as MetricKey;
+    const metrics = viewer.getClusterMetrics();
+    if (metrics.length === 0) {
+      chartTooltip.classList.remove('visible');
+      return;
+    }
+
+    // Get click position relative to canvas (accounting for scroll)
+    const containerRect = container.getBoundingClientRect();
+    const x = e.clientX - containerRect.left + container.scrollLeft;
+
+    // Calculate bar width (same logic as drawing)
+    const containerWidth = container.clientWidth;
+    const naturalBarWidth = (containerWidth - CHART_PADDING * 2) / metrics.length - BAR_GAP;
+    const barWidth = Math.max(MIN_BAR_WIDTH, naturalBarWidth);
+
+    // Calculate which cluster is hovered
+    const clusterIndex = Math.floor((x - CHART_PADDING) / (barWidth + BAR_GAP));
+
+    if (clusterIndex >= 0 && clusterIndex < metrics.length) {
+      const value = metrics[clusterIndex][metricKey];
+      const turnEl = chartTooltip.querySelector('.tooltip-turn');
+      const valueEl = chartTooltip.querySelector('.tooltip-value');
+
+      if (turnEl) turnEl.textContent = `Turn ${clusterIndex + 1}`;
+      if (valueEl) valueEl.textContent = value.toLocaleString();
+
+      // Position tooltip near cursor
+      chartTooltip.style.left = `${e.clientX + 12}px`;
+      chartTooltip.style.top = `${e.clientY - 10}px`;
+      chartTooltip.classList.add('visible');
+    } else {
+      chartTooltip.classList.remove('visible');
+    }
+  });
+
+  metricsStack.addEventListener('mouseleave', () => {
+    if (chartTooltip) {
+      chartTooltip.classList.remove('visible');
     }
   });
 }

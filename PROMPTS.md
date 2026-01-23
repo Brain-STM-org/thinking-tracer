@@ -430,3 +430,15 @@ that seems to be working well.  one issue is that when i resize with the slider,
 ## 2026-01-23T18:15:08Z
 
 that works great,. now i want to add an export feature for the right-pane conversation content, into a choice of static HTML or markdown 
+
+---
+
+## 2026-01-23T18:24:26Z
+
+that you one-shotted that, wow thank you.   in the metrics charts, add tooltips with the values
+
+---
+
+## 2026-01-23T18:44:43Z
+
+in the charts, when a value is non-zero but too small for the y-range, include a small sliver so we know there is some data there without restorting to tooltip

@@ -953,6 +953,34 @@
         display: block;
       }
 
+      /* Chart tooltip */
+      #chart-tooltip {
+        position: fixed;
+        padding: 4px 8px;
+        background: rgba(0, 0, 0, 0.85);
+        color: #fff;
+        font-size: 11px;
+        border-radius: 4px;
+        pointer-events: none;
+        z-index: 10000;
+        white-space: nowrap;
+        opacity: 0;
+        transition: opacity 0.1s;
+      }
+
+      #chart-tooltip.visible {
+        opacity: 1;
+      }
+
+      #chart-tooltip .tooltip-turn {
+        color: #888;
+        font-size: 10px;
+      }
+
+      #chart-tooltip .tooltip-value {
+        font-weight: 600;
+      }
+
       .metrics-range {
         font-size: 10px;
         color: #666;
@@ -1385,6 +1413,11 @@
     </style>
   </head>
   <body>
+    <!-- Chart tooltip (shared) -->
+    <div id="chart-tooltip">
+      <span class="tooltip-turn">Turn 1</span>: <span class="tooltip-value">0</span>
+    </div>
+
     <div id="app">
       <!-- Toolbar -->
       <div id="toolbar">
