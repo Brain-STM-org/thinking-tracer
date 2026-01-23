@@ -586,3 +586,27 @@ there are some blocks produced that are not in a bubble, are those output blocks
 ## 2026-01-23T20:45:45Z
 
 they should default open but have limited expanse (like 5-6 lines) but then have an option to expand them.   all bubble types should have this same behavior
+
+---
+
+## 2026-01-23T20:52:28Z
+
+the top toolbar covers the top left and right panels
+
+---
+
+## 2026-01-23T20:58:49Z
+
+it's weird that the collapse for the left bar is so far right, is there a better way to deal with that. it might be weird near the left arrow on the left side?
+
+---
+
+## 2026-01-23T21:09:57Z
+
+in the conversation pane, if the line fits with some buffer, you don't need to show the "More" button.  the fade of the bottom of that actually blocks text that could otherwise be visible, but i do like it for when it is too much content.  it seems that ouptut allows more space than user, 
+
+---
+
+## 2026-01-23T21:20:03Z
+
+hmm, that's not working, there is long content there and it's not getting treated properly

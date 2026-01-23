@@ -25,7 +25,6 @@ const toolbar = document.getElementById('toolbar');
 const toolbarTitle = document.getElementById('toolbar-title');
 const toolbarMeta = document.getElementById('toolbar-meta');
 const toolbarBack = document.getElementById('toolbar-back');
-const mainContainer = document.getElementById('main-container');
 const sidebar = document.getElementById('sidebar');
 const sidebarToggle = document.getElementById('sidebar-toggle');
 const sidebarResize = document.getElementById('sidebar-resize');
@@ -227,9 +226,6 @@ async function loadFile(content: string, filename: string, skipSave = false, cus
     }
     if (toolbar) {
       toolbar.classList.add('visible');
-    }
-    if (mainContainer) {
-      mainContainer.classList.add('with-toolbar');
     }
 
     // Update toolbar with session info (editable)
@@ -501,9 +497,6 @@ async function showFileSelector(): Promise<void> {
   // Hide toolbar
   if (toolbar) {
     toolbar.classList.remove('visible');
-  }
-  if (mainContainer) {
-    mainContainer.classList.remove('with-toolbar');
   }
 
   // Hide legend
@@ -1699,11 +1692,27 @@ function renderConversation(): void {
     });
   });
 
+  // Check which content wraps actually overflow and need truncation
+  conversationContent.querySelectorAll('.conv-content-wrap').forEach((wrap) => {
+    const el = wrap as HTMLElement;
+    // Temporarily apply max-height to measure overflow
+    el.style.maxHeight = '120px';
+    el.style.overflow = 'hidden';
+    const needsTruncation = el.scrollHeight > el.clientHeight + 10;
+    el.style.maxHeight = '';
+    el.style.overflow = '';
+
+    if (needsTruncation) {
+      el.classList.add('needs-truncation');
+    }
+  });
+
   // Wire up "More" buttons for truncated content
   conversationContent.querySelectorAll('.conv-expand-btn').forEach((btn) => {
     btn.addEventListener('click', (e) => {
       e.stopPropagation();
       const wrap = btn.parentElement;
+      wrap?.classList.remove('needs-truncation');
       wrap?.classList.add('full');
     });
   });
