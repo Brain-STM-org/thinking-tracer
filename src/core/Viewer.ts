@@ -29,17 +29,33 @@ interface VisualNode {
   type: NodeType;
   data: Turn | ContentBlock;
   turnIndex: number;
+  originalMaterial: THREE.Material;
+}
+
+/** Selection info passed to callback */
+export interface SelectionInfo {
+  type: NodeType;
+  data: Turn | ContentBlock;
+  turnIndex: number;
 }
 
 export class Viewer {
   private scene: Scene;
   private controls: Controls;
+  private container: HTMLElement;
   private conversation: Conversation | null = null;
   private nodes: VisualNode[] = [];
   private statsCallback?: (stats: ViewerStats) => void;
+  private selectCallback?: (selection: SelectionInfo | null) => void;
+
+  // Selection state
+  private selectedNode: VisualNode | null = null;
+  private raycaster = new THREE.Raycaster();
+  private mouse = new THREE.Vector2();
 
   // Materials for different node types
-  private materials: Record<NodeType, THREE.Material>;
+  private materials: Record<NodeType, THREE.MeshStandardMaterial>;
+  private highlightMaterial: THREE.MeshStandardMaterial;
 
   constructor(options: ViewerOptions) {
     const container =
@@ -51,6 +67,7 @@ export class Viewer {
       throw new Error('Container element not found');
     }
 
+    this.container = container;
     this.scene = new Scene({ ...options, container });
 
     this.controls = new Controls({
@@ -67,10 +84,109 @@ export class Viewer {
       tool_result: new THREE.MeshStandardMaterial({ color: 0xe74c3c, roughness: 0.4 }),
     };
 
+    // Highlight material for selected nodes
+    this.highlightMaterial = new THREE.MeshStandardMaterial({
+      color: 0xffffff,
+      roughness: 0.2,
+      emissive: 0x444444,
+    });
+
+    // Setup click handler
+    this.setupClickHandler();
+
     // Start render loop
     this.scene.start(() => {
       this.controls.update();
     });
+  }
+
+  /**
+   * Setup click detection for node selection
+   */
+  private setupClickHandler(): void {
+    let mouseDownPos = { x: 0, y: 0 };
+    let mouseDownTime = 0;
+
+    this.scene.renderer.domElement.addEventListener('mousedown', (event) => {
+      mouseDownPos = { x: event.clientX, y: event.clientY };
+      mouseDownTime = Date.now();
+    });
+
+    this.scene.renderer.domElement.addEventListener('mouseup', (event) => {
+      // Only count as click if mouse didn't move much and was quick
+      const dx = event.clientX - mouseDownPos.x;
+      const dy = event.clientY - mouseDownPos.y;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      const duration = Date.now() - mouseDownTime;
+
+      if (dist < 5 && duration < 300) {
+        this.handleClick(event);
+      }
+    });
+  }
+
+  /**
+   * Handle click event for selection
+   */
+  private handleClick(event: MouseEvent): void {
+    const rect = this.container.getBoundingClientRect();
+    this.mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+    this.mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+
+    this.raycaster.setFromCamera(this.mouse, this.scene.camera);
+
+    const meshes = this.nodes.map(n => n.mesh);
+    const intersects = this.raycaster.intersectObjects(meshes);
+
+    if (intersects.length > 0) {
+      const mesh = intersects[0].object as THREE.Mesh;
+      const node = this.nodes.find(n => n.mesh === mesh);
+
+      if (node) {
+        this.selectNode(node);
+      }
+    } else {
+      this.clearSelection();
+    }
+  }
+
+  /**
+   * Select a node
+   */
+  private selectNode(node: VisualNode): void {
+    // Deselect previous
+    if (this.selectedNode && this.selectedNode !== node) {
+      this.selectedNode.mesh.material = this.selectedNode.originalMaterial;
+    }
+
+    // Select new
+    this.selectedNode = node;
+    node.mesh.material = this.highlightMaterial;
+
+    // Notify callback
+    this.selectCallback?.({
+      type: node.type,
+      data: node.data,
+      turnIndex: node.turnIndex,
+    });
+  }
+
+  /**
+   * Clear current selection
+   */
+  public clearSelection(): void {
+    if (this.selectedNode) {
+      this.selectedNode.mesh.material = this.selectedNode.originalMaterial;
+      this.selectedNode = null;
+    }
+    this.selectCallback?.(null);
+  }
+
+  /**
+   * Set callback for selection changes
+   */
+  public onSelect(callback: (selection: SelectionInfo | null) => void): void {
+    this.selectCallback = callback;
   }
 
   /**
@@ -115,7 +231,8 @@ export class Viewer {
   private buildVisualization(): void {
     if (!this.conversation) return;
 
-    // Clear existing nodes
+    // Clear existing nodes and selection
+    this.clearSelection();
     this.clearNodes();
 
     const { turns } = this.conversation;
@@ -177,7 +294,7 @@ export class Viewer {
     const material = this.materials[type];
     const mesh = new THREE.Mesh(geometry, material);
 
-    return { mesh, type, data, turnIndex };
+    return { mesh, type, data, turnIndex, originalMaterial: material };
   }
 
   /**
@@ -281,6 +398,7 @@ export class Viewer {
   public dispose(): void {
     this.clearNodes();
     Object.values(this.materials).forEach((m) => m.dispose());
+    this.highlightMaterial.dispose();
     this.controls.dispose();
     this.scene.dispose();
   }

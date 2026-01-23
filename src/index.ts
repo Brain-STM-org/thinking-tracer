@@ -7,7 +7,7 @@
  */
 
 // Core exports
-export { Viewer, type ViewerOptions, type ViewerStats } from './core/Viewer';
+export { Viewer, type ViewerOptions, type ViewerStats, type SelectionInfo } from './core/Viewer';
 export { Scene, type SceneOptions } from './core/Scene';
 export { Controls, type ControlsOptions } from './core/Controls';
 

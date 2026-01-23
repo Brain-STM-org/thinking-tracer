@@ -94,3 +94,9 @@ i don't see any difference, is it a z-layer issue?
 ## 2026-01-22T23:12:57Z
 
 much better!  great work.   now onto functionality, which Claude Code JSON file should i drop?
+
+---
+
+## 2026-01-22T23:58:18Z
+
+make a legend for the different node colors.  we will want to display a summary of the content in their 3D space , but we can also have click-testing and have a side panel with concrete details of selection
