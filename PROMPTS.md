@@ -869,3 +869,9 @@ we are continuing with the senior software engineer with expansive experience in
 ## 2026-01-24T18:34:57Z
 
 let's continue refactoring, we can work on the intro/loading page.  refactor out FileLoader and RecentTraces. 
+
+---
+
+## 2026-01-24T18:46:54Z
+
+let's pull hash utils into its own util file

@@ -3,6 +3,7 @@
  */
 
 import { Viewer } from './core/Viewer';
+import { hashContent } from './utils/hash';
 import {
   exportAsHtml,
   exportAsMarkdown,
@@ -250,7 +251,6 @@ viewer.onStats((stats) => {
   }
 });
 
-// hashContent is now provided by FileLoader.hashContent
 
 /**
  * Load a conversation file
@@ -264,7 +264,7 @@ async function loadFile(content: string, filename: string, skipSave = false, cus
     const turnCount = conversation?.turns.length || 0;
 
     // Track current trace for name editing
-    currentTraceId = FileLoader.hashContent(content);
+    currentTraceId = hashContent(content);
 
     // Use custom name if provided, otherwise use original title
     const displayName = customName || originalTitle;

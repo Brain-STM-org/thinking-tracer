@@ -2,6 +2,8 @@
  * Recent traces storage using IndexedDB
  */
 
+import { hashContent } from './hash';
+
 const DB_NAME = 'thinking-tracer';
 const DB_VERSION = 1;
 const STORE_NAME = 'recent-traces';
@@ -63,20 +65,6 @@ function openDB(): Promise<IDBDatabase> {
       }
     };
   });
-}
-
-/**
- * Generate a simple hash for content identification
- */
-function hashContent(content: string): string {
-  let hash = 0;
-  for (let i = 0; i < Math.min(content.length, 10000); i++) {
-    const char = content.charCodeAt(i);
-    hash = ((hash << 5) - hash) + char;
-    hash = hash & hash; // Convert to 32bit integer
-  }
-  // Include length for better uniqueness
-  return `${hash.toString(16)}-${content.length}`;
 }
 
 /**

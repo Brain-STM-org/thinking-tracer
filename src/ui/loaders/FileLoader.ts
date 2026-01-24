@@ -9,6 +9,7 @@ import {
   decompressZstdBuffer,
   FileWatcher,
 } from '../../utils/file-drop';
+import { hashContent } from '../../utils/hash';
 
 /**
  * Callback for when a file is loaded
@@ -65,15 +66,10 @@ export class FileLoader {
 
   /**
    * Generate a simple hash for content identification
+   * @deprecated Use hashContent from '../../utils/hash' directly
    */
   public static hashContent(content: string): string {
-    let hash = 0;
-    for (let i = 0; i < Math.min(content.length, 10000); i++) {
-      const char = content.charCodeAt(i);
-      hash = ((hash << 5) - hash) + char;
-      hash = hash & hash;
-    }
-    return `${hash.toString(16)}-${content.length}`;
+    return hashContent(content);
   }
 
   /**
