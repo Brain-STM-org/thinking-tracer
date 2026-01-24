@@ -24,6 +24,17 @@ import {
   escapeHtml,
   renderMarkdown,
 } from './export';
+import {
+  isValidRegex,
+  highlightSnippet,
+  performSearch,
+  getMatchingClusters,
+  getNextResultIndex,
+  getPrevResultIndex,
+  formatResultCount,
+  type SearchResult,
+  type SearchContentType,
+} from './search';
 
 // Get DOM elements
 const container = document.getElementById('canvas-container');
@@ -2239,14 +2250,6 @@ function scrollConversationToCluster(clusterIndex: number): void {
 // Search Functionality
 // ============================================
 
-interface SearchResult {
-  type: 'user' | 'assistant' | 'thinking' | 'tool_use' | 'tool_result';
-  clusterIndex: number;
-  text: string;
-  matchStart: number;
-  matchEnd: number;
-}
-
 let searchResults: SearchResult[] = [];
 let currentSearchIndex = -1;
 let searchDebounceTimer: ReturnType<typeof setTimeout> | null = null;
@@ -2257,13 +2260,13 @@ const SEARCH_HIGHLIGHT_COLOR = 0xff6b6b; // Coral red for search highlights
 /**
  * Get enabled search filters from checkboxes
  */
-function getSearchFilters(): Set<string> {
-  const filters = new Set<string>();
+function getSearchFilters(): Set<SearchContentType> {
+  const filters = new Set<SearchContentType>();
 
   document.querySelectorAll('.search-filter input[type="checkbox"]').forEach((checkbox) => {
     const input = checkbox as HTMLInputElement;
     if (input.checked && input.dataset.type) {
-      filters.add(input.dataset.type);
+      filters.add(input.dataset.type as SearchContentType);
     }
   });
 
@@ -2271,183 +2274,12 @@ function getSearchFilters(): Set<string> {
 }
 
 /**
- * Find first match in text and return context snippet
- * Supports both plain text (case-insensitive) and regex modes
+ * Run search with current settings
  */
-function findMatch(text: string, query: string, useRegex: boolean): { found: boolean; snippet: string; start: number; end: number } {
-  let matchIndex = -1;
-  let matchLength = 0;
-
-  if (useRegex) {
-    try {
-      const regex = new RegExp(query, 'i'); // case-insensitive
-      const match = text.match(regex);
-      if (match && match.index !== undefined) {
-        matchIndex = match.index;
-        matchLength = match[0].length;
-      }
-    } catch {
-      // Invalid regex - no match
-      return { found: false, snippet: '', start: -1, end: -1 };
-    }
-  } else {
-    const lowerText = text.toLowerCase();
-    const lowerQuery = query.toLowerCase();
-    matchIndex = lowerText.indexOf(lowerQuery);
-    matchLength = query.length;
-  }
-
-  if (matchIndex === -1) {
-    return { found: false, snippet: '', start: -1, end: -1 };
-  }
-
-  // Extract context around match
-  const snippetStart = Math.max(0, matchIndex - 30);
-  const snippetEnd = Math.min(text.length, matchIndex + matchLength + 50);
-  let snippet = text.slice(snippetStart, snippetEnd);
-
-  // Add ellipsis if truncated
-  if (snippetStart > 0) snippet = '...' + snippet;
-  if (snippetEnd < text.length) snippet = snippet + '...';
-
-  return { found: true, snippet, start: matchIndex, end: matchIndex + matchLength };
-}
-
-/**
- * Validate regex pattern
- */
-function isValidRegex(pattern: string): boolean {
-  try {
-    new RegExp(pattern, 'i');
-    return true;
-  } catch {
-    return false;
-  }
-}
-
-/**
- * Perform search across all clusters using the Viewer's searchable content
- */
-function performSearch(query: string): SearchResult[] {
-  const results: SearchResult[] = [];
-  if (!query.trim()) return results;
-
-  // Validate regex if in regex mode
-  if (regexMode && !isValidRegex(query)) {
-    return results;
-  }
-
+function runSearch(query: string): SearchResult[] {
+  const clusters = viewer.getSearchableContent();
   const filters = getSearchFilters();
-  const searchableContent = viewer.getSearchableContent();
-
-  for (const cluster of searchableContent) {
-    // Search user text
-    if (filters.has('user') && cluster.userText) {
-      const match = findMatch(cluster.userText, query, regexMode);
-      if (match.found) {
-        results.push({
-          type: 'user',
-          clusterIndex: cluster.clusterIndex,
-          text: match.snippet,
-          matchStart: match.start,
-          matchEnd: match.end,
-        });
-      }
-    }
-
-    // Search assistant text
-    if (filters.has('assistant') && cluster.assistantText) {
-      const match = findMatch(cluster.assistantText, query, regexMode);
-      if (match.found) {
-        results.push({
-          type: 'assistant',
-          clusterIndex: cluster.clusterIndex,
-          text: match.snippet,
-          matchStart: match.start,
-          matchEnd: match.end,
-        });
-      }
-    }
-
-    // Search thinking blocks
-    if (filters.has('thinking')) {
-      for (const thinking of cluster.thinkingBlocks) {
-        const match = findMatch(thinking, query, regexMode);
-        if (match.found) {
-          results.push({
-            type: 'thinking',
-            clusterIndex: cluster.clusterIndex,
-            text: match.snippet,
-            matchStart: match.start,
-            matchEnd: match.end,
-          });
-        }
-      }
-    }
-
-    // Search tool uses
-    if (filters.has('tool_use')) {
-      for (const toolUse of cluster.toolUses) {
-        const searchText = `${toolUse.name} ${toolUse.input}`;
-        const match = findMatch(searchText, query, regexMode);
-        if (match.found) {
-          results.push({
-            type: 'tool_use',
-            clusterIndex: cluster.clusterIndex,
-            text: match.snippet,
-            matchStart: match.start,
-            matchEnd: match.end,
-          });
-        }
-      }
-    }
-
-    // Search tool results
-    if (filters.has('tool_result')) {
-      for (const toolResult of cluster.toolResults) {
-        const match = findMatch(toolResult.content, query, regexMode);
-        if (match.found) {
-          results.push({
-            type: 'tool_result',
-            clusterIndex: cluster.clusterIndex,
-            text: match.snippet,
-            matchStart: match.start,
-            matchEnd: match.end,
-          });
-        }
-      }
-    }
-  }
-
-  return results;
-}
-
-/**
- * Escape HTML for safe rendering
- */
-function escapeHtmlSearch(text: string): string {
-  const div = document.createElement('div');
-  div.textContent = text;
-  return div.innerHTML;
-}
-
-/**
- * Highlight search query in snippet
- */
-function highlightSnippet(snippet: string, query: string): string {
-  if (!query) return escapeHtmlSearch(snippet);
-
-  const lowerSnippet = snippet.toLowerCase();
-  const lowerQuery = query.toLowerCase();
-  const index = lowerSnippet.indexOf(lowerQuery);
-
-  if (index === -1) return escapeHtmlSearch(snippet);
-
-  const before = snippet.slice(0, index);
-  const match = snippet.slice(index, index + query.length);
-  const after = snippet.slice(index + query.length);
-
-  return `${escapeHtmlSearch(before)}<mark>${escapeHtmlSearch(match)}</mark>${escapeHtmlSearch(after)}`;
+  return performSearch(clusters, query, { useRegex: regexMode, filters });
 }
 
 /**
@@ -2477,7 +2309,7 @@ function renderSearchResults(): void {
           <span class="search-result-type ${result.type}">${typeLabel}</span>
           <span class="search-result-turn">Turn ${result.clusterIndex + 1}/${clusterCount}</span>
         </div>
-        <div class="search-result-snippet">${highlightSnippet(result.text, query)}</div>
+        <div class="search-result-snippet">${highlightSnippet(result.text, query, regexMode)}</div>
       </div>
     `;
   }).join('');
@@ -2505,12 +2337,8 @@ function renderSearchResults(): void {
 function updateSearchUI(): void {
   if (!searchResultsCount) return;
 
-  if (searchResults.length === 0) {
-    const query = searchInput?.value || '';
-    searchResultsCount.textContent = query ? 'No matches' : '';
-  } else {
-    searchResultsCount.textContent = `${currentSearchIndex + 1} / ${searchResults.length}`;
-  }
+  const query = searchInput?.value || '';
+  searchResultsCount.textContent = formatResultCount(currentSearchIndex, searchResults.length, !!query);
 
   // Update button states
   const hasResults = searchResults.length > 0;
@@ -2549,18 +2377,16 @@ function navigateToResult(index: number): void {
  * Go to next search result
  */
 function searchNext(): void {
-  if (searchResults.length === 0) return;
-  const nextIndex = (currentSearchIndex + 1) % searchResults.length;
-  navigateToResult(nextIndex);
+  const nextIndex = getNextResultIndex(currentSearchIndex, searchResults.length);
+  if (nextIndex >= 0) navigateToResult(nextIndex);
 }
 
 /**
  * Go to previous search result
  */
 function searchPrev(): void {
-  if (searchResults.length === 0) return;
-  const prevIndex = currentSearchIndex <= 0 ? searchResults.length - 1 : currentSearchIndex - 1;
-  navigateToResult(prevIndex);
+  const prevIndex = getPrevResultIndex(currentSearchIndex, searchResults.length);
+  if (prevIndex >= 0) navigateToResult(prevIndex);
 }
 
 /**
@@ -2606,7 +2432,7 @@ function handleSearchInput(): void {
       }
     }
 
-    searchResults = performSearch(query);
+    searchResults = runSearch(query);
     currentSearchIndex = searchResults.length > 0 ? 0 : -1;
 
     // Clear previous search highlights
@@ -2617,7 +2443,7 @@ function handleSearchInput(): void {
 
     // Apply search filter and highlights to 3D view and conversation
     if (searchResults.length > 0) {
-      const matchingClusters = [...new Set(searchResults.map(r => r.clusterIndex))];
+      const matchingClusters = getMatchingClusters(searchResults);
       viewer.setSearchFilter(matchingClusters);
       filterConversation(matchingClusters);
 

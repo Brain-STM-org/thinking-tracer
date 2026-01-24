@@ -815,3 +815,9 @@ great, i was worried about the main also.  let's focus on modularity and the low
 ## 2026-01-24T12:20:03Z
 
 is there any testing for that exporter module?
+
+---
+
+## 2026-01-24T15:53:43Z
+
+yes, refactor out the search module.  create unit tests as well
