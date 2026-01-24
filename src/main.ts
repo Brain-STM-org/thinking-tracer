@@ -21,6 +21,7 @@ import {
   FileLoader,
   RecentTracesManager,
   SearchController,
+  SidebarController,
 } from './ui';
 import type { Selection, RecentTrace, TraceUIState } from './ui';
 
@@ -95,12 +96,10 @@ let coilControlsPanel: CoilControlsPanel | null = null;
 let fileLoader: FileLoader | null = null;
 let recentTracesManager: RecentTracesManager | null = null;
 let searchController: SearchController | null = null;
+let sidebarController: SidebarController | null = null;
 
 // View mode: '3d' | 'split' | 'conversation'
 let viewMode: '3d' | 'split' | 'conversation' = 'split';
-
-// Sidebar visibility
-let sidebarVisible = true;
 
 // Current trace info for name editing
 let currentTraceId: string | null = null;
@@ -131,7 +130,7 @@ function getCurrentUIState(): TraceUIState {
     cameraPosition: cameraState.position,
     cameraTarget: cameraState.target,
     viewMode,
-    sidebarVisible,
+    sidebarVisible: sidebarController?.isVisible() ?? true,
     splitRatio,
     selectedCluster: currentFocusIndex,
   };
@@ -167,7 +166,7 @@ function restoreUIState(uiState: TraceUIState): void {
 
   // Restore sidebar visibility
   if (uiState.sidebarVisible !== undefined) {
-    sidebarVisible = uiState.sidebarVisible;
+    sidebarController?.setVisible(uiState.sidebarVisible);
   }
 
   // Restore split ratio
@@ -326,10 +325,9 @@ async function loadFile(content: string, filename: string, skipSave = false, cus
     // Apply view mode
     applyViewMode();
 
-    // Show sidebar
-    if (sidebar && sidebarVisible) {
-      sidebar.classList.add('visible');
-      sidebarToggle?.classList.add('active');
+    // Show sidebar if it should be visible
+    if (sidebarController?.isVisible()) {
+      sidebarController.show();
     }
 
     // Apply panel visibility and select first node
@@ -383,15 +381,8 @@ async function loadRecentTrace(trace: RecentTrace): Promise<void> {
   if (trace.uiState) {
     restoreUIState(trace.uiState);
 
-    // Apply restored view mode and sidebar state
+    // Apply restored view mode (sidebar state is already applied by restoreUIState)
     applyViewMode();
-    if (sidebarVisible) {
-      sidebar?.classList.add('visible');
-      sidebarToggle?.classList.add('active');
-    } else {
-      sidebar?.classList.remove('visible');
-      sidebarToggle?.classList.remove('active');
-    }
 
     // Restore selected cluster in viewer
     if (trace.uiState.selectedCluster !== undefined && trace.uiState.selectedCluster < viewer.getClusterCount()) {
@@ -532,29 +523,17 @@ document.querySelectorAll('.view-mode-btn').forEach((btn) => {
 // Sidebar System
 // ============================================
 
-/**
- * Toggle sidebar visibility
- */
-function toggleSidebar(): void {
-  sidebarVisible = !sidebarVisible;
-  if (sidebarVisible) {
-    sidebar?.classList.add('visible');
-    sidebarToggle?.classList.add('active');
-  } else {
-    sidebar?.classList.remove('visible');
-    sidebarToggle?.classList.remove('active');
-  }
-}
-
-// Wire up sidebar toggle
-if (sidebarToggle) {
-  sidebarToggle.addEventListener('click', toggleSidebar);
-}
-
-// Wire up legend collapse toggle
-if (legendHeader && legend) {
-  legendHeader.addEventListener('click', () => {
-    legend.classList.toggle('collapsed');
+// Create SidebarController
+if (sidebar) {
+  sidebarController = new SidebarController({
+    elements: {
+      sidebar,
+      toggleBtn: sidebarToggle,
+      resizeHandle: sidebarResize,
+      legend,
+      legendHeader,
+    },
+    initialVisible: true,
   });
 }
 
@@ -673,51 +652,6 @@ if (toolbarTitle) {
   toolbarTitle.addEventListener('keypress', stopIfEditing);
 }
 
-// Wire up sidebar section accordion
-document.querySelectorAll('.sidebar-section-header').forEach((header) => {
-  header.addEventListener('click', () => {
-    const section = header.closest('.sidebar-section');
-    if (section) {
-      section.classList.toggle('expanded');
-    }
-  });
-});
-
-// ============================================
-// Sidebar Resizing
-// ============================================
-
-if (sidebarResize && sidebar) {
-  let isSidebarResizing = false;
-  let sidebarStartX = 0;
-  let sidebarStartWidth = 0;
-
-  sidebarResize.addEventListener('mousedown', (e) => {
-    isSidebarResizing = true;
-    sidebarStartX = e.clientX;
-    sidebarStartWidth = sidebar.offsetWidth;
-    sidebarResize.classList.add('dragging');
-    document.body.style.cursor = 'ew-resize';
-    document.body.style.userSelect = 'none';
-    e.preventDefault();
-  });
-
-  document.addEventListener('mousemove', (e) => {
-    if (!isSidebarResizing) return;
-    const delta = e.clientX - sidebarStartX;
-    const newWidth = Math.min(400, Math.max(200, sidebarStartWidth + delta));
-    sidebar.style.width = `${newWidth}px`;
-  });
-
-  document.addEventListener('mouseup', () => {
-    if (isSidebarResizing) {
-      isSidebarResizing = false;
-      sidebarResize.classList.remove('dragging');
-      document.body.style.cursor = '';
-      document.body.style.userSelect = '';
-    }
-  });
-}
 
 /**
  * Format duration in milliseconds to human readable string
@@ -837,7 +771,7 @@ if (searchInput) {
     },
     viewer: searchableViewer,
     conversationPanel: conversationPanel ?? undefined,
-    isSidebarVisible: () => sidebarVisible,
+    isSidebarVisible: () => sidebarController?.isVisible() ?? true,
   });
 }
 
@@ -928,6 +862,7 @@ window.addEventListener('beforeunload', () => {
   // Cleanup controllers
   searchController?.dispose();
   coilControlsPanel?.dispose();
+  sidebarController?.dispose();
 });
 
 // Also save periodically while using (every 30 seconds if there's a trace loaded)

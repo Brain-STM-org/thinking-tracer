@@ -48,3 +48,7 @@ export type {
   SearchableViewer,
   FilterablePanel,
 } from './search';
+
+// Sidebar
+export { SidebarController } from './sidebar';
+export type { SidebarControllerElements, SidebarControllerOptions } from './sidebar';
