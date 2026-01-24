@@ -1081,3 +1081,9 @@ people do not load threeJS from a common CDN?
 ## 2026-01-24T23:38:30Z
 
 ok, i'm going to keep it as is.  i'll let you know how deployment goes
+
+---
+
+## 2026-01-24T23:43:32Z
+
+oh i forgot about favions!  i added a suite of favicons to etc/images, please review and update to use them.
