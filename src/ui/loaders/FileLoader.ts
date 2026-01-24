@@ -48,6 +48,16 @@ export class FileLoader {
   private onLoad: FileLoadCallback;
   private onError: (error: Error) => void;
   private fileWatcher: FileWatcher | null = null;
+  private disposed = false;
+
+  // Bound event handlers for cleanup
+  private boundHandleFileSelectClick: () => void;
+  private boundHandleFileInputChange: () => void;
+  private boundHandleWatchClick: () => void;
+  private boundHandleTrySampleClick: () => void;
+
+  // Active timeouts for cleanup
+  private notificationTimeout: ReturnType<typeof setTimeout> | null = null;
 
   constructor(options: FileLoaderOptions) {
     this.fileInput = options.fileInput;
@@ -58,10 +68,144 @@ export class FileLoader {
     this.onLoad = options.onLoad;
     this.onError = options.onError || ((err) => console.error(err));
 
+    // Bind handlers
+    this.boundHandleFileSelectClick = this.handleFileSelectClick.bind(this);
+    this.boundHandleFileInputChange = this.handleFileInputChange.bind(this);
+    this.boundHandleWatchClick = this.handleWatchClick.bind(this);
+    this.boundHandleTrySampleClick = this.handleTrySampleClick.bind(this);
+
     this.setupFileDrop();
-    this.setupFileSelect();
-    this.setupWatchToggle();
-    this.setupTrySample();
+    this.attachListeners();
+  }
+
+  /**
+   * Attach all event listeners
+   */
+  private attachListeners(): void {
+    this.fileSelectBtn?.addEventListener('click', this.boundHandleFileSelectClick);
+    this.fileInput?.addEventListener('change', this.boundHandleFileInputChange);
+
+    // Only add watch listener if API is supported
+    if (this.watchToggle && FileWatcher.isSupported()) {
+      this.watchToggle.addEventListener('click', this.boundHandleWatchClick);
+    } else if (this.watchToggle) {
+      (this.watchToggle as HTMLButtonElement).disabled = true;
+      this.watchToggle.title = 'File watching requires Chromium-based browser';
+    }
+
+    this.trySampleBtn?.addEventListener('click', this.boundHandleTrySampleClick);
+  }
+
+  /**
+   * Remove all event listeners
+   */
+  private detachListeners(): void {
+    this.fileSelectBtn?.removeEventListener('click', this.boundHandleFileSelectClick);
+    this.fileInput?.removeEventListener('change', this.boundHandleFileInputChange);
+    this.watchToggle?.removeEventListener('click', this.boundHandleWatchClick);
+    this.trySampleBtn?.removeEventListener('click', this.boundHandleTrySampleClick);
+  }
+
+  /**
+   * Handle file select button click
+   */
+  private handleFileSelectClick(): void {
+    this.fileInput?.click();
+  }
+
+  /**
+   * Handle file input change
+   */
+  private async handleFileInputChange(): Promise<void> {
+    if (this.disposed) return;
+
+    const file = this.fileInput?.files?.[0];
+    if (!file) return;
+
+    try {
+      const { content, displayName } = await this.readFile(file);
+      await this.onLoad(content, displayName);
+    } catch (error) {
+      console.error('Failed to read file:', error);
+      this.onError(error instanceof Error ? error : new Error(String(error)));
+    }
+
+    // Reset input so the same file can be selected again
+    if (this.fileInput) {
+      this.fileInput.value = '';
+    }
+  }
+
+  /**
+   * Handle watch toggle click
+   */
+  private async handleWatchClick(): Promise<void> {
+    if (this.disposed) return;
+
+    // If already watching, stop
+    if (this.fileWatcher?.isWatching()) {
+      this.stopWatching();
+      this.showWatchNotification('Stopped watching');
+      return;
+    }
+
+    // Create new watcher
+    this.fileWatcher = new FileWatcher({
+      onChange: async (content, filename) => {
+        if (this.disposed) return;
+        console.log(`File changed: ${filename}`);
+        await this.onLoad(content, filename, false);
+        this.showWatchNotification('File updated');
+      },
+      onError: (error) => {
+        if (this.disposed) return;
+        console.error('Watch error:', error);
+        this.showWatchNotification('Watch stopped: ' + error.message);
+        this.updateWatchButtonState();
+      },
+      pollInterval: 1000,
+    });
+
+    const result = await this.fileWatcher.openAndWatch();
+    if (result) {
+      await this.onLoad(result.content, result.filename);
+      this.updateWatchButtonState();
+      this.showWatchNotification(`Watching: ${result.filename}`);
+    } else {
+      // User cancelled or error
+      this.fileWatcher = null;
+      this.updateWatchButtonState();
+    }
+  }
+
+  /**
+   * Handle try sample button click
+   */
+  private async handleTrySampleClick(): Promise<void> {
+    if (this.disposed) return;
+    if (!this.trySampleBtn) return;
+    if (this.trySampleBtn.classList.contains('loading')) return;
+
+    const btnText = this.trySampleBtn.querySelector('.sample-preview-btn');
+    try {
+      this.trySampleBtn.classList.add('loading');
+      if (btnText) btnText.textContent = 'Loading...';
+
+      const response = await fetch('samples/sample-trace.jsonl.zstd');
+      if (!response.ok) {
+        throw new Error(`Failed to fetch sample: ${response.status}`);
+      }
+
+      const buffer = await response.arrayBuffer();
+      const content = decompressZstdBuffer(buffer);
+      await this.onLoad(content, 'sample-trace.jsonl', false, 'Thinking Tracer');
+    } catch (error) {
+      console.error('Failed to load sample:', error);
+      this.onError(error instanceof Error ? error : new Error(String(error)));
+    } finally {
+      this.trySampleBtn.classList.remove('loading');
+      if (btnText) btnText.textContent = 'See How This Was Built';
+    }
   }
 
   /**
@@ -88,34 +232,6 @@ export class FileLoader {
     });
   }
 
-  /**
-   * Setup file select button and input
-   */
-  private setupFileSelect(): void {
-    if (!this.fileSelectBtn || !this.fileInput) return;
-
-    this.fileSelectBtn.addEventListener('click', () => {
-      this.fileInput?.click();
-    });
-
-    this.fileInput.addEventListener('change', async () => {
-      const file = this.fileInput?.files?.[0];
-      if (!file) return;
-
-      try {
-        const { content, displayName } = await this.readFile(file);
-        await this.onLoad(content, displayName);
-      } catch (error) {
-        console.error('Failed to read file:', error);
-        this.onError(error instanceof Error ? error : new Error(String(error)));
-      }
-
-      // Reset input so the same file can be selected again
-      if (this.fileInput) {
-        this.fileInput.value = '';
-      }
-    });
-  }
 
   /**
    * Read a file, handling compression
@@ -141,54 +257,6 @@ export class FileLoader {
     return { content, displayName };
   }
 
-  /**
-   * Setup watch toggle button
-   */
-  private setupWatchToggle(): void {
-    if (!this.watchToggle) return;
-
-    // Disable if File System Access API not supported
-    if (!FileWatcher.isSupported()) {
-      (this.watchToggle as HTMLButtonElement).disabled = true;
-      this.watchToggle.title = 'File watching requires Chromium-based browser';
-      return;
-    }
-
-    this.watchToggle.addEventListener('click', async () => {
-      // If already watching, stop
-      if (this.fileWatcher?.isWatching()) {
-        this.stopWatching();
-        this.showWatchNotification('Stopped watching');
-        return;
-      }
-
-      // Create new watcher
-      this.fileWatcher = new FileWatcher({
-        onChange: async (content, filename) => {
-          console.log(`File changed: ${filename}`);
-          await this.onLoad(content, filename, false);
-          this.showWatchNotification('File updated');
-        },
-        onError: (error) => {
-          console.error('Watch error:', error);
-          this.showWatchNotification('Watch stopped: ' + error.message);
-          this.updateWatchButtonState();
-        },
-        pollInterval: 1000,
-      });
-
-      const result = await this.fileWatcher.openAndWatch();
-      if (result) {
-        await this.onLoad(result.content, result.filename);
-        this.updateWatchButtonState();
-        this.showWatchNotification(`Watching: ${result.filename}`);
-      } else {
-        // User cancelled or error
-        this.fileWatcher = null;
-        this.updateWatchButtonState();
-      }
-    });
-  }
 
   /**
    * Stop file watching
@@ -250,42 +318,17 @@ export class FileLoader {
     notif.textContent = message;
     notif.style.opacity = '1';
 
-    setTimeout(() => {
+    // Clear any existing timeout
+    if (this.notificationTimeout) {
+      clearTimeout(this.notificationTimeout);
+    }
+
+    this.notificationTimeout = setTimeout(() => {
+      this.notificationTimeout = null;
       notif!.style.opacity = '0';
     }, 2000);
   }
 
-  /**
-   * Setup try sample button
-   */
-  private setupTrySample(): void {
-    if (!this.trySampleBtn) return;
-
-    this.trySampleBtn.addEventListener('click', async () => {
-      if (this.trySampleBtn!.classList.contains('loading')) return;
-
-      const btnText = this.trySampleBtn!.querySelector('.sample-preview-btn');
-      try {
-        this.trySampleBtn!.classList.add('loading');
-        if (btnText) btnText.textContent = 'Loading...';
-
-        const response = await fetch('samples/sample-trace.jsonl.zstd');
-        if (!response.ok) {
-          throw new Error(`Failed to fetch sample: ${response.status}`);
-        }
-
-        const buffer = await response.arrayBuffer();
-        const content = decompressZstdBuffer(buffer);
-        await this.onLoad(content, 'sample-trace.jsonl', false, 'Thinking Tracer');
-      } catch (error) {
-        console.error('Failed to load sample:', error);
-        this.onError(error instanceof Error ? error : new Error(String(error)));
-      } finally {
-        this.trySampleBtn!.classList.remove('loading');
-        if (btnText) btnText.textContent = 'See How This Was Built';
-      }
-    });
-  }
 
   /**
    * Load a file from a URL
@@ -317,6 +360,14 @@ export class FileLoader {
    * Clean up resources
    */
   public dispose(): void {
+    this.disposed = true;
+    this.detachListeners();
     this.stopWatching();
+
+    // Clear notification timeout
+    if (this.notificationTimeout) {
+      clearTimeout(this.notificationTimeout);
+      this.notificationTimeout = null;
+    }
   }
 }

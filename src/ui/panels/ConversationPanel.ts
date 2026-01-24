@@ -49,7 +49,9 @@ export class ConversationPanel {
   };
 
   // Bound event handlers for cleanup
-  private handleScroll: () => void;
+  private boundHandleScroll: () => void;
+  private boundFilterHandlers: Map<Element, () => void> = new Map();
+  private scrollListenerAttached = false;
 
   constructor(elements: ConversationPanelElements, viewer: ViewerInterface) {
     this.viewer = viewer;
@@ -58,7 +60,7 @@ export class ConversationPanel {
     this.filtersContainer = elements.filtersContainer ?? null;
 
     // Bind event handlers
-    this.handleScroll = this.onScroll.bind(this);
+    this.boundHandleScroll = this.onScroll.bind(this);
 
     // Wire up filter toggles
     this.setupFilterToggles();
@@ -249,7 +251,17 @@ export class ConversationPanel {
    */
   public dispose(): void {
     this.disposed = true;
-    this.container.removeEventListener('scroll', this.handleScroll);
+
+    // Remove scroll listener
+    this.container.removeEventListener('scroll', this.boundHandleScroll);
+
+    // Remove filter handlers
+    for (const [btn, handler] of this.boundFilterHandlers) {
+      btn.removeEventListener('click', handler);
+    }
+    this.boundFilterHandlers.clear();
+
+    // Clear timeouts
     if (this.scrollLockTimeout) clearTimeout(this.scrollLockTimeout);
     if (this.scrollTimeout) clearTimeout(this.scrollTimeout);
   }
@@ -294,7 +306,7 @@ export class ConversationPanel {
     if (!this.filtersContainer) return;
 
     this.filtersContainer.querySelectorAll('.conv-filter').forEach((btn) => {
-      btn.addEventListener('click', () => {
+      const handler = () => {
         const filter = (btn as HTMLElement).dataset.filter as keyof ConversationFilterState;
         if (!filter) return;
 
@@ -306,7 +318,10 @@ export class ConversationPanel {
 
         // Apply filters
         this.applyFilters();
-      });
+      };
+
+      btn.addEventListener('click', handler);
+      this.boundFilterHandlers.set(btn, handler);
     });
   }
 
@@ -387,7 +402,10 @@ export class ConversationPanel {
    * Setup scroll sync - scrolling conversation selects 3D node
    */
   private setupScrollSync(): void {
-    this.container.addEventListener('scroll', this.handleScroll);
+    // Only attach once since container is reused across renders
+    if (this.scrollListenerAttached) return;
+    this.scrollListenerAttached = true;
+    this.container.addEventListener('scroll', this.boundHandleScroll);
   }
 
   /**

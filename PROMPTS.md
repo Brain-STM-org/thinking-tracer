@@ -961,3 +961,9 @@ start with 1
 ## 2026-01-24T21:11:09Z
 
 2 move autosave to render loop
+
+---
+
+## 2026-01-24T21:14:39Z
+
+fix high priority panel issues

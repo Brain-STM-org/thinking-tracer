@@ -46,13 +46,43 @@ export class RecentTracesManager {
   private traces: RecentTrace[] = [];
   private disposed = false;
 
+  // Bound event handlers for cleanup
+  private boundHandleClearClick: () => void;
+
   constructor(options: RecentTracesManagerOptions) {
     this.container = options.container;
     this.listElement = options.listElement;
     this.clearBtn = options.clearBtn;
     this.onSelect = options.onSelect;
 
-    this.setupClearButton();
+    // Bind handlers
+    this.boundHandleClearClick = this.handleClearClick.bind(this);
+
+    this.attachListeners();
+  }
+
+  /**
+   * Attach main event listeners
+   */
+  private attachListeners(): void {
+    this.clearBtn?.addEventListener('click', this.boundHandleClearClick);
+  }
+
+  /**
+   * Remove main event listeners
+   */
+  private detachListeners(): void {
+    this.clearBtn?.removeEventListener('click', this.boundHandleClearClick);
+  }
+
+  /**
+   * Handle clear button click
+   */
+  private async handleClearClick(): Promise<void> {
+    if (this.disposed) return;
+    if (confirm('Clear all recent traces?')) {
+      await this.clearAll();
+    }
   }
 
   /**
@@ -150,19 +180,6 @@ export class RecentTracesManager {
   }
 
   /**
-   * Setup clear all button
-   */
-  private setupClearButton(): void {
-    if (!this.clearBtn) return;
-
-    this.clearBtn.addEventListener('click', async () => {
-      if (confirm('Clear all recent traces?')) {
-        await this.clearAll();
-      }
-    });
-  }
-
-  /**
    * Clear all traces
    */
   public async clearAll(): Promise<void> {
@@ -243,6 +260,7 @@ export class RecentTracesManager {
    */
   public dispose(): void {
     this.disposed = true;
+    this.detachListeners();
   }
 }
 

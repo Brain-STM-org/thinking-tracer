@@ -59,6 +59,7 @@ export class DetailPanel {
   private container: HTMLElement;
   private copyableContent: Record<string, string> = {};
   private disposed = false;
+  private activeTimeouts: Set<ReturnType<typeof setTimeout>> = new Set();
 
   constructor(elements: DetailPanelElements, viewer: ViewerInterface) {
     this.viewer = viewer;
@@ -66,10 +67,36 @@ export class DetailPanel {
   }
 
   /**
+   * Schedule a timeout and track it for cleanup
+   */
+  private scheduleTimeout(callback: () => void, delay: number): void {
+    const timeoutId = setTimeout(() => {
+      this.activeTimeouts.delete(timeoutId);
+      if (!this.disposed) {
+        callback();
+      }
+    }, delay);
+    this.activeTimeouts.add(timeoutId);
+  }
+
+  /**
+   * Clear all active timeouts
+   */
+  private clearTimeouts(): void {
+    for (const timeoutId of this.activeTimeouts) {
+      clearTimeout(timeoutId);
+    }
+    this.activeTimeouts.clear();
+  }
+
+  /**
    * Update the panel with a new selection
    */
   public update(selection: Selection | null): void {
     if (this.disposed) return;
+
+    // Clear any pending timeouts from previous render
+    this.clearTimeouts();
 
     if (!selection) {
       this.container.innerHTML = '<div class="detail-empty">&lt;no selection&gt;</div>';
@@ -93,6 +120,7 @@ export class DetailPanel {
    */
   public dispose(): void {
     this.disposed = true;
+    this.clearTimeouts();
     this.copyableContent = {};
   }
 
@@ -394,7 +422,7 @@ export class DetailPanel {
       try {
         await navigator.clipboard.writeText(text);
         copyTurnBtn.textContent = 'Copied!';
-        setTimeout(() => {
+        this.scheduleTimeout(() => {
           copyTurnBtn.textContent = 'Copy';
         }, 1500);
       } catch {
@@ -447,14 +475,14 @@ export class DetailPanel {
           await navigator.clipboard.writeText(this.copyableContent[copyId]);
           btn.textContent = 'Copied!';
           btn.classList.add('copied');
-          setTimeout(() => {
+          this.scheduleTimeout(() => {
             btn.textContent = 'Copy';
             btn.classList.remove('copied');
           }, 1500);
         } catch (err) {
           console.error('Failed to copy:', err);
           btn.textContent = 'Failed';
-          setTimeout(() => {
+          this.scheduleTimeout(() => {
             btn.textContent = 'Copy';
           }, 1500);
         }
