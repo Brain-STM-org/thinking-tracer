@@ -851,3 +851,9 @@ Refactor Top Words
 ## 2026-01-24T17:09:52Z
 
 alright, time for the conversations panel, please refactor it
+
+---
+
+## 2026-01-24T17:59:15Z
+
+Is the main 3D view in its own module?  can we refactor that to be it's own component and testable

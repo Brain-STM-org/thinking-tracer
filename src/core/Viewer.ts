@@ -10,6 +10,16 @@ import { Scene, type SceneOptions } from './Scene';
 import { Controls } from './Controls';
 import type { Conversation, Turn, ContentBlock } from '../data/types';
 import { claudeCodeParser } from '../data/parsers/claude-code';
+import {
+  buildClusters as buildClustersFromConversation,
+  extractSearchableContent,
+  calculateClusterMetrics,
+  type TurnCluster,
+} from './clusters';
+import {
+  getSpiralPosition as getLayoutPosition,
+  type CoilLayoutParams,
+} from './layout';
 
 export interface ViewerOptions extends Omit<SceneOptions, 'container'> {
   /** Container element or selector */
@@ -38,17 +48,7 @@ interface VisualNode {
   targetScale?: number;
 }
 
-/** A cluster of turns (user + assistant pair) */
-interface TurnCluster {
-  index: number;
-  userTurn?: Turn;
-  assistantTurn?: Turn;
-  userTurnIndex?: number;
-  assistantTurnIndex?: number;
-  expanded: boolean;
-  thinkingCount: number;
-  toolCount: number;
-}
+// TurnCluster is imported from './clusters'
 
 /** Selection info passed to callback */
 export interface SelectionInfo {
@@ -576,115 +576,10 @@ export class Viewer {
   }
 
   /**
-   * Build clusters from turns
-   * Merges consecutive user turns and consecutive assistant turns into single clusters
+   * Build clusters from turns using the cluster-builder module
    */
   private buildClusters(): void {
-    this.clusters = [];
-
-    if (!this.conversation) return;
-
-    const { turns } = this.conversation;
-    let clusterIndex = 0;
-    let i = 0;
-
-    while (i < turns.length) {
-      const turn = turns[i];
-
-      if (turn.role === 'user') {
-        // Collect all consecutive user turns and merge their content
-        const mergedUserContent: ContentBlock[] = [...turn.content];
-        const firstUserIndex = i;
-        i++;
-
-        while (i < turns.length && turns[i].role === 'user') {
-          mergedUserContent.push(...turns[i].content);
-          i++;
-        }
-
-        // Create merged user turn
-        const mergedUserTurn: Turn = {
-          ...turn,
-          content: mergedUserContent,
-        };
-
-        // Start a new cluster with merged user turn
-        const cluster: TurnCluster = {
-          index: clusterIndex,
-          userTurn: mergedUserTurn,
-          userTurnIndex: firstUserIndex,
-          expanded: false,
-          thinkingCount: 0,
-          toolCount: 0,
-        };
-
-        // Collect all consecutive assistant turns and merge their content
-        if (i < turns.length && turns[i].role === 'assistant') {
-          const firstAssistantTurn = turns[i];
-          const mergedAssistantContent: ContentBlock[] = [...firstAssistantTurn.content];
-          const firstAssistantIndex = i;
-          i++;
-
-          while (i < turns.length && turns[i].role === 'assistant') {
-            mergedAssistantContent.push(...turns[i].content);
-            i++;
-          }
-
-          // Create merged assistant turn
-          const mergedAssistantTurn: Turn = {
-            ...firstAssistantTurn,
-            content: mergedAssistantContent,
-          };
-
-          cluster.assistantTurn = mergedAssistantTurn;
-          cluster.assistantTurnIndex = firstAssistantIndex;
-
-          // Count thinking and tool blocks
-          for (const block of mergedAssistantContent) {
-            if (block.type === 'thinking') cluster.thinkingCount++;
-            if (block.type === 'tool_use') cluster.toolCount++;
-          }
-        }
-
-        this.clusters.push(cluster);
-        clusterIndex++;
-      } else if (turn.role === 'assistant') {
-        // Orphan assistant turn(s) - collect all consecutive
-        const mergedContent: ContentBlock[] = [...turn.content];
-        const firstIndex = i;
-        i++;
-
-        while (i < turns.length && turns[i].role === 'assistant') {
-          mergedContent.push(...turns[i].content);
-          i++;
-        }
-
-        const mergedTurn: Turn = {
-          ...turn,
-          content: mergedContent,
-        };
-
-        const cluster: TurnCluster = {
-          index: clusterIndex,
-          assistantTurn: mergedTurn,
-          assistantTurnIndex: firstIndex,
-          expanded: false,
-          thinkingCount: 0,
-          toolCount: 0,
-        };
-
-        for (const block of mergedContent) {
-          if (block.type === 'thinking') cluster.thinkingCount++;
-          if (block.type === 'tool_use') cluster.toolCount++;
-        }
-
-        this.clusters.push(cluster);
-        clusterIndex++;
-      } else {
-        // Unknown role, skip
-        i++;
-      }
-    }
+    this.clusters = buildClustersFromConversation(this.conversation);
   }
 
   /**
@@ -814,61 +709,28 @@ export class Viewer {
   }
 
   /**
-   * Calculate vertical spacing for a cluster based on distance from focus
-   * Uses a smooth falloff to create the "slinky" effect
+   * Get the current coil layout params from instance properties
    */
-  private getVerticalSpacing(index: number): number {
-    const distanceFromFocus = Math.abs(index - this.focusClusterIndex);
-
-    if (distanceFromFocus >= this.focusRadius) {
-      return this.minVerticalSpacing;
-    }
-
-    // Smooth cosine falloff from max at focus to min at edge
-    const t = distanceFromFocus / this.focusRadius;
-    const falloff = (Math.cos(t * Math.PI) + 1) / 2; // 1 at center, 0 at edge
-
-    return this.minVerticalSpacing + (this.maxVerticalSpacing - this.minVerticalSpacing) * falloff;
+  private getLayoutParams(): CoilLayoutParams {
+    return {
+      spiralRadius: this.spiralRadius,
+      spiralAngleStep: this.spiralAngleStep,
+      coilRadius: this.coilRadius,
+      coilAngleStep: this.coilAngleStep,
+      coilVerticalStep: this.coilVerticalStep,
+      focusIndex: this.focusClusterIndex,
+      minVerticalSpacing: this.minVerticalSpacing,
+      maxVerticalSpacing: this.maxVerticalSpacing,
+      focusRadius: this.focusRadius,
+    };
   }
 
   /**
-   * Calculate spiral position for a cluster with slinky effect and secondary coiling
-   * Creates a "coiled coil" - a spiral that follows a larger helical path
-   * Flows top-to-bottom to match conversation reading order
+   * Calculate spiral position for a cluster using the layout module
    */
   private getSpiralPosition(index: number): THREE.Vector3 {
-    // Calculate progress along the path (for secondary coil)
-    let pathProgress = 0;
-    for (let i = 0; i < index; i++) {
-      pathProgress += this.getVerticalSpacing(i);
-    }
-
-    // Secondary coil (the larger path that the spiral center follows)
-    const coilAngle = pathProgress * this.coilAngleStep;
-    const coilCenterX = Math.cos(coilAngle) * this.coilRadius;
-    const coilCenterZ = Math.sin(coilAngle) * this.coilRadius;
-    // Negative Y so spiral flows downward (top-to-bottom like conversation)
-    const coilCenterY = -pathProgress * this.coilVerticalStep;
-
-    // Primary spiral (tight coil around the secondary coil path)
-    const spiralAngle = index * this.spiralAngleStep;
-
-    // Calculate the tangent direction of the coil path for proper orientation
-    const tangentAngle = coilAngle + Math.PI / 2;
-    const tangentX = Math.cos(tangentAngle);
-    const tangentZ = Math.sin(tangentAngle);
-
-    // Spiral offset perpendicular to the coil path
-    // Use the tangent and up vector to create the spiral plane
-    const spiralOffsetX = Math.cos(spiralAngle) * this.spiralRadius * tangentX;
-    const spiralOffsetZ = Math.cos(spiralAngle) * this.spiralRadius * tangentZ;
-    const spiralOffsetY = Math.sin(spiralAngle) * this.spiralRadius;
-
-    return new THREE.Vector3(
-      coilCenterX + spiralOffsetX,
-      coilCenterY + spiralOffsetY,
-      coilCenterZ + spiralOffsetZ
-    );
+    const pos = getLayoutPosition(index, this.getLayoutParams());
+    return new THREE.Vector3(pos.x, pos.y, pos.z);
   }
 
   /**
@@ -1242,7 +1104,7 @@ export class Viewer {
   }
 
   /**
-   * Metrics available per cluster
+   * Metrics available per cluster using the cluster-builder module
    */
   public getClusterMetrics(): Array<{
     index: number;
@@ -1253,43 +1115,7 @@ export class Viewer {
     toolCount: number;
     contentLength: number;
   }> {
-    return this.clusters.map((cluster) => {
-      let totalTokens = 0;
-      let inputTokens = 0;
-      let outputTokens = 0;
-      let contentLength = 0;
-
-      // Get usage from assistant turn (that's where API reports tokens)
-      if (cluster.assistantTurn?.usage) {
-        const usage = cluster.assistantTurn.usage;
-        inputTokens = usage.input_tokens || 0;
-        outputTokens = usage.output_tokens || 0;
-        totalTokens = inputTokens + outputTokens;
-      }
-
-      // Calculate content length
-      if (cluster.userTurn) {
-        for (const block of cluster.userTurn.content) {
-          if (block.type === 'text') contentLength += block.text.length;
-        }
-      }
-      if (cluster.assistantTurn) {
-        for (const block of cluster.assistantTurn.content) {
-          if (block.type === 'text') contentLength += block.text.length;
-          if (block.type === 'thinking') contentLength += block.thinking.length;
-        }
-      }
-
-      return {
-        index: cluster.index,
-        totalTokens,
-        inputTokens,
-        outputTokens,
-        thinkingCount: cluster.thinkingCount,
-        toolCount: cluster.toolCount,
-        contentLength,
-      };
-    });
+    return calculateClusterMetrics(this.clusters);
   }
 
   /**
@@ -1300,8 +1126,7 @@ export class Viewer {
   }
 
   /**
-   * Get searchable content for all clusters
-   * Returns array of clusters with their text content for searching
+   * Get searchable content for all clusters using the cluster-builder module
    */
   public getSearchableContent(): Array<{
     clusterIndex: number;
@@ -1311,57 +1136,7 @@ export class Viewer {
     toolUses: Array<{ name: string; input: string }>;
     toolResults: Array<{ content: string; isError: boolean }>;
   }> {
-    return this.clusters.map((cluster) => {
-      const result = {
-        clusterIndex: cluster.index,
-        userText: '',
-        assistantText: '',
-        thinkingBlocks: [] as string[],
-        toolUses: [] as Array<{ name: string; input: string }>,
-        toolResults: [] as Array<{ content: string; isError: boolean }>,
-      };
-
-      // Extract user text
-      if (cluster.userTurn) {
-        result.userText = cluster.userTurn.content
-          .filter(b => b.type === 'text')
-          .map(b => b.text)
-          .join('\n');
-      }
-
-      // Extract assistant content
-      if (cluster.assistantTurn) {
-        for (const block of cluster.assistantTurn.content) {
-          if (block.type === 'text') {
-            result.assistantText += (result.assistantText ? '\n' : '') + block.text;
-          } else if (block.type === 'thinking') {
-            result.thinkingBlocks.push(block.thinking);
-          } else if (block.type === 'tool_use') {
-            result.toolUses.push({
-              name: block.name,
-              input: JSON.stringify(block.input || {}),
-            });
-          } else if (block.type === 'tool_result') {
-            // Handle both string and ContentBlock[] content types
-            let contentStr = '';
-            if (typeof block.content === 'string') {
-              contentStr = block.content;
-            } else if (Array.isArray(block.content)) {
-              contentStr = block.content
-                .filter(b => b.type === 'text')
-                .map(b => (b as { text: string }).text)
-                .join('\n');
-            }
-            result.toolResults.push({
-              content: contentStr,
-              isError: block.is_error || false,
-            });
-          }
-        }
-      }
-
-      return result;
-    });
+    return extractSearchableContent(this.clusters);
   }
 
   /**
