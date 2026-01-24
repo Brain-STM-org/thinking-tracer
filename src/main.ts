@@ -11,17 +11,7 @@ import {
   getSafeFilename,
   escapeHtml,
 } from './export';
-import {
-  isValidRegex,
-  highlightSnippet,
-  performSearch,
-  getMatchingClusters,
-  getNextResultIndex,
-  getPrevResultIndex,
-  formatResultCount,
-  type SearchResult,
-  type SearchContentType,
-} from './search';
+import type { SearchableViewer } from './ui';
 import {
   MetricsPanel,
   DetailPanel,
@@ -29,6 +19,7 @@ import {
   ConversationPanel,
   FileLoader,
   RecentTracesManager,
+  SearchController,
 } from './ui';
 import type { Selection, RecentTrace, TraceUIState } from './ui';
 
@@ -101,6 +92,7 @@ let wordFrequencyPanel: WordFrequencyPanel | null = null;
 let conversationPanel: ConversationPanel | null = null;
 let fileLoader: FileLoader | null = null;
 let recentTracesManager: RecentTracesManager | null = null;
+let searchController: SearchController | null = null;
 
 // View mode: '3d' | 'split' | 'conversation'
 let viewMode: '3d' | 'split' | 'conversation' = 'split';
@@ -922,291 +914,42 @@ if (splitHandle && canvasPane && conversationPane && contentArea) {
 // Search Functionality
 // ============================================
 
-let searchResults: SearchResult[] = [];
-let currentSearchIndex = -1;
-let searchDebounceTimer: ReturnType<typeof setTimeout> | null = null;
-let regexMode = false;
-let searchHighlightedClusters: number[] = [];
-const SEARCH_HIGHLIGHT_COLOR = 0xff6b6b; // Coral red for search highlights
-
-/**
- * Get enabled search filters from checkboxes
- */
-function getSearchFilters(): Set<SearchContentType> {
-  const filters = new Set<SearchContentType>();
-
-  document.querySelectorAll('.search-filter input[type="checkbox"]').forEach((checkbox) => {
-    const input = checkbox as HTMLInputElement;
-    if (input.checked && input.dataset.type) {
-      filters.add(input.dataset.type as SearchContentType);
-    }
-  });
-
-  return filters;
-}
-
-/**
- * Run search with current settings
- */
-function runSearch(query: string): SearchResult[] {
-  const clusters = viewer.getSearchableContent();
-  const filters = getSearchFilters();
-  return performSearch(clusters, query, { useRegex: regexMode, filters });
-}
-
-/**
- * Render search results list
- */
-function renderSearchResults(): void {
-  if (!searchResultsList) return;
-
-  if (searchResults.length === 0) {
-    searchResultsList.classList.remove('has-results');
-    searchResultsList.innerHTML = '';
-    return;
-  }
-
-  searchResultsList.classList.add('has-results');
-
-  const query = searchInput?.value || '';
-  const clusterCount = viewer.getClusterCount();
-
-  const html = searchResults.map((result, index) => {
-    const isActive = index === currentSearchIndex;
-    const typeLabel = result.type.replace('_', ' ');
-
-    return `
-      <div class="search-result-item ${result.type} ${isActive ? 'active' : ''}" data-index="${index}">
-        <div class="search-result-meta">
-          <span class="search-result-type ${result.type}">${typeLabel}</span>
-          <span class="search-result-turn">Turn ${result.clusterIndex + 1}/${clusterCount}</span>
-        </div>
-        <div class="search-result-snippet">${highlightSnippet(result.text, query, regexMode)}</div>
-      </div>
-    `;
-  }).join('');
-
-  searchResultsList.innerHTML = html;
-
-  // Wire up click handlers
-  searchResultsList.querySelectorAll('.search-result-item').forEach((item) => {
-    item.addEventListener('click', () => {
-      const index = parseInt((item as HTMLElement).dataset.index || '0', 10);
-      navigateToResult(index);
-    });
-  });
-
-  // Scroll active item into view
-  const activeItem = searchResultsList.querySelector('.search-result-item.active');
-  if (activeItem) {
-    activeItem.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
-  }
-}
-
-/**
- * Update search results display
- */
-function updateSearchUI(): void {
-  if (!searchResultsCount) return;
-
-  const query = searchInput?.value || '';
-  searchResultsCount.textContent = formatResultCount(currentSearchIndex, searchResults.length, !!query);
-
-  // Update button states
-  const hasResults = searchResults.length > 0;
-  if (searchPrevBtn) (searchPrevBtn as HTMLButtonElement).disabled = !hasResults;
-  if (searchNextBtn) (searchNextBtn as HTMLButtonElement).disabled = !hasResults;
-
-  // Update results list active state
-  if (searchResultsList) {
-    searchResultsList.querySelectorAll('.search-result-item').forEach((item, index) => {
-      if (index === currentSearchIndex) {
-        item.classList.add('active');
-        item.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
-      } else {
-        item.classList.remove('active');
-      }
-    });
-  }
-}
-
-/**
- * Navigate to a search result
- */
-function navigateToResult(index: number): void {
-  if (index < 0 || index >= searchResults.length) return;
-
-  currentSearchIndex = index;
-  const result = searchResults[index];
-
-  // Select the cluster in the viewer
-  viewer.selectClusterByIndex(result.clusterIndex);
-
-  updateSearchUI();
-}
-
-/**
- * Go to next search result
- */
-function searchNext(): void {
-  const nextIndex = getNextResultIndex(currentSearchIndex, searchResults.length);
-  if (nextIndex >= 0) navigateToResult(nextIndex);
-}
-
-/**
- * Go to previous search result
- */
-function searchPrev(): void {
-  const prevIndex = getPrevResultIndex(currentSearchIndex, searchResults.length);
-  if (prevIndex >= 0) navigateToResult(prevIndex);
-}
-
-/**
- * Clear search
- */
-function clearSearch(): void {
-  if (searchInput) {
-    searchInput.value = '';
-    searchInput.classList.remove('regex-error');
-  }
-  searchResults = [];
-  currentSearchIndex = -1;
-
-  // Clear search highlights
-  for (const clusterIndex of searchHighlightedClusters) {
-    viewer.unhighlightCluster(clusterIndex);
-  }
-  searchHighlightedClusters = [];
-
-  // Clear filters
-  viewer.setSearchFilter(null);
-  conversationPanel?.filter(null);
-
-  renderSearchResults();
-  updateSearchUI();
-}
-
-/**
- * Handle search input change (debounced)
- */
-function handleSearchInput(): void {
-  if (searchDebounceTimer) clearTimeout(searchDebounceTimer);
-
-  searchDebounceTimer = setTimeout(() => {
-    const query = searchInput?.value || '';
-
-    // Update regex error styling
-    if (searchInput) {
-      if (regexMode && query && !isValidRegex(query)) {
-        searchInput.classList.add('regex-error');
-      } else {
-        searchInput.classList.remove('regex-error');
-      }
-    }
-
-    searchResults = runSearch(query);
-    currentSearchIndex = searchResults.length > 0 ? 0 : -1;
-
-    // Clear previous search highlights
-    for (const clusterIndex of searchHighlightedClusters) {
-      viewer.unhighlightCluster(clusterIndex);
-    }
-    searchHighlightedClusters = [];
-
-    // Apply search filter and highlights to 3D view and conversation
-    if (searchResults.length > 0) {
-      const matchingClusters = getMatchingClusters(searchResults);
-      viewer.setSearchFilter(matchingClusters);
-      conversationPanel?.filter(matchingClusters);
-
-      // Highlight matching clusters
-      for (const clusterIndex of matchingClusters) {
-        viewer.highlightCluster(clusterIndex, SEARCH_HIGHLIGHT_COLOR);
-        searchHighlightedClusters.push(clusterIndex);
-      }
-    } else {
-      viewer.setSearchFilter(null);
-      conversationPanel?.filter(null);
-    }
-
-    // Render the results list
-    renderSearchResults();
-
-    // Navigate to first result
-    if (searchResults.length > 0) {
-      navigateToResult(0);
-    } else {
-      updateSearchUI();
-    }
-  }, 200);
-}
-
-// Wire up search UI
+// Create SearchController - viewer needs to implement SearchableViewer interface
 if (searchInput) {
-  searchInput.addEventListener('input', handleSearchInput);
+  // Cast viewer to SearchableViewer (it implements all required methods)
+  const searchableViewer: SearchableViewer = {
+    getClusterCount: () => viewer.getClusterCount(),
+    getSearchableContent: () => viewer.getSearchableContent(),
+    selectClusterByIndex: (index) => viewer.selectClusterByIndex(index),
+    setSearchFilter: (indices) => viewer.setSearchFilter(indices),
+    highlightCluster: (index, color) => viewer.highlightCluster(index, color),
+    unhighlightCluster: (index) => viewer.unhighlightCluster(index),
+  };
 
-  // Handle Enter/Shift+Enter for navigation
-  searchInput.addEventListener('keydown', (e) => {
-    if (e.key === 'Enter') {
-      e.preventDefault();
-      if (e.shiftKey) {
-        searchPrev();
-      } else {
-        searchNext();
-      }
-    } else if (e.key === 'Escape') {
-      clearSearch();
-      searchInput.blur();
-    }
+  searchController = new SearchController({
+    elements: {
+      input: searchInput,
+      resultsCount: searchResultsCount,
+      resultsList: searchResultsList,
+      prevBtn: searchPrevBtn,
+      nextBtn: searchNextBtn,
+      clearBtn: searchClearBtn,
+      regexToggle: searchRegexToggle,
+    },
+    viewer: searchableViewer,
+    conversationPanel: conversationPanel ?? undefined,
+    isSidebarVisible: () => sidebarVisible,
   });
 }
 
-if (searchPrevBtn) {
-  searchPrevBtn.addEventListener('click', searchPrev);
-}
+// ============================================
+// Global Keyboard Shortcuts
+// ============================================
 
-if (searchNextBtn) {
-  searchNextBtn.addEventListener('click', searchNext);
-}
-
-if (searchClearBtn) {
-  searchClearBtn.addEventListener('click', clearSearch);
-}
-
-// Wire up regex toggle
-if (searchRegexToggle) {
-  searchRegexToggle.addEventListener('click', () => {
-    regexMode = !regexMode;
-    searchRegexToggle.classList.toggle('active', regexMode);
-
-    // Update placeholder to indicate mode
-    if (searchInput) {
-      searchInput.placeholder = regexMode ? 'Regex search... (/)' : 'Search... (/)';
-    }
-
-    // Re-run search with new mode
-    handleSearchInput();
-  });
-}
-
-// Wire up filter checkboxes to re-search
-// Wire up search filter checkboxes
-document.querySelectorAll('.search-filter input[type="checkbox"]').forEach((checkbox) => {
-  checkbox.addEventListener('change', handleSearchInput);
-});
-
-// Global keyboard shortcuts
 window.addEventListener('keydown', (e) => {
   // Don't trigger if already in an input
   if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) {
     return;
-  }
-
-  // / - Focus search (when sidebar visible)
-  if (e.key === '/' && searchInput && sidebarVisible) {
-    e.preventDefault();
-    searchInput.focus();
-    searchInput.select();
   }
 
   // H - Home view (restore saved camera state)
@@ -1272,7 +1015,7 @@ if (exportMenu) {
 // Load recent traces on startup
 recentTracesManager?.refresh();
 
-// Save UI state before leaving
+// Save UI state before leaving and cleanup
 window.addEventListener('beforeunload', () => {
   // Use synchronous-ish approach - fire and forget
   // IndexedDB operations will likely complete before page closes
@@ -1282,6 +1025,9 @@ window.addEventListener('beforeunload', () => {
       // Ignore errors on unload
     });
   }
+
+  // Cleanup search controller
+  searchController?.dispose();
 });
 
 // Also save periodically while using (every 30 seconds if there's a trace loaded)

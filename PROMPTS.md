@@ -883,3 +883,21 @@ let's pull hash utils into its own util file
 let's address magic numbers, especially in the realm of layouts.   i would like both the layout state and the entire application styling to be well typed with a default struct, which is the primary refactoring task this step
 
 
+
+---
+
+## 2026-01-24T20:05:50Z
+
+explore listener cleanup 
+
+---
+
+## 2026-01-24T20:10:17Z
+
+i'm surprised by the number of listeners in main.ts   are there more modules to be extracted first?
+
+---
+
+## 2026-01-24T20:11:15Z
+
+yes

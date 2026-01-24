@@ -37,3 +37,12 @@ export type {
   RecentTrace,
   TraceUIState,
 } from './loaders';
+
+// Search
+export { SearchController } from './search';
+export type {
+  SearchControllerElements,
+  SearchControllerOptions,
+  SearchableViewer,
+  FilterablePanel,
+} from './search';

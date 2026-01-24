@@ -952,3 +952,151 @@ The configuration module successfully addresses the "magic numbers" issue identi
 - Ready for future customization/theming
 
 The module follows TypeScript best practices with explicit interface definitions and const defaults, enabling future features like user-customizable themes or presets without code changes to core components.
+
+---
+
+## SearchController Extraction
+
+**Date**: 2026-01-24 (continued session)
+**Scope**: Extract search functionality from main.ts with proper listener cleanup
+
+### Summary
+
+The search functionality (~300 lines) was extracted from main.ts into a dedicated SearchController module. This was the largest cohesive section remaining in main.ts and a significant source of event listeners without cleanup.
+
+### New Module
+
+#### SearchController (`src/ui/search/SearchController.ts`)
+
+A complete search controller with proper lifecycle management:
+
+```typescript
+export class SearchController {
+  constructor(options: SearchControllerOptions) { }
+
+  // Public API
+  navigateNext(): void;
+  navigatePrev(): void;
+  clear(): void;
+  getState(): { query: string; regexMode: boolean; resultCount: number };
+  hasResults(): boolean;
+  dispose(): void;  // ← Proper cleanup!
+}
+```
+
+**Features**:
+- Debounced search input (200ms from config)
+- Regex mode toggle with error validation
+- Result navigation (buttons, Enter/Shift+Enter, clicking results)
+- Cluster highlighting and filtering
+- Keyboard shortcut (/ to focus search)
+- Event delegation for result list clicks (no listener duplication)
+- Full cleanup in `dispose()` method
+
+**Listeners managed**:
+- `input` on search field (with proper removeEventListener)
+- `keydown` on search field
+- `click` on prev/next/clear/regex buttons
+- `change` on filter checkboxes
+- `keydown` on window (for / shortcut)
+
+### Integration Pattern
+
+main.ts now creates a SearchableViewer adapter:
+
+```typescript
+const searchableViewer: SearchableViewer = {
+  getClusterCount: () => viewer.getClusterCount(),
+  getSearchableContent: () => viewer.getSearchableContent(),
+  selectClusterByIndex: (index) => viewer.selectClusterByIndex(index),
+  setSearchFilter: (indices) => viewer.setSearchFilter(indices),
+  highlightCluster: (index, color) => viewer.highlightCluster(index, color),
+  unhighlightCluster: (index) => viewer.unhighlightCluster(index),
+};
+
+searchController = new SearchController({
+  elements: { input, resultsCount, resultsList, prevBtn, nextBtn, clearBtn, regexToggle },
+  viewer: searchableViewer,
+  conversationPanel,
+  isSidebarVisible: () => sidebarVisible,
+});
+```
+
+Cleanup on page unload:
+```typescript
+window.addEventListener('beforeunload', () => {
+  // ... save state ...
+  searchController?.dispose();
+});
+```
+
+### Updated Metrics
+
+| Metric | After Config | After Search | Change |
+|--------|--------------|--------------|--------|
+| main.ts lines | 1296 | 1042 | -254 (-20%) |
+| Total tests | 374 | 403 | +29 |
+| Test files | 14 | 15 | +1 |
+
+### Cumulative Progress
+
+| Metric | Original | Current | Total Change |
+|--------|----------|---------|--------------|
+| main.ts lines | ~3000 | 1042 | **-65%** |
+| Total tests | ~100 | 403 | **+303%** |
+
+### Test Coverage
+
+```
+src/ui/search/SearchController.test.ts          29 tests
+```
+
+Tests cover:
+- Construction with various options
+- Debounced search execution
+- Filter and highlight application
+- Navigation (next/prev/click)
+- Clear functionality
+- Regex mode toggle
+- Keyboard shortcuts
+- Callbacks and state queries
+- Proper disposal and cleanup
+
+### Remaining Extraction Candidates
+
+| Section | Lines | Listeners | Priority |
+|---------|-------|-----------|----------|
+| CoilControlsPanel | ~100 | 8 | High |
+| SidebarController | ~80 | 6 | Medium |
+| SplitPaneController | ~45 | 3 | Medium |
+| ExportController | ~45 | 3 | Medium |
+| ViewModeController | ~60 | 3 | Low |
+
+### Listener Cleanup Status
+
+| Module | Cleanup Status |
+|--------|----------------|
+| SearchController | ✅ Full dispose() |
+| MetricsPanel | ✅ Full dispose() |
+| WordFrequencyPanel | ✅ Full dispose() |
+| FileLoader | ⚠️ Partial |
+| RecentTracesManager | ⚠️ Partial |
+| DetailPanel | ❌ Needs work |
+| ConversationPanel | ❌ Needs work |
+| main.ts | ❌ ~25 listeners remaining |
+
+### Conclusion
+
+The SearchController extraction reduced main.ts to under 1050 lines (65% reduction from original) while adding proper event listener lifecycle management. The module demonstrates the pattern for future extractions:
+- Bounded event handlers stored as class properties
+- `attachListeners()` / `detachListeners()` pairing
+- `dispose()` method that cleans up all listeners and timers
+- Uses config values for timing (debounce delay, highlight color)
+
+The remaining main.ts primarily handles:
+- View mode switching
+- Sidebar toggle/resize
+- Split pane resize
+- Coil controls
+- Export dropdown
+- Panel instantiation and wiring
