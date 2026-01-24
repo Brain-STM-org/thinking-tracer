@@ -791,3 +791,15 @@ you must set it to a boolean true (not a string)
 ## 2026-01-24T11:57:07Z
 
 we are going to step back for a moment.  first, i would like you to review the repo, update the plan and readme and agent files as applicable.
+
+---
+
+## 2026-01-24T12:05:17Z
+
+now i want you to become a senior software engineer with expansive experience in front-end implementation and best practices.  i want you to review the existing codebase and identify any weakness or problem points; you can also give positive feedback.  if some refactoring is needed, inform us.  if there is a messy design decision, inform us.  make no changes, just report on your finding, you may think deeply about this as we've done a lot of work without review
+
+---
+
+## 2026-01-24T12:08:41Z
+
+write all that to a report
