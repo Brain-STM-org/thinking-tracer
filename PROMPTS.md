@@ -718,3 +718,45 @@ yes i like zstd
 ## 2026-01-23T23:20:27Z
 
 you can go ahead and zstd the complete trace and rename it to the current sample trace (replacing it) plus the .zstd extension.  this is what is loaded now.
+
+---
+
+## 2026-01-24T10:27:04Z
+
+in the 3d view, can we add sliders to control the coiling?  I want to experiment with them
+
+---
+
+## 2026-01-24T10:38:59Z
+
+you did that quite well, thanks, it is fun to play with.  can we add a toggle for lines between adjoining clusters? 
+
+---
+
+## 2026-01-24T10:43:56Z
+
+let me control the line thickness and color as well
+
+---
+
+## 2026-01-24T10:51:12Z
+
+i am experiencing the line thickness issue.  Please use the strip-rendered lines, THREE.Line2 seems appropriate
+
+---
+
+## 2026-01-24T10:59:29Z
+
+width is working well, please expand the range to be from 1 to 50
+
+---
+
+## 2026-01-24T11:07:26Z
+
+change the default to be on with width of 6 and a rusty red color.  show the "#FFFFFF" color code on the right side
+
+---
+
+## 2026-01-24T11:12:27Z
+
+i presume all the other lines are rendered with WebGL Lines, update them to use strips

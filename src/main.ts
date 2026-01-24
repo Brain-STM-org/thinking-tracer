@@ -63,6 +63,18 @@ const exportBtn = document.getElementById('export-btn');
 const exportDropdown = document.querySelector('.export-dropdown');
 const exportMenu = document.querySelector('.export-menu');
 const expandToggle = document.getElementById('expand-toggle');
+const coilControlsToggle = document.getElementById('coil-controls-toggle');
+const coilControlsPanel = document.getElementById('coil-controls');
+const coilResetBtn = document.getElementById('coil-reset-btn');
+const coilSliders = document.querySelectorAll('.coil-slider');
+const clusterLinesToggle = document.getElementById('cluster-lines-toggle') as HTMLInputElement | null;
+const clusterLineOptions = document.getElementById('cluster-line-options');
+const clusterLineColor = document.getElementById('cluster-line-color') as HTMLInputElement | null;
+const clusterLineColorValue = document.getElementById('cluster-line-color-value');
+const clusterLineWidth = document.getElementById('cluster-line-width') as HTMLInputElement | null;
+const clusterLineWidthValue = document.getElementById('cluster-line-width-value');
+const clusterLineOpacity = document.getElementById('cluster-line-opacity') as HTMLInputElement | null;
+const clusterLineOpacityValue = document.getElementById('cluster-line-opacity-value');
 
 // Track expanded state
 let allExpanded = false;
@@ -638,12 +650,16 @@ async function showFileSelector(): Promise<void> {
     toolbar.classList.remove('visible');
   }
 
-  // Hide legend and canvas controls
+  // Hide legend, canvas controls, and coil controls
   if (legend) {
     legend.classList.remove('visible');
   }
   if (canvasControls) {
     canvasControls.classList.remove('visible');
+  }
+  if (coilControlsPanel) {
+    coilControlsPanel.classList.remove('visible');
+    coilControlsToggle?.classList.remove('active');
   }
 
   // Hide sidebar
@@ -795,6 +811,129 @@ if (expandToggle) {
     }
   });
 }
+
+// Wire up coil controls toggle
+if (coilControlsToggle && coilControlsPanel) {
+  coilControlsToggle.addEventListener('click', () => {
+    const isVisible = coilControlsPanel.classList.toggle('visible');
+    coilControlsToggle.classList.toggle('active', isVisible);
+
+    // Initialize slider values when opening
+    if (isVisible) {
+      updateCoilSliders();
+    }
+  });
+}
+
+// Wire up coil reset button
+if (coilResetBtn) {
+  coilResetBtn.addEventListener('click', () => {
+    viewer.resetCoilParams();
+    updateCoilSliders();
+  });
+}
+
+// Wire up cluster lines toggle
+if (clusterLinesToggle) {
+  clusterLinesToggle.addEventListener('change', () => {
+    viewer.setShowClusterLines(clusterLinesToggle.checked);
+    // Show/hide line options
+    if (clusterLineOptions) {
+      clusterLineOptions.classList.toggle('visible', clusterLinesToggle.checked);
+    }
+  });
+}
+
+// Wire up cluster line color
+if (clusterLineColor) {
+  clusterLineColor.addEventListener('input', () => {
+    const hex = parseInt(clusterLineColor.value.slice(1), 16);
+    viewer.setClusterLineColor(hex);
+    if (clusterLineColorValue) {
+      clusterLineColorValue.textContent = clusterLineColor.value.toUpperCase();
+    }
+  });
+}
+
+// Wire up cluster line width
+if (clusterLineWidth) {
+  clusterLineWidth.addEventListener('input', () => {
+    const width = parseFloat(clusterLineWidth.value);
+    viewer.setClusterLineWidth(width);
+    if (clusterLineWidthValue) {
+      clusterLineWidthValue.textContent = String(Math.round(width));
+    }
+  });
+}
+
+// Wire up cluster line opacity
+if (clusterLineOpacity) {
+  clusterLineOpacity.addEventListener('input', () => {
+    const opacity = parseFloat(clusterLineOpacity.value);
+    viewer.setClusterLineOpacity(opacity);
+    if (clusterLineOpacityValue) {
+      clusterLineOpacityValue.textContent = opacity.toFixed(2);
+    }
+  });
+}
+
+// Wire up coil sliders
+function updateCoilSliders() {
+  const params = viewer.getCoilParams();
+  coilSliders.forEach((sliderDiv) => {
+    const param = (sliderDiv as HTMLElement).dataset.param;
+    if (!param) return;
+    const input = sliderDiv.querySelector('input') as HTMLInputElement;
+    const valueSpan = sliderDiv.querySelector('.coil-value') as HTMLElement;
+    if (input && valueSpan && param in params) {
+      const value = params[param as keyof typeof params];
+      input.value = String(value);
+      valueSpan.textContent = value.toFixed(2);
+    }
+  });
+
+  // Sync cluster lines checkbox and options
+  const showLines = viewer.getShowClusterLines();
+  if (clusterLinesToggle) {
+    clusterLinesToggle.checked = showLines;
+  }
+  if (clusterLineOptions) {
+    clusterLineOptions.classList.toggle('visible', showLines);
+  }
+  if (clusterLineColor) {
+    const colorHex = '#' + viewer.getClusterLineColor().toString(16).padStart(6, '0');
+    clusterLineColor.value = colorHex;
+    if (clusterLineColorValue) {
+      clusterLineColorValue.textContent = colorHex.toUpperCase();
+    }
+  }
+  if (clusterLineWidth && clusterLineWidthValue) {
+    const width = viewer.getClusterLineWidth();
+    clusterLineWidth.value = String(width);
+    clusterLineWidthValue.textContent = String(Math.round(width));
+  }
+  if (clusterLineOpacity && clusterLineOpacityValue) {
+    const opacity = viewer.getClusterLineOpacity();
+    clusterLineOpacity.value = String(opacity);
+    clusterLineOpacityValue.textContent = opacity.toFixed(2);
+  }
+}
+
+coilSliders.forEach((sliderDiv) => {
+  const param = (sliderDiv as HTMLElement).dataset.param;
+  const input = sliderDiv.querySelector('input') as HTMLInputElement;
+  const valueSpan = sliderDiv.querySelector('.coil-value') as HTMLElement;
+
+  if (input && param) {
+    input.addEventListener('input', () => {
+      const value = parseFloat(input.value);
+      if (valueSpan) {
+        valueSpan.textContent = value.toFixed(2);
+      }
+      viewer.setCoilParam(param, value);
+    });
+  }
+});
 
 // Wire up editable title
 if (toolbarTitle) {

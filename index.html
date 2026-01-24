@@ -1928,6 +1928,260 @@
 
       /* Stats (hidden by default, can show in sidebar or floating) */
       #stats { display: none; }
+
+      /* Coil Controls Panel */
+      #coil-controls-toggle {
+        padding: 6px 12px;
+        font-size: 11px;
+        font-family: inherit;
+        background: rgba(58, 58, 92, 0.9);
+        color: #bbb;
+        border: 1px solid #6a6a9a;
+        border-radius: 6px;
+        cursor: pointer;
+        transition: all 0.15s;
+      }
+
+      #coil-controls-toggle:hover {
+        background: rgba(74, 74, 108, 0.95);
+        color: #fff;
+      }
+
+      #coil-controls-toggle.active {
+        background: rgba(155, 89, 182, 0.9);
+        color: #fff;
+        border-color: #9b59b6;
+      }
+
+      #coil-controls {
+        position: absolute;
+        bottom: 60px;
+        left: 20px;
+        background: rgba(42, 42, 64, 0.95);
+        border: 1px solid #6a6a9a;
+        border-radius: 8px;
+        font-size: 11px;
+        z-index: 50;
+        color: #ddd;
+        display: none;
+        min-width: 200px;
+        max-height: calc(100% - 100px);
+        overflow-y: auto;
+      }
+
+      #coil-controls.visible {
+        display: block;
+      }
+
+      #coil-controls-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 10px 12px;
+        border-bottom: 1px solid #5a5a7a;
+        font-weight: 600;
+        font-size: 11px;
+        color: #bbb;
+      }
+
+      #coil-reset-btn {
+        padding: 3px 8px;
+        font-size: 10px;
+        font-family: inherit;
+        background: #3a3a5a;
+        color: #aaa;
+        border: 1px solid #5a5a7a;
+        border-radius: 4px;
+        cursor: pointer;
+        transition: all 0.15s;
+      }
+
+      #coil-reset-btn:hover {
+        background: #4a4a6a;
+        color: #fff;
+      }
+
+      #coil-controls-body {
+        padding: 10px 12px;
+      }
+
+      .coil-section {
+        margin-bottom: 12px;
+      }
+
+      .coil-section:last-child {
+        margin-bottom: 0;
+      }
+
+      .coil-section-title {
+        font-size: 9px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        color: #888;
+        margin-bottom: 8px;
+      }
+
+      .coil-slider {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-bottom: 6px;
+      }
+
+      .coil-slider:last-child {
+        margin-bottom: 0;
+      }
+
+      .coil-slider label {
+        width: 50px;
+        font-size: 10px;
+        color: #bbb;
+        flex-shrink: 0;
+      }
+
+      .coil-slider input[type="range"] {
+        flex: 1;
+        height: 4px;
+        -webkit-appearance: none;
+        appearance: none;
+        background: #4a4a6a;
+        border-radius: 2px;
+        cursor: pointer;
+      }
+
+      .coil-slider input[type="range"]::-webkit-slider-thumb {
+        -webkit-appearance: none;
+        appearance: none;
+        width: 12px;
+        height: 12px;
+        background: #9b59b6;
+        border-radius: 50%;
+        cursor: pointer;
+        transition: background 0.15s;
+      }
+
+      .coil-slider input[type="range"]::-webkit-slider-thumb:hover {
+        background: #b86fd9;
+      }
+
+      .coil-slider input[type="range"]::-moz-range-thumb {
+        width: 12px;
+        height: 12px;
+        background: #9b59b6;
+        border: none;
+        border-radius: 50%;
+        cursor: pointer;
+      }
+
+      .coil-value {
+        width: 32px;
+        font-size: 10px;
+        color: #888;
+        text-align: right;
+        font-family: 'SF Mono', Monaco, monospace;
+        flex-shrink: 0;
+      }
+
+      .coil-toggle-row {
+        margin-bottom: 12px;
+        padding-bottom: 10px;
+        border-bottom: 1px solid #4a4a6a;
+      }
+
+      .coil-toggle-row label {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        cursor: pointer;
+        font-size: 11px;
+        color: #bbb;
+      }
+
+      .coil-toggle-row label:hover {
+        color: #fff;
+      }
+
+      .coil-toggle-row input[type="checkbox"] {
+        width: 14px;
+        height: 14px;
+        cursor: pointer;
+        accent-color: #5a9a7a;
+      }
+
+      .coil-line-options {
+        display: none;
+        margin-top: 10px;
+        padding-top: 8px;
+        border-top: 1px dashed #3a3a5a;
+      }
+
+      .coil-line-options.visible {
+        display: block;
+      }
+
+      .coil-line-option {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-bottom: 6px;
+      }
+
+      .coil-line-option:last-child {
+        margin-bottom: 0;
+      }
+
+      .coil-line-option label {
+        width: 50px;
+        font-size: 10px;
+        color: #999;
+        flex-shrink: 0;
+      }
+
+      .coil-line-option input[type="color"] {
+        width: 28px;
+        height: 20px;
+        padding: 0;
+        border: 1px solid #5a5a7a;
+        border-radius: 3px;
+        background: none;
+        cursor: pointer;
+        flex-shrink: 0;
+      }
+
+      .coil-line-option .coil-value.color-code {
+        width: 58px;
+        font-size: 9px;
+      }
+
+      .coil-line-option input[type="color"]::-webkit-color-swatch-wrapper {
+        padding: 2px;
+      }
+
+      .coil-line-option input[type="color"]::-webkit-color-swatch {
+        border-radius: 2px;
+        border: none;
+      }
+
+      .coil-line-option input[type="range"] {
+        flex: 1;
+        height: 4px;
+        -webkit-appearance: none;
+        appearance: none;
+        background: #4a4a6a;
+        border-radius: 2px;
+        cursor: pointer;
+      }
+
+      .coil-line-option input[type="range"]::-webkit-slider-thumb {
+        -webkit-appearance: none;
+        appearance: none;
+        width: 12px;
+        height: 12px;
+        background: #5a9a7a;
+        border-radius: 50%;
+        cursor: pointer;
+      }
     </style>
   </head>
   <body>
@@ -2133,6 +2387,87 @@
             <div id="canvas-controls">
               <button id="expand-toggle" title="Toggle Expand/Collapse All">Expand</button>
               <button id="watch-toggle" title="Watch file for live updates (Chromium only)">Watch</button>
+              <button id="coil-controls-toggle" title="Toggle Coil Controls">Coil</button>
+            </div>
+            <div id="coil-controls">
+              <div id="coil-controls-header">
+                <span>Coil Parameters</span>
+                <button id="coil-reset-btn" title="Reset to defaults">Reset</button>
+              </div>
+              <div id="coil-controls-body">
+                <div class="coil-toggle-row">
+                  <label>
+                    <input type="checkbox" id="cluster-lines-toggle" checked>
+                    <span>Show cluster lines</span>
+                  </label>
+                  <div class="coil-line-options visible" id="cluster-line-options">
+                    <div class="coil-line-option">
+                      <label>Color</label>
+                      <input type="color" id="cluster-line-color" value="#b7410e">
+                      <span class="coil-value color-code" id="cluster-line-color-value">#B7410E</span>
+                    </div>
+                    <div class="coil-line-option">
+                      <label>Width</label>
+                      <input type="range" id="cluster-line-width" min="1" max="50" step="1" value="6">
+                      <span class="coil-value" id="cluster-line-width-value">6</span>
+                    </div>
+                    <div class="coil-line-option">
+                      <label>Opacity</label>
+                      <input type="range" id="cluster-line-opacity" min="0.1" max="1" step="0.05" value="0.4">
+                      <span class="coil-value" id="cluster-line-opacity-value">0.40</span>
+                    </div>
+                  </div>
+                </div>
+                <div class="coil-section">
+                  <div class="coil-section-title">Primary Spiral</div>
+                  <div class="coil-slider" data-param="spiralRadius">
+                    <label>Radius</label>
+                    <input type="range" min="0.5" max="8" step="0.1">
+                    <span class="coil-value">2.5</span>
+                  </div>
+                  <div class="coil-slider" data-param="spiralAngleStep">
+                    <label>Angle</label>
+                    <input type="range" min="0.2" max="3.14" step="0.05">
+                    <span class="coil-value">1.26</span>
+                  </div>
+                </div>
+                <div class="coil-section">
+                  <div class="coil-section-title">Secondary Coil</div>
+                  <div class="coil-slider" data-param="coilRadius">
+                    <label>Radius</label>
+                    <input type="range" min="0" max="15" step="0.5">
+                    <span class="coil-value">6</span>
+                  </div>
+                  <div class="coil-slider" data-param="coilAngleStep">
+                    <label>Angle</label>
+                    <input type="range" min="0" max="1.5" step="0.02">
+                    <span class="coil-value">0.39</span>
+                  </div>
+                  <div class="coil-slider" data-param="coilVerticalStep">
+                    <label>V-Step</label>
+                    <input type="range" min="0" max="5" step="0.1">
+                    <span class="coil-value">1.5</span>
+                  </div>
+                </div>
+                <div class="coil-section">
+                  <div class="coil-section-title">Slinky Effect</div>
+                  <div class="coil-slider" data-param="focusRadius">
+                    <label>Focus</label>
+                    <input type="range" min="1" max="20" step="1">
+                    <span class="coil-value">4</span>
+                  </div>
+                  <div class="coil-slider" data-param="minVerticalSpacing">
+                    <label>Min Gap</label>
+                    <input type="range" min="0" max="2" step="0.05">
+                    <span class="coil-value">0.2</span>
+                  </div>
+                  <div class="coil-slider" data-param="maxVerticalSpacing">
+                    <label>Max Gap</label>
+                    <input type="range" min="0.5" max="5" step="0.1">
+                    <span class="coil-value">1.5</span>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
           <div id="split-handle"></div>

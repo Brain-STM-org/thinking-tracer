@@ -3,6 +3,9 @@
  */
 
 import * as THREE from 'three';
+import { Line2 } from 'three/examples/jsm/lines/Line2.js';
+import { LineGeometry } from 'three/examples/jsm/lines/LineGeometry.js';
+import { LineMaterial } from 'three/examples/jsm/lines/LineMaterial.js';
 import { Scene, type SceneOptions } from './Scene';
 import { Controls } from './Controls';
 import type { Conversation, Turn, ContentBlock } from '../data/types';
@@ -102,25 +105,30 @@ export class Viewer {
   private highlightMaterial: THREE.MeshStandardMaterial;
 
   // Connection lines between nodes
-  private connectionLines: THREE.Line[] = [];
-  private lineMaterial: THREE.LineBasicMaterial;
+  private connectionLines: Line2[] = [];
+  private connectionLineGeometries: LineGeometry[] = [];
+  private clusterLine: Line2 | null = null;
+  private clusterLineGeometry: LineGeometry | null = null;
+  private showClusterLines = true;
+  private lineMaterial: LineMaterial;
+  private clusterLineMaterial: LineMaterial;
 
   // Layout parameters - primary spiral (tight coil)
-  private readonly spiralRadius = 2.5;        // Radius of the tight spiral
-  private readonly spiralAngleStep = Math.PI / 2.5; // Angle per cluster on tight spiral
+  private spiralRadius = 2.5;        // Radius of the tight spiral
+  private spiralAngleStep = Math.PI / 2.5; // Angle per cluster on tight spiral
   private readonly expandedSpacing = 2;
   private readonly blockSpacing = 1.2;
 
   // Secondary coil parameters (the path the spiral follows)
-  private readonly coilRadius = 6;            // Radius of the larger coil path
-  private readonly coilAngleStep = Math.PI / 8; // Slower rotation for the coil path
-  private readonly coilVerticalStep = 1.5;    // Vertical rise per coil rotation
+  private coilRadius = 6;            // Radius of the larger coil path
+  private coilAngleStep = Math.PI / 8; // Slower rotation for the coil path
+  private coilVerticalStep = 1.5;    // Vertical rise per coil rotation
 
   // Slinky effect parameters
   private focusClusterIndex = 0;
-  private readonly minVerticalSpacing = 0.2;  // Compressed spacing at ends
-  private readonly maxVerticalSpacing = 1.5;  // Expanded spacing at focus
-  private readonly focusRadius = 4;           // How many clusters around focus get expanded
+  private minVerticalSpacing = 0.2;  // Compressed spacing at ends
+  private maxVerticalSpacing = 1.5;  // Expanded spacing at focus
+  private focusRadius = 4;           // How many clusters around focus get expanded
 
   // Search filter - null means show all, Set means show only those clusters
   private searchFilterClusters: Set<number> | null = null;
@@ -160,11 +168,28 @@ export class Viewer {
       emissive: 0x444444,
     });
 
-    // Line material for connections
-    this.lineMaterial = new THREE.LineBasicMaterial({
+    // Line material for connections within expanded clusters
+    this.lineMaterial = new LineMaterial({
       color: 0x666688,
       transparent: true,
       opacity: 0.6,
+      linewidth: 2,
+      resolution: new THREE.Vector2(window.innerWidth, window.innerHeight),
+    });
+
+    // Line material for cluster-to-cluster connections (using LineMaterial for proper width support)
+    this.clusterLineMaterial = new LineMaterial({
+      color: 0xb7410e, // rusty red
+      transparent: true,
+      opacity: 0.4,
+      linewidth: 6, // in pixels
+      resolution: new THREE.Vector2(window.innerWidth, window.innerHeight),
+    });
+
+    // Update resolution on window resize
+    window.addEventListener('resize', () => {
+      this.lineMaterial.resolution.set(window.innerWidth, window.innerHeight);
+      this.clusterLineMaterial.resolution.set(window.innerWidth, window.innerHeight);
     });
 
     // Setup click handler
@@ -1031,9 +1056,22 @@ export class Viewer {
     // Remove existing lines
     for (const line of this.connectionLines) {
       this.scene.remove(line);
-      line.geometry.dispose();
+    }
+    for (const geom of this.connectionLineGeometries) {
+      geom.dispose();
     }
     this.connectionLines = [];
+    this.connectionLineGeometries = [];
+
+    // Remove existing cluster line
+    if (this.clusterLine) {
+      this.scene.remove(this.clusterLine);
+      this.clusterLine = null;
+    }
+    if (this.clusterLineGeometry) {
+      this.clusterLineGeometry.dispose();
+      this.clusterLineGeometry = null;
+    }
 
     // Create lines for each expanded cluster
     for (const cluster of this.clusters) {
@@ -1049,16 +1087,58 @@ export class Viewer {
       // Sort by Y position (top to bottom)
       clusterNodes.sort((a, b) => b.mesh.position.y - a.mesh.position.y);
 
-      // Create line connecting all nodes
-      const points: THREE.Vector3[] = [];
+      // Create line connecting all nodes using Line2
+      const positions: number[] = [];
       for (const node of clusterNodes) {
-        points.push(node.mesh.position.clone());
+        positions.push(node.mesh.position.x, node.mesh.position.y, node.mesh.position.z);
       }
 
-      const geometry = new THREE.BufferGeometry().setFromPoints(points);
-      const line = new THREE.Line(geometry, this.lineMaterial);
+      const geometry = new LineGeometry();
+      geometry.setPositions(positions);
+      this.connectionLineGeometries.push(geometry);
+
+      const line = new Line2(geometry, this.lineMaterial);
+      line.computeLineDistances();
       this.scene.add(line);
       this.connectionLines.push(line);
+    }
+
+    // Create line connecting all cluster nodes if enabled
+    if (this.showClusterLines && this.clusters.length > 1) {
+      const positions: number[] = [];
+
+      for (const cluster of this.clusters) {
+        // Find the visible node for this cluster (either cluster node or first child if expanded)
+        let node: VisualNode | undefined;
+
+        if (cluster.expanded) {
+          // Use the first visible child node
+          node = this.nodes.find(
+            n => n.clusterIndex === cluster.index && n.type !== 'cluster' && n.mesh.visible
+          );
+        } else {
+          // Use the cluster node
+          node = this.nodes.find(
+            n => n.type === 'cluster' && (n.data as TurnCluster).index === cluster.index && n.mesh.visible
+          );
+        }
+
+        if (node) {
+          positions.push(node.mesh.position.x, node.mesh.position.y, node.mesh.position.z);
+        }
+      }
+
+      if (positions.length >= 6) { // At least 2 points (6 values)
+        // Create new LineGeometry
+        const geometry = new LineGeometry();
+        geometry.setPositions(positions);
+        this.clusterLineGeometry = geometry;
+
+        // Create Line2
+        this.clusterLine = new Line2(geometry, this.clusterLineMaterial);
+        this.clusterLine.computeLineDistances();
+        this.scene.add(this.clusterLine);
+      }
     }
   }
 
@@ -1075,9 +1155,12 @@ export class Viewer {
     // Also clear connection lines
     for (const line of this.connectionLines) {
       this.scene.remove(line);
-      line.geometry.dispose();
+    }
+    for (const geom of this.connectionLineGeometries) {
+      geom.dispose();
     }
     this.connectionLines = [];
+    this.connectionLineGeometries = [];
   }
 
   /**
@@ -1532,7 +1615,146 @@ export class Viewer {
     this.clearNodes();
     Object.values(this.materials).forEach((m) => m.dispose());
     this.highlightMaterial.dispose();
+    this.lineMaterial.dispose();
+    this.clusterLineMaterial.dispose();
+    if (this.clusterLineGeometry) {
+      this.clusterLineGeometry.dispose();
+    }
     this.controls.dispose();
     this.scene.dispose();
+  }
+
+  // ===== Coil parameter getters/setters =====
+
+  /**
+   * Get all coil parameters for UI binding
+   */
+  public getCoilParams(): {
+    spiralRadius: number;
+    spiralAngleStep: number;
+    coilRadius: number;
+    coilAngleStep: number;
+    coilVerticalStep: number;
+    focusRadius: number;
+    minVerticalSpacing: number;
+    maxVerticalSpacing: number;
+  } {
+    return {
+      spiralRadius: this.spiralRadius,
+      spiralAngleStep: this.spiralAngleStep,
+      coilRadius: this.coilRadius,
+      coilAngleStep: this.coilAngleStep,
+      coilVerticalStep: this.coilVerticalStep,
+      focusRadius: this.focusRadius,
+      minVerticalSpacing: this.minVerticalSpacing,
+      maxVerticalSpacing: this.maxVerticalSpacing,
+    };
+  }
+
+  /**
+   * Set a coil parameter and re-layout
+   */
+  public setCoilParam(name: string, value: number): void {
+    switch (name) {
+      case 'spiralRadius':
+        this.spiralRadius = value;
+        break;
+      case 'spiralAngleStep':
+        this.spiralAngleStep = value;
+        break;
+      case 'coilRadius':
+        this.coilRadius = value;
+        break;
+      case 'coilAngleStep':
+        this.coilAngleStep = value;
+        break;
+      case 'coilVerticalStep':
+        this.coilVerticalStep = value;
+        break;
+      case 'focusRadius':
+        this.focusRadius = value;
+        break;
+      case 'minVerticalSpacing':
+        this.minVerticalSpacing = value;
+        break;
+      case 'maxVerticalSpacing':
+        this.maxVerticalSpacing = value;
+        break;
+      default:
+        return;
+    }
+    this.animateLayout();
+  }
+
+  /**
+   * Reset coil parameters to defaults
+   */
+  public resetCoilParams(): void {
+    this.spiralRadius = 2.5;
+    this.spiralAngleStep = Math.PI / 2.5;
+    this.coilRadius = 6;
+    this.coilAngleStep = Math.PI / 8;
+    this.coilVerticalStep = 1.5;
+    this.focusRadius = 4;
+    this.minVerticalSpacing = 0.2;
+    this.maxVerticalSpacing = 1.5;
+    this.animateLayout();
+  }
+
+  /**
+   * Toggle cluster-to-cluster connection lines
+   */
+  public setShowClusterLines(show: boolean): void {
+    this.showClusterLines = show;
+    this.updateConnectionLines();
+  }
+
+  /**
+   * Get current cluster lines visibility
+   */
+  public getShowClusterLines(): boolean {
+    return this.showClusterLines;
+  }
+
+  /**
+   * Set cluster line color
+   */
+  public setClusterLineColor(color: number): void {
+    this.clusterLineMaterial.color.setHex(color);
+  }
+
+  /**
+   * Get cluster line color as hex number
+   */
+  public getClusterLineColor(): number {
+    return this.clusterLineMaterial.color.getHex();
+  }
+
+  /**
+   * Set cluster line width in pixels
+   */
+  public setClusterLineWidth(width: number): void {
+    this.clusterLineMaterial.linewidth = width;
+  }
+
+  /**
+   * Get cluster line width
+   */
+  public getClusterLineWidth(): number {
+    return this.clusterLineMaterial.linewidth;
+  }
+
+  /**
+   * Set cluster line opacity
+   */
+  public setClusterLineOpacity(opacity: number): void {
+    this.clusterLineMaterial.opacity = opacity;
+  }
+
+  /**
+   * Get cluster line opacity
+   */
+  public getClusterLineOpacity(): number {
+    return this.clusterLineMaterial.opacity;
   }
 }
