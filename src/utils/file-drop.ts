@@ -4,6 +4,22 @@
 
 import { decompress as decompressZstd } from 'fzstd';
 
+/**
+ * Maximum decompressed file size (100MB)
+ * Prevents decompression bomb attacks
+ */
+const MAX_DECOMPRESSED_SIZE = 100 * 1024 * 1024;
+
+/**
+ * Error thrown when decompressed content exceeds size limit
+ */
+export class DecompressionSizeLimitError extends Error {
+  constructor(size: number) {
+    super(`Decompressed content exceeds ${MAX_DECOMPRESSED_SIZE / (1024 * 1024)}MB limit (got ${Math.round(size / (1024 * 1024))}MB)`);
+    this.name = 'DecompressionSizeLimitError';
+  }
+}
+
 // File System Access API types (for browsers that support it)
 interface FSAFileHandle {
   kind: 'file';
@@ -154,20 +170,24 @@ export class FileWatcher {
 
 /**
  * Read file content, decompressing if needed (standalone function)
+ * Uses size-limited decompression to prevent decompression bombs
  */
 async function readFileContentFromFile(file: File): Promise<string> {
   const name = file.name.toLowerCase();
 
   if (name.endsWith('.gz')) {
-    const ds = new DecompressionStream('gzip');
-    const stream = file.stream().pipeThrough(ds);
-    return await new Response(stream).text();
+    // Use the size-limited gzip decompression
+    return await decompressGzip(file);
   }
 
   if (name.endsWith('.zst') || name.endsWith('.zstd')) {
-    const buffer = await file.arrayBuffer();
-    const decompressed = decompressZstd(new Uint8Array(buffer));
-    return new TextDecoder().decode(decompressed);
+    // Use the size-limited zstd decompression
+    return await decompressZstdFile(file);
+  }
+
+  // Plain text - check size directly
+  if (file.size > MAX_DECOMPRESSED_SIZE) {
+    throw new DecompressionSizeLimitError(file.size);
   }
 
   return await file.text();
@@ -198,12 +218,35 @@ export interface FileDropOptions {
 }
 
 /**
- * Decompress a gzipped file using native browser API
+ * Decompress a gzipped file using native browser API with size limit
  */
 export async function decompressGzip(file: File): Promise<string> {
   const ds = new DecompressionStream('gzip');
-  const stream = file.stream().pipeThrough(ds);
-  return await new Response(stream).text();
+  const reader = file.stream().pipeThrough(ds).getReader();
+  const chunks: Uint8Array[] = [];
+  let totalBytes = 0;
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+
+    totalBytes += value.length;
+    if (totalBytes > MAX_DECOMPRESSED_SIZE) {
+      reader.cancel();
+      throw new DecompressionSizeLimitError(totalBytes);
+    }
+    chunks.push(value);
+  }
+
+  // Concatenate chunks
+  const result = new Uint8Array(totalBytes);
+  let offset = 0;
+  for (const chunk of chunks) {
+    result.set(chunk, offset);
+    offset += chunk.length;
+  }
+
+  return new TextDecoder().decode(result);
 }
 
 /**
@@ -215,10 +258,13 @@ export async function decompressZstdFile(file: File): Promise<string> {
 }
 
 /**
- * Decompress zstd data from an ArrayBuffer
+ * Decompress zstd data from an ArrayBuffer with size limit
  */
 export function decompressZstdBuffer(buffer: ArrayBuffer): string {
   const decompressed = decompressZstd(new Uint8Array(buffer));
+  if (decompressed.length > MAX_DECOMPRESSED_SIZE) {
+    throw new DecompressionSizeLimitError(decompressed.length);
+  }
   return new TextDecoder().decode(decompressed);
 }
 

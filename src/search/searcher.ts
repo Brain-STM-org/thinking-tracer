@@ -6,6 +6,54 @@ import { escapeHtml } from '../export';
 import type { SearchableCluster } from '../data/types';
 
 /**
+ * Maximum allowed regex pattern length
+ */
+const MAX_REGEX_LENGTH = 500;
+
+/**
+ * Maximum text length to run regex against (to prevent DoS)
+ */
+const MAX_REGEX_TEXT_LENGTH = 100000;
+
+/**
+ * Patterns that commonly cause catastrophic backtracking (ReDoS)
+ * These patterns have nested quantifiers or overlapping alternatives
+ */
+const DANGEROUS_REGEX_PATTERNS = [
+  /\(\s*[^)]*[+*]\s*\)\s*[+*]/, // Nested quantifiers: (a+)+, (a*)*
+  /\(\s*[^)]*\|\s*[^)]*\)\s*[+*]/, // Alternation with quantifier: (a|a)+
+  /\[[^\]]*\]\s*[+*]\s*\[[^\]]*\]\s*[+*]/, // Adjacent quantified character classes
+];
+
+/**
+ * Check if a regex pattern is potentially dangerous (could cause ReDoS)
+ */
+export function isDangerousRegex(pattern: string): boolean {
+  if (pattern.length > MAX_REGEX_LENGTH) {
+    return true;
+  }
+
+  for (const dangerous of DANGEROUS_REGEX_PATTERNS) {
+    if (dangerous.test(pattern)) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+/**
+ * Safely execute a regex match with length limits
+ */
+function safeRegexMatch(regex: RegExp, text: string): RegExpMatchArray | null {
+  // Limit text length to prevent excessive processing
+  const safeText = text.length > MAX_REGEX_TEXT_LENGTH
+    ? text.slice(0, MAX_REGEX_TEXT_LENGTH)
+    : text;
+  return safeText.match(regex);
+}
+
+/**
  * Content type for search filtering
  */
 export type SearchContentType = 'user' | 'assistant' | 'thinking' | 'tool_use' | 'tool_result';
@@ -55,10 +103,16 @@ export const DEFAULT_SEARCH_OPTIONS: SearchOptions = {
 };
 
 /**
- * Validate a regex pattern
+ * Validate a regex pattern (checks syntax and safety)
  */
 export function isValidRegex(pattern: string): boolean {
   if (!pattern) return true; // Empty is valid (just won't match anything)
+
+  // Check for dangerous patterns that could cause ReDoS
+  if (isDangerousRegex(pattern)) {
+    return false;
+  }
+
   try {
     new RegExp(pattern, 'i');
     return true;
@@ -86,9 +140,14 @@ export function findMatch(
   let matchLength = 0;
 
   if (useRegex) {
+    // Check for dangerous patterns before execution
+    if (isDangerousRegex(query)) {
+      return { found: false, snippet: '', start: -1, end: -1 };
+    }
+
     try {
       const regex = new RegExp(query, 'i'); // case-insensitive
-      const match = text.match(regex);
+      const match = safeRegexMatch(regex, text);
       if (match && match.index !== undefined) {
         matchIndex = match.index;
         matchLength = match[0].length;
@@ -128,10 +187,14 @@ export function highlightSnippet(snippet: string, query: string, useRegex = fals
   if (!snippet) return '';
   if (!query) return escapeHtml(snippet);
 
-  if (useRegex) {
+  if (useRegex && !isDangerousRegex(query)) {
     try {
       const regex = new RegExp(`(${query})`, 'gi');
-      const parts = snippet.split(regex);
+      // Limit snippet length for regex split to prevent DoS
+      const safeSnippet = snippet.length > MAX_REGEX_TEXT_LENGTH
+        ? snippet.slice(0, MAX_REGEX_TEXT_LENGTH)
+        : snippet;
+      const parts = safeSnippet.split(regex);
       return parts
         .map((part, i) => {
           // Odd indices are matches (captured groups)

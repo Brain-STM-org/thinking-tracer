@@ -79,7 +79,7 @@ export async function saveRecentTrace(
   const db = await openDB();
 
   const trace: RecentTrace = {
-    id: hashContent(content),
+    id: await hashContent(content),
     filename,
     title,
     lastOpened: Date.now(),

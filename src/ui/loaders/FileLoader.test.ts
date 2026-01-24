@@ -77,33 +77,34 @@ describe('FileLoader', () => {
   });
 
   describe('hashContent (from utils/hash)', () => {
-    it('generates consistent hash for same content', () => {
+    it('generates consistent hash for same content', async () => {
       const content = 'test content';
-      const hash1 = hashContent(content);
-      const hash2 = hashContent(content);
+      const hash1 = await hashContent(content);
+      const hash2 = await hashContent(content);
       expect(hash1).toBe(hash2);
     });
 
-    it('generates different hashes for different content', () => {
-      const hash1 = hashContent('content A');
-      const hash2 = hashContent('content B');
+    it('generates different hashes for different content', async () => {
+      const hash1 = await hashContent('content A');
+      const hash2 = await hashContent('content B');
       expect(hash1).not.toBe(hash2);
     });
 
-    it('handles empty string', () => {
-      const hash = hashContent('');
-      expect(hash).toBe('0-0');
+    it('handles empty string', async () => {
+      const hash = await hashContent('');
+      expect(hash).toBe('0'.repeat(64) + '-0');
     });
 
-    it('handles long content', () => {
+    it('handles long content', async () => {
       const content = 'x'.repeat(20000);
-      const hash = hashContent(content);
+      const hash = await hashContent(content);
       expect(hash).toContain('-20000');
     });
 
-    it('returns string in expected format', () => {
-      const hash = hashContent('test');
-      expect(hash).toMatch(/^-?[0-9a-f]+-\d+$/);
+    it('returns string in expected format', async () => {
+      const hash = await hashContent('test');
+      // SHA-256 produces 64 hex characters
+      expect(hash).toMatch(/^[0-9a-f]{64}-\d+$/);
     });
   });
 
