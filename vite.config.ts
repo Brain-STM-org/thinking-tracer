@@ -37,10 +37,11 @@ export default defineConfig(({ mode }) => {
         },
 
     server: {
-      host: '0.0.0.0',
+      // Default to localhost for security; use `npm run dev:network` for LAN/Tailscale access
       port: 3000,
       open: true,
-      allowedHosts: true,
+      // Allow all hosts when VITE_NETWORK_MODE is set (for Tailscale/LAN access)
+      allowedHosts: process.env.VITE_NETWORK_MODE ? true : undefined,
     },
 
     test: {

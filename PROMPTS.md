@@ -1045,3 +1045,39 @@ please address:
 ## 2026-01-24T23:20:30Z
 
 now Improve hash function to SHA-256 (M2) 
+
+---
+
+## 2026-01-24T23:25:17Z
+
+the dev server binds 0.0.0.0 to allow tailscale-based testing, let's make a regular dev target that is local-host only and a dev-bind-all server that clearly binds 0.0.0.0
+
+---
+
+## 2026-01-24T23:27:32Z
+
+for the dev:network i also need allowedHosts: true, can we do that via cli arguments?
+
+---
+
+## 2026-01-24T23:30:11Z
+
+well that was clever, i'll be sure to use that pattern sometime.  can you review the vite build and github actions to ensure we are all good?   
+
+---
+
+## 2026-01-24T23:33:56Z
+
+how would you address the bundle size?
+
+---
+
+## 2026-01-24T23:36:48Z
+
+people do not load threeJS from a common CDN?
+
+---
+
+## 2026-01-24T23:38:30Z
+
+ok, i'm going to keep it as is.  i'll let you know how deployment goes
