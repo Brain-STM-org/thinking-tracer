@@ -52,3 +52,7 @@ export type {
 // Sidebar
 export { SidebarController } from './sidebar';
 export type { SidebarControllerElements, SidebarControllerOptions } from './sidebar';
+
+// Export
+export { ExportController } from './export';
+export type { ExportControllerElements, ExportControllerOptions, ExportDataProvider } from './export';

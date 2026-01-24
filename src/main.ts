@@ -4,13 +4,7 @@
 
 import { Viewer } from './core/Viewer';
 import { hashContent } from './utils/hash';
-import {
-  exportAsHtml,
-  exportAsMarkdown,
-  downloadFile,
-  getSafeFilename,
-  escapeHtml,
-} from './export';
+import { escapeHtml } from './export';
 import type { SearchableViewer } from './ui';
 import {
   MetricsPanel,
@@ -22,6 +16,7 @@ import {
   RecentTracesManager,
   SearchController,
   SidebarController,
+  ExportController,
 } from './ui';
 import type { Selection, RecentTrace, TraceUIState } from './ui';
 
@@ -97,6 +92,7 @@ let fileLoader: FileLoader | null = null;
 let recentTracesManager: RecentTracesManager | null = null;
 let searchController: SearchController | null = null;
 let sidebarController: SidebarController | null = null;
+let exportController: ExportController | null = null;
 
 // View mode: '3d' | 'split' | 'conversation'
 let viewMode: '3d' | 'split' | 'conversation' = 'split';
@@ -310,9 +306,7 @@ async function loadFile(content: string, filename: string, skipSave = false, cus
     }
 
     // Enable export button
-    if (exportBtn) {
-      (exportBtn as HTMLButtonElement).disabled = false;
-    }
+    exportController?.enable();
 
     // Show legend and canvas controls
     if (legend) {
@@ -807,41 +801,18 @@ window.addEventListener('keydown', (e) => {
 // Export Functionality
 // ============================================
 
-// Export button dropdown toggle
+// Create ExportController
 if (exportBtn && exportDropdown) {
-  exportBtn.addEventListener('click', (e) => {
-    e.stopPropagation();
-    exportDropdown.classList.toggle('open');
-  });
-
-  // Close dropdown when clicking outside
-  document.addEventListener('click', () => {
-    exportDropdown.classList.remove('open');
-  });
-}
-
-// Export menu options
-if (exportMenu) {
-  exportMenu.addEventListener('click', (e) => {
-    const target = e.target as HTMLElement;
-    const format = target.dataset.format;
-
-    if (!format) return;
-
-    const conversation = viewer.getConversation();
-    const title = conversation?.meta?.title || 'Conversation Export';
-    const safeFilename = getSafeFilename(title);
-    const clusters = viewer.getSearchableContent();
-
-    if (format === 'html') {
-      const html = exportAsHtml(clusters, title);
-      downloadFile(html, `${safeFilename}.html`, 'text/html');
-    } else if (format === 'markdown') {
-      const md = exportAsMarkdown(clusters, title);
-      downloadFile(md, `${safeFilename}.md`, 'text/markdown');
-    }
-
-    exportDropdown?.classList.remove('open');
+  exportController = new ExportController({
+    elements: {
+      exportBtn,
+      dropdown: exportDropdown,
+      menu: exportMenu,
+    },
+    dataProvider: {
+      getSearchableContent: () => viewer.getSearchableContent(),
+      getConversationTitle: () => viewer.getConversation()?.meta?.title,
+    },
   });
 }
 
@@ -863,6 +834,7 @@ window.addEventListener('beforeunload', () => {
   searchController?.dispose();
   coilControlsPanel?.dispose();
   sidebarController?.dispose();
+  exportController?.dispose();
 });
 
 // Also save periodically while using (every 30 seconds if there's a trace loaded)
