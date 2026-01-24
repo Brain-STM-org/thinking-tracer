@@ -9,7 +9,6 @@ import {
   decompressZstdBuffer,
   FileWatcher,
 } from '../../utils/file-drop';
-import { hashContent } from '../../utils/hash';
 
 /**
  * Callback for when a file is loaded
@@ -206,14 +205,6 @@ export class FileLoader {
       this.trySampleBtn.classList.remove('loading');
       if (btnText) btnText.textContent = 'See How This Was Built';
     }
-  }
-
-  /**
-   * Generate a simple hash for content identification
-   * @deprecated Use hashContent from '../../utils/hash' directly
-   */
-  public static hashContent(content: string): string {
-    return hashContent(content);
   }
 
   /**

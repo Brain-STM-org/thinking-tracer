@@ -3,24 +3,16 @@
  */
 
 import { marked } from 'marked';
+import type { SearchableCluster } from '../data/types';
+
+// Re-export for consumers that import from here
+export type { SearchableCluster };
 
 // Configure marked for safe rendering
 marked.setOptions({
   gfm: true, // GitHub Flavored Markdown
   breaks: true, // Convert \n to <br>
 });
-
-/**
- * Searchable content structure from Viewer
- */
-export interface SearchableCluster {
-  clusterIndex: number;
-  userText: string;
-  assistantText: string;
-  thinkingBlocks: string[];
-  toolUses: Array<{ name: string; input: string }>;
-  toolResults: Array<{ content: string; isError: boolean }>;
-}
 
 /**
  * Escape HTML to prevent XSS

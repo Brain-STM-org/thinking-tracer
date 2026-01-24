@@ -2,6 +2,11 @@
  * Shared types for UI panels
  */
 
+import type { SearchableCluster } from '../data/types';
+
+// Re-export SearchableCluster from canonical location
+export type { SearchableCluster };
+
 /**
  * Metric keys available for charting
  */
@@ -24,18 +29,6 @@ export interface ClusterMetrics {
   thinkingCount: number;
   toolCount: number;
   contentLength: number;
-}
-
-/**
- * Searchable cluster data structure
- */
-export interface SearchableCluster {
-  clusterIndex: number;
-  userText: string;
-  assistantText: string;
-  thinkingBlocks: string[];
-  toolUses: Array<{ name: string; input: string }>;
-  toolResults: Array<{ content: string; isError: boolean }>;
 }
 
 /**

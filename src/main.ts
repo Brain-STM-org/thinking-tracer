@@ -815,6 +815,19 @@ window.addEventListener('beforeunload', () => {
   sidebarController?.dispose();
   exportController?.dispose();
   splitPaneController?.dispose();
+
+  // Cleanup panels
+  metricsPanel?.dispose();
+  detailPanel?.dispose();
+  wordFrequencyPanel?.dispose();
+  conversationPanel?.dispose();
+
+  // Cleanup loaders
+  fileLoader?.dispose();
+  recentTracesManager?.dispose();
+
+  // Cleanup viewer
+  viewer?.dispose();
 });
 
 // Register periodic autosave with the viewer's render loop (every 30 seconds)

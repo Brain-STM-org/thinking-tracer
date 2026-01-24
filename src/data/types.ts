@@ -131,3 +131,16 @@ export interface TraceParser {
   /** Parse raw data into a Conversation */
   parse(data: unknown): Conversation;
 }
+
+/**
+ * Searchable content extracted from a cluster/turn
+ * Used for search, export, and display purposes
+ */
+export interface SearchableCluster {
+  clusterIndex: number;
+  userText: string;
+  assistantText: string;
+  thinkingBlocks: string[];
+  toolUses: Array<{ name: string; input: string }>;
+  toolResults: Array<{ content: string; isError: boolean }>;
+}

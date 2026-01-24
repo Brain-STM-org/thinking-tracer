@@ -5,7 +5,7 @@
  * A cluster groups a user message with its corresponding assistant response.
  */
 
-import type { Conversation, Turn, ContentBlock } from '../../data/types';
+import type { Conversation, Turn, ContentBlock, SearchableCluster } from '../../data/types';
 
 /**
  * A cluster of turns (user + assistant pair)
@@ -23,15 +23,9 @@ export interface TurnCluster {
 
 /**
  * Searchable content extracted from a cluster
+ * @deprecated Use SearchableCluster from data/types directly
  */
-export interface SearchableClusterContent {
-  clusterIndex: number;
-  userText: string;
-  assistantText: string;
-  thinkingBlocks: string[];
-  toolUses: Array<{ name: string; input: string }>;
-  toolResults: Array<{ content: string; isError: boolean }>;
-}
+export type SearchableClusterContent = SearchableCluster;
 
 /**
  * Cluster metrics for analytics

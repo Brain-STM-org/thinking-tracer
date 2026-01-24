@@ -967,3 +967,17 @@ start with 1
 ## 2026-01-24T21:14:39Z
 
 fix high priority panel issues
+
+---
+
+## 2026-01-24T21:37:32Z
+
+senior engineer, please review again now that we've done significant cleanup and reorg.   also, are there any cross cutting issues that are easier to address?
+
+---
+
+## 2026-01-24T21:42:10Z
+
+  1. First - Fix missing dispose calls in main.ts (2 min fix, high impact)
+  2. Second - Consolidate SearchableCluster type to one location
+  3. Third - Remove deprecated FileLoader.hashContent()

@@ -3,6 +3,7 @@
  */
 
 import { escapeHtml } from '../export';
+import type { SearchableCluster } from '../data/types';
 
 /**
  * Content type for search filtering
@@ -30,17 +31,8 @@ export interface MatchResult {
   end: number;
 }
 
-/**
- * Searchable cluster structure (matches Viewer's getSearchableContent)
- */
-export interface SearchableCluster {
-  clusterIndex: number;
-  userText: string;
-  assistantText: string;
-  thinkingBlocks: string[];
-  toolUses: Array<{ name: string; input: string }>;
-  toolResults: Array<{ content: string; isError: boolean }>;
-}
+// Re-export for consumers that import from here
+export type { SearchableCluster };
 
 /**
  * Search options

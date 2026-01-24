@@ -4,6 +4,7 @@
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { FileLoader } from './FileLoader';
+import { hashContent } from '../../utils/hash';
 
 // Mock the file-drop module
 vi.mock('../../utils/file-drop', () => ({
@@ -75,33 +76,33 @@ describe('FileLoader', () => {
     });
   });
 
-  describe('hashContent', () => {
+  describe('hashContent (from utils/hash)', () => {
     it('generates consistent hash for same content', () => {
       const content = 'test content';
-      const hash1 = FileLoader.hashContent(content);
-      const hash2 = FileLoader.hashContent(content);
+      const hash1 = hashContent(content);
+      const hash2 = hashContent(content);
       expect(hash1).toBe(hash2);
     });
 
     it('generates different hashes for different content', () => {
-      const hash1 = FileLoader.hashContent('content A');
-      const hash2 = FileLoader.hashContent('content B');
+      const hash1 = hashContent('content A');
+      const hash2 = hashContent('content B');
       expect(hash1).not.toBe(hash2);
     });
 
     it('handles empty string', () => {
-      const hash = FileLoader.hashContent('');
+      const hash = hashContent('');
       expect(hash).toBe('0-0');
     });
 
     it('handles long content', () => {
       const content = 'x'.repeat(20000);
-      const hash = FileLoader.hashContent(content);
+      const hash = hashContent(content);
       expect(hash).toContain('-20000');
     });
 
     it('returns string in expected format', () => {
-      const hash = FileLoader.hashContent('test');
+      const hash = hashContent('test');
       expect(hash).toMatch(/^-?[0-9a-f]+-\d+$/);
     });
   });
