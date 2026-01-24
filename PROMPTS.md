@@ -981,3 +981,16 @@ senior engineer, please review again now that we've done significant cleanup and
   1. First - Fix missing dispose calls in main.ts (2 min fix, high impact)
   2. Second - Consolidate SearchableCluster type to one location
   3. Third - Remove deprecated FileLoader.hashContent()
+
+---
+
+## 2026-01-24T21:48:09Z
+
+is there anything else to do before we hand off to red team and then work on improving deployment?
+
+---
+
+## 2026-01-24T21:57:07Z
+
+great, for markdown xss, please sanitize any rendering like that, DOMPurify sounds great.  you can also clean up logging console statements.  also add test run to GitHub action
+

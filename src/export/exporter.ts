@@ -3,6 +3,7 @@
  */
 
 import { marked } from 'marked';
+import DOMPurify from 'dompurify';
 import type { SearchableCluster } from '../data/types';
 
 // Re-export for consumers that import from here
@@ -24,12 +25,14 @@ export function escapeHtml(text: string): string {
 }
 
 /**
- * Render markdown to HTML
+ * Render markdown to sanitized HTML
+ * Uses DOMPurify to prevent XSS attacks from malicious markdown
  */
 export function renderMarkdown(text: string): string {
   if (!text) return '';
   try {
-    return marked.parse(text) as string;
+    const html = marked.parse(text) as string;
+    return DOMPurify.sanitize(html);
   } catch {
     // Fallback to escaped text if parsing fails
     return escapeHtml(text);

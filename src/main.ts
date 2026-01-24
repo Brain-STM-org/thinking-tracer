@@ -350,8 +350,6 @@ async function loadFile(content: string, filename: string, skipSave = false, cus
         viewer.selectClusterByIndex(0);
       }
     }, 50);
-
-    console.log(`Loaded: ${filename}`);
   } catch (error) {
     console.error('Failed to load conversation:', error);
     alert(`Failed to load file: ${error instanceof Error ? error.message : error}`);
@@ -836,7 +834,3 @@ viewer.onPeriodicTick(() => {
     saveCurrentUIState();
   }
 }, 30);
-
-// Log ready state
-console.log('Thinking Tracer ready');
-console.log('Drop a Claude Code conversation file to visualize');

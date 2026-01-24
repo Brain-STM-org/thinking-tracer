@@ -152,7 +152,6 @@ export class FileLoader {
     this.fileWatcher = new FileWatcher({
       onChange: async (content, filename) => {
         if (this.disposed) return;
-        console.log(`File changed: ${filename}`);
         await this.onLoad(content, filename, false);
         this.showWatchNotification('File updated');
       },
