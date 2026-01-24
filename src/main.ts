@@ -4,7 +4,7 @@
 
 import { marked } from 'marked';
 import { Viewer } from './core/Viewer';
-import { initFileDrop } from './utils/file-drop';
+import { initFileDrop, decompressGzip, decompressZstdFile, decompressZstdBuffer, FileWatcher } from './utils/file-drop';
 import {
   saveRecentTrace,
   getRecentTraces,
@@ -31,6 +31,8 @@ const sidebarToggle = document.getElementById('sidebar-toggle');
 const sidebarResize = document.getElementById('sidebar-resize');
 const fileSelectBtn = document.getElementById('file-select-btn');
 const trySampleBtn = document.getElementById('try-sample-btn');
+const canvasControls = document.getElementById('canvas-controls');
+const watchToggle = document.getElementById('watch-toggle');
 const fileInput = document.getElementById('file-input') as HTMLInputElement | null;
 const legend = document.getElementById('legend');
 const legendHeader = document.getElementById('legend-header');
@@ -47,6 +49,7 @@ const conversationPane = document.getElementById('conversation-pane');
 const contentArea = document.getElementById('content-area');
 const conversationContent = document.getElementById('conversation-content');
 const conversationTurnIndicator = document.getElementById('conversation-turn-indicator');
+const conversationFilters = document.getElementById('conversation-filters');
 const wordFreqChart = document.getElementById('word-freq-chart');
 const wordFreqSource = document.getElementById('word-freq-source') as HTMLSelectElement | null;
 const searchInput = document.getElementById('search-input') as HTMLInputElement | null;
@@ -268,12 +271,12 @@ async function loadFile(content: string, filename: string, skipSave = false, cus
       (exportBtn as HTMLButtonElement).disabled = false;
     }
 
-    // Show legend and expand toggle
+    // Show legend and canvas controls
     if (legend) {
       legend.classList.add('visible');
     }
-    if (expandToggle) {
-      expandToggle.classList.add('visible');
+    if (canvasControls) {
+      canvasControls.classList.add('visible');
     }
 
     // Apply view mode
@@ -447,8 +450,24 @@ if (fileSelectBtn && fileInput) {
     if (!file) return;
 
     try {
-      const content = await file.text();
-      await loadFile(content, file.name);
+      const name = file.name.toLowerCase();
+      const isGzipped = name.endsWith('.gz');
+      const isZstd = name.endsWith('.zst') || name.endsWith('.zstd');
+
+      let content: string;
+      let displayName = file.name;
+
+      if (isGzipped) {
+        content = await decompressGzip(file);
+        displayName = file.name.slice(0, -3);
+      } else if (isZstd) {
+        content = await decompressZstdFile(file);
+        displayName = name.endsWith('.zstd') ? file.name.slice(0, -5) : file.name.slice(0, -4);
+      } else {
+        content = await file.text();
+      }
+
+      await loadFile(content, displayName);
     } catch (error) {
       console.error('Failed to read file:', error);
       alert(`Failed to read file: ${error instanceof Error ? error.message : error}`);
@@ -457,6 +476,101 @@ if (fileSelectBtn && fileInput) {
     // Reset input so the same file can be selected again
     fileInput.value = '';
   });
+}
+
+// File watcher instance
+let fileWatcher: FileWatcher | null = null;
+
+// Update watch button state
+function updateWatchButtonState(): void {
+  if (!watchToggle) return;
+
+  if (fileWatcher?.isWatching()) {
+    watchToggle.classList.add('watching');
+    watchToggle.textContent = 'Watching';
+  } else {
+    watchToggle.classList.remove('watching');
+    watchToggle.textContent = 'Watch';
+  }
+}
+
+// Setup watch toggle button (inside viewer experience)
+if (watchToggle) {
+  // Disable if File System Access API not supported
+  if (!FileWatcher.isSupported()) {
+    (watchToggle as HTMLButtonElement).disabled = true;
+    watchToggle.title = 'File watching requires Chromium-based browser';
+  }
+
+  watchToggle.addEventListener('click', async () => {
+    // If already watching, stop
+    if (fileWatcher?.isWatching()) {
+      fileWatcher.stop();
+      fileWatcher = null;
+      updateWatchButtonState();
+      showWatchNotification('Stopped watching');
+      return;
+    }
+
+    // Create new watcher
+    fileWatcher = new FileWatcher({
+      onChange: async (content, filename) => {
+        console.log(`File changed: ${filename}`);
+        // Reload the file with updated content
+        await loadFile(content, filename, false);
+        // Show a brief notification
+        showWatchNotification('File updated');
+      },
+      onError: (error) => {
+        console.error('Watch error:', error);
+        showWatchNotification('Watch stopped: ' + error.message);
+        updateWatchButtonState();
+      },
+      pollInterval: 1000,
+    });
+
+    const result = await fileWatcher.openAndWatch();
+    if (result) {
+      await loadFile(result.content, result.filename);
+      updateWatchButtonState();
+      showWatchNotification(`Watching: ${result.filename}`);
+    } else {
+      // User cancelled or error
+      fileWatcher = null;
+      updateWatchButtonState();
+    }
+  });
+}
+
+// Show a brief notification for watch events
+function showWatchNotification(message: string): void {
+  // Create or reuse notification element
+  let notif = document.getElementById('watch-notification');
+  if (!notif) {
+    notif = document.createElement('div');
+    notif.id = 'watch-notification';
+    notif.style.cssText = `
+      position: fixed;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(80, 200, 120, 0.95);
+      color: white;
+      padding: 8px 16px;
+      border-radius: 6px;
+      font-size: 13px;
+      z-index: 1000;
+      transition: opacity 0.3s;
+    `;
+    document.body.appendChild(notif);
+  }
+
+  notif.textContent = message;
+  notif.style.opacity = '1';
+
+  setTimeout(() => {
+    notif!.style.opacity = '0';
+  }, 2000);
 }
 
 // Setup try sample button (now a clickable div with overlay)
@@ -469,13 +583,14 @@ if (trySampleBtn) {
       trySampleBtn.classList.add('loading');
       if (btnText) btnText.textContent = 'Loading...';
 
-      const response = await fetch('samples/sample-trace.jsonl');
+      const response = await fetch('samples/sample-trace.jsonl.zstd');
       if (!response.ok) {
         throw new Error(`Failed to fetch sample: ${response.status}`);
       }
 
-      const content = await response.text();
-      await loadFile(content, 'sample-trace.jsonl', false, 'Thinking Tracer pt2');
+      const buffer = await response.arrayBuffer();
+      const content = decompressZstdBuffer(buffer);
+      await loadFile(content, 'sample-trace.jsonl', false, 'Thinking Tracer');
     } catch (error) {
       console.error('Failed to load sample:', error);
       alert(`Failed to load sample: ${error instanceof Error ? error.message : error}`);
@@ -500,6 +615,13 @@ if (recentClearBtn) {
  * Show the file selector overlay
  */
 async function showFileSelector(): Promise<void> {
+  // Stop any active file watcher
+  if (fileWatcher) {
+    fileWatcher.stop();
+    fileWatcher = null;
+    updateWatchButtonState();
+  }
+
   // Save current UI state before switching away
   await saveCurrentUIState();
 
@@ -516,12 +638,12 @@ async function showFileSelector(): Promise<void> {
     toolbar.classList.remove('visible');
   }
 
-  // Hide legend and expand toggle
+  // Hide legend and canvas controls
   if (legend) {
     legend.classList.remove('visible');
   }
-  if (expandToggle) {
-    expandToggle.classList.remove('visible');
+  if (canvasControls) {
+    canvasControls.classList.remove('visible');
   }
 
   // Hide sidebar
@@ -1686,6 +1808,35 @@ let isScrollingProgrammatically = false;
 let selectionFromConversationScroll = false;
 let scrollLockTimeout: ReturnType<typeof setTimeout> | null = null;
 
+// Conversation filter state (default: user and output visible)
+const conversationFilterState = {
+  user: true,
+  output: true,
+  thinking: false,
+  tools: false,
+};
+
+/**
+ * Apply conversation filters to hide/show elements
+ */
+function applyConversationFilters(): void {
+  if (!conversationContent) return;
+
+  // Apply visibility based on filter state
+  conversationContent.querySelectorAll('.conv-user').forEach((el) => {
+    (el as HTMLElement).style.display = conversationFilterState.user ? '' : 'none';
+  });
+  conversationContent.querySelectorAll('.conv-text').forEach((el) => {
+    (el as HTMLElement).style.display = conversationFilterState.output ? '' : 'none';
+  });
+  conversationContent.querySelectorAll('.conv-thinking').forEach((el) => {
+    (el as HTMLElement).style.display = conversationFilterState.thinking ? '' : 'none';
+  });
+  conversationContent.querySelectorAll('.conv-tool').forEach((el) => {
+    (el as HTMLElement).style.display = conversationFilterState.tools ? '' : 'none';
+  });
+}
+
 /**
  * Render the conversation in the side panel
  */
@@ -1829,6 +1980,28 @@ function renderConversation(): void {
   if (conversationTurnIndicator) {
     conversationTurnIndicator.textContent = `${clusterCount} turns`;
   }
+
+  // Apply visibility filters
+  applyConversationFilters();
+}
+
+// Wire up conversation filter toggles
+if (conversationFilters) {
+  conversationFilters.querySelectorAll('.conv-filter').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const filter = (btn as HTMLElement).dataset.filter as keyof typeof conversationFilterState;
+      if (!filter) return;
+
+      // Toggle filter state
+      conversationFilterState[filter] = !conversationFilterState[filter];
+
+      // Update button active state
+      btn.classList.toggle('active', conversationFilterState[filter]);
+
+      // Apply filters
+      applyConversationFilters();
+    });
+  });
 }
 
 /**
@@ -2482,8 +2655,20 @@ function exportAsHtml(): string {
     .tool-result .tool-header { color: #2e7d32; }
     .tool-error { background: #ffebee; }
     .tool-error .tool-header { color: #c62828; }
-    .text { white-space: pre-wrap; }
+    .text { }
     .meta { color: #666; font-size: 12px; margin-top: 20px; padding-top: 10px; border-top: 1px solid #ddd; }
+    /* Markdown content */
+    .user > div:last-child, .text, .thinking-content { line-height: 1.6; }
+    .user > div:last-child p, .text p { margin: 0 0 0.75em 0; }
+    .user > div:last-child p:last-child, .text p:last-child { margin-bottom: 0; }
+    code { background: rgba(0,0,0,0.08); padding: 0.15em 0.4em; border-radius: 3px; font-family: monospace; font-size: 0.9em; }
+    pre { background: rgba(0,0,0,0.08); padding: 12px; border-radius: 6px; overflow-x: auto; margin: 0.75em 0; }
+    pre code { background: none; padding: 0; }
+    blockquote { margin: 0.75em 0; padding: 0.5em 1em; border-left: 3px solid #ddd; background: rgba(0,0,0,0.03); }
+    ul, ol { margin: 0.5em 0; padding-left: 1.5em; }
+    table { border-collapse: collapse; margin: 0.75em 0; }
+    th, td { border: 1px solid #ddd; padding: 6px 10px; }
+    th { background: rgba(0,0,0,0.05); }
   </style>
 </head>
 <body>
@@ -2498,7 +2683,7 @@ function exportAsHtml(): string {
     if (cluster.userText) {
       html += `    <div class="user">
       <div class="user-label">User</div>
-      <div>${escapeHtml(cluster.userText)}</div>
+      <div>${renderMarkdown(cluster.userText)}</div>
     </div>\n`;
     }
 
@@ -2509,7 +2694,7 @@ function exportAsHtml(): string {
     for (const thinking of cluster.thinkingBlocks) {
       html += `      <details class="thinking">
         <summary class="thinking-header">Thinking (${thinking.length.toLocaleString()} chars)</summary>
-        <div class="thinking-content">${escapeHtml(thinking)}</div>
+        <div class="thinking-content">${renderMarkdown(thinking)}</div>
       </details>\n`;
     }
 
@@ -2533,7 +2718,7 @@ function exportAsHtml(): string {
 
     // Assistant text
     if (cluster.assistantText) {
-      html += `      <div class="text">${escapeHtml(cluster.assistantText)}</div>\n`;
+      html += `      <div class="text">${renderMarkdown(cluster.assistantText)}</div>\n`;
     }
 
     html += `    </div>\n`;

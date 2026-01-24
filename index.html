@@ -291,11 +291,21 @@
         color: #4a90d9;
       }
 
-      /* Expand toggle - positioned in 3D view */
-      #expand-toggle {
+      /* Canvas controls - positioned in 3D view */
+      #canvas-controls {
         position: absolute;
         bottom: 20px;
         left: 20px;
+        display: none;
+        gap: 8px;
+        z-index: 50;
+      }
+
+      #canvas-controls.visible {
+        display: flex;
+      }
+
+      #expand-toggle, #watch-toggle {
         padding: 6px 12px;
         font-size: 11px;
         font-family: inherit;
@@ -305,11 +315,9 @@
         border-radius: 6px;
         cursor: pointer;
         transition: all 0.15s;
-        z-index: 50;
-        display: none;
       }
 
-      #expand-toggle:hover {
+      #expand-toggle:hover, #watch-toggle:hover {
         background: rgba(74, 74, 108, 0.95);
         color: #fff;
       }
@@ -320,8 +328,15 @@
         border-color: #4a90d9;
       }
 
-      #expand-toggle.visible {
-        display: block;
+      #watch-toggle.watching {
+        background: rgba(80, 200, 120, 0.9);
+        color: #fff;
+        border-color: #50c878;
+      }
+
+      #watch-toggle:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
       }
 
       /* Responsive toolbar */
@@ -534,13 +549,17 @@
       }
 
       #conversation-header {
-        padding: 12px 16px;
+        padding: 10px 16px;
         background: #2a2a40;
         border-bottom: 1px solid #3a3a5a;
+        flex-shrink: 0;
+      }
+
+      #conversation-header-top {
         display: flex;
         justify-content: space-between;
         align-items: center;
-        flex-shrink: 0;
+        margin-bottom: 8px;
       }
 
       #conversation-header h3 {
@@ -554,6 +573,38 @@
         font-size: 11px;
         color: #888;
       }
+
+      #conversation-filters {
+        display: flex;
+        gap: 6px;
+        flex-wrap: wrap;
+      }
+
+      .conv-filter {
+        padding: 3px 8px;
+        font-size: 10px;
+        font-family: inherit;
+        background: #3a3a5a;
+        border: 1px solid transparent;
+        border-radius: 4px;
+        cursor: pointer;
+        color: #888;
+        transition: all 0.15s;
+      }
+
+      .conv-filter:hover {
+        background: #4a4a6a;
+        color: #bbb;
+      }
+
+      .conv-filter.active {
+        color: #fff;
+      }
+
+      .conv-filter[data-filter="user"].active { background: #4a90d9; border-color: #4a90d9; }
+      .conv-filter[data-filter="output"].active { background: #50c878; border-color: #50c878; }
+      .conv-filter[data-filter="thinking"].active { background: #9b59b6; border-color: #9b59b6; }
+      .conv-filter[data-filter="tools"].active { background: #f39c12; border-color: #f39c12; }
 
       #conversation-content {
         flex: 1;
@@ -2079,13 +2130,24 @@
                 </div>
               </div>
             </div>
-            <button id="expand-toggle" title="Toggle Expand/Collapse All">Expand</button>
+            <div id="canvas-controls">
+              <button id="expand-toggle" title="Toggle Expand/Collapse All">Expand</button>
+              <button id="watch-toggle" title="Watch file for live updates (Chromium only)">Watch</button>
+            </div>
           </div>
           <div id="split-handle"></div>
           <div id="conversation-pane">
             <div id="conversation-header">
-              <h3>Conversation</h3>
-              <span id="conversation-turn-indicator"></span>
+              <div id="conversation-header-top">
+                <h3>Conversation</h3>
+                <span id="conversation-turn-indicator"></span>
+              </div>
+              <div id="conversation-filters">
+                <button class="conv-filter active" data-filter="user">User</button>
+                <button class="conv-filter active" data-filter="output">Output</button>
+                <button class="conv-filter" data-filter="thinking">Thinking</button>
+                <button class="conv-filter" data-filter="tools">Tools</button>
+              </div>
             </div>
             <div id="conversation-content"></div>
           </div>
@@ -2126,7 +2188,7 @@
             <div class="drop-subtext">Browse your files</div>
           </div>
         </div>
-        <input type="file" id="file-input" accept=".json,.jsonl">
+        <input type="file" id="file-input" accept=".json,.jsonl,.json.gz,.jsonl.gz,.json.zst,.jsonl.zst,.json.zstd,.jsonl.zstd">
 
         <div id="recent-traces" class="hidden">
           <div class="recent-header">
