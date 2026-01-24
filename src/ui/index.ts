@@ -12,6 +12,7 @@ export {
   getHighlightColor,
 } from './panels';
 export { ConversationPanel } from './panels';
+export { CoilControlsPanel } from './panels';
 export { formatMetricValue } from './panels/MetricsPanel';
 
 export type {
@@ -26,6 +27,7 @@ export type {
 export type { DetailPanelElements } from './panels/DetailPanel';
 export type { WordFrequencyPanelElements, WordFrequencySource } from './panels/WordFrequencyPanel';
 export type { ConversationPanelElements, ConversationFilterState } from './panels/ConversationPanel';
+export type { CoilControlsPanelElements, CoilControllableViewer, CoilParams } from './panels';
 
 // Loaders
 export { FileLoader, RecentTracesManager } from './loaders';

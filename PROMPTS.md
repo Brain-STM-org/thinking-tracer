@@ -901,3 +901,9 @@ i'm surprised by the number of listeners in main.ts   are there more modules to 
 ## 2026-01-24T20:11:15Z
 
 yes
+
+---
+
+## 2026-01-24T20:21:02Z
+
+yes CoilControls next

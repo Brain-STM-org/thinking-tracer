@@ -17,6 +17,7 @@ import {
   DetailPanel,
   WordFrequencyPanel,
   ConversationPanel,
+  CoilControlsPanel,
   FileLoader,
   RecentTracesManager,
   SearchController,
@@ -69,7 +70,7 @@ const exportDropdown = document.querySelector('.export-dropdown');
 const exportMenu = document.querySelector('.export-menu');
 const expandToggle = document.getElementById('expand-toggle');
 const coilControlsToggle = document.getElementById('coil-controls-toggle');
-const coilControlsPanel = document.getElementById('coil-controls');
+const coilControlsPanelEl = document.getElementById('coil-controls');
 const coilResetBtn = document.getElementById('coil-reset-btn');
 const coilSliders = document.querySelectorAll('.coil-slider');
 const clusterLinesToggle = document.getElementById('cluster-lines-toggle') as HTMLInputElement | null;
@@ -90,6 +91,7 @@ let metricsPanel: MetricsPanel | null = null;
 let detailPanel: DetailPanel | null = null;
 let wordFrequencyPanel: WordFrequencyPanel | null = null;
 let conversationPanel: ConversationPanel | null = null;
+let coilControlsPanel: CoilControlsPanel | null = null;
 let fileLoader: FileLoader | null = null;
 let recentTracesManager: RecentTracesManager | null = null;
 let searchController: SearchController | null = null;
@@ -452,8 +454,7 @@ async function showFileSelector(): Promise<void> {
     canvasControls.classList.remove('visible');
   }
   if (coilControlsPanel) {
-    coilControlsPanel.classList.remove('visible');
-    coilControlsToggle?.classList.remove('active');
+    coilControlsPanel.hide();
   }
 
   // Hide sidebar
@@ -578,128 +579,26 @@ if (expandToggle) {
   });
 }
 
-// Wire up coil controls toggle
-if (coilControlsToggle && coilControlsPanel) {
-  coilControlsToggle.addEventListener('click', () => {
-    const isVisible = coilControlsPanel.classList.toggle('visible');
-    coilControlsToggle.classList.toggle('active', isVisible);
-
-    // Initialize slider values when opening
-    if (isVisible) {
-      updateCoilSliders();
-    }
-  });
+// Wire up coil controls panel
+if (coilControlsToggle && coilControlsPanelEl) {
+  coilControlsPanel = new CoilControlsPanel(
+    {
+      toggleBtn: coilControlsToggle,
+      panel: coilControlsPanelEl,
+      resetBtn: coilResetBtn,
+      sliders: coilSliders,
+      clusterLinesToggle,
+      clusterLineOptions,
+      lineColor: clusterLineColor,
+      lineColorValue: clusterLineColorValue,
+      lineWidth: clusterLineWidth,
+      lineWidthValue: clusterLineWidthValue,
+      lineOpacity: clusterLineOpacity,
+      lineOpacityValue: clusterLineOpacityValue,
+    },
+    viewer
+  );
 }
-
-// Wire up coil reset button
-if (coilResetBtn) {
-  coilResetBtn.addEventListener('click', () => {
-    viewer.resetCoilParams();
-    updateCoilSliders();
-  });
-}
-
-// Wire up cluster lines toggle
-if (clusterLinesToggle) {
-  clusterLinesToggle.addEventListener('change', () => {
-    viewer.setShowClusterLines(clusterLinesToggle.checked);
-    // Show/hide line options
-    if (clusterLineOptions) {
-      clusterLineOptions.classList.toggle('visible', clusterLinesToggle.checked);
-    }
-  });
-}
-
-// Wire up cluster line color
-if (clusterLineColor) {
-  clusterLineColor.addEventListener('input', () => {
-    const hex = parseInt(clusterLineColor.value.slice(1), 16);
-    viewer.setClusterLineColor(hex);
-    if (clusterLineColorValue) {
-      clusterLineColorValue.textContent = clusterLineColor.value.toUpperCase();
-    }
-  });
-}
-
-// Wire up cluster line width
-if (clusterLineWidth) {
-  clusterLineWidth.addEventListener('input', () => {
-    const width = parseFloat(clusterLineWidth.value);
-    viewer.setClusterLineWidth(width);
-    if (clusterLineWidthValue) {
-      clusterLineWidthValue.textContent = String(Math.round(width));
-    }
-  });
-}
-
-// Wire up cluster line opacity
-if (clusterLineOpacity) {
-  clusterLineOpacity.addEventListener('input', () => {
-    const opacity = parseFloat(clusterLineOpacity.value);
-    viewer.setClusterLineOpacity(opacity);
-    if (clusterLineOpacityValue) {
-      clusterLineOpacityValue.textContent = opacity.toFixed(2);
-    }
-  });
-}
-
-// Wire up coil sliders
-function updateCoilSliders() {
-  const params = viewer.getCoilParams();
-  coilSliders.forEach((sliderDiv) => {
-    const param = (sliderDiv as HTMLElement).dataset.param;
-    if (!param) return;
-    const input = sliderDiv.querySelector('input') as HTMLInputElement;
-    const valueSpan = sliderDiv.querySelector('.coil-value') as HTMLElement;
-    if (input && valueSpan && param in params) {
-      const value = params[param as keyof typeof params];
-      input.value = String(value);
-      valueSpan.textContent = value.toFixed(2);
-    }
-  });
-
-  // Sync cluster lines checkbox and options
-  const showLines = viewer.getShowClusterLines();
-  if (clusterLinesToggle) {
-    clusterLinesToggle.checked = showLines;
-  }
-  if (clusterLineOptions) {
-    clusterLineOptions.classList.toggle('visible', showLines);
-  }
-  if (clusterLineColor) {
-    const colorHex = '#' + viewer.getClusterLineColor().toString(16).padStart(6, '0');
-    clusterLineColor.value = colorHex;
-    if (clusterLineColorValue) {
-      clusterLineColorValue.textContent = colorHex.toUpperCase();
-    }
-  }
-  if (clusterLineWidth && clusterLineWidthValue) {
-    const width = viewer.getClusterLineWidth();
-    clusterLineWidth.value = String(width);
-    clusterLineWidthValue.textContent = String(Math.round(width));
-  }
-  if (clusterLineOpacity && clusterLineOpacityValue) {
-    const opacity = viewer.getClusterLineOpacity();
-    clusterLineOpacity.value = String(opacity);
-    clusterLineOpacityValue.textContent = opacity.toFixed(2);
-  }
-}
-
-coilSliders.forEach((sliderDiv) => {
-  const param = (sliderDiv as HTMLElement).dataset.param;
-  const input = sliderDiv.querySelector('input') as HTMLInputElement;
-  const valueSpan = sliderDiv.querySelector('.coil-value') as HTMLElement;
-
-  if (input && param) {
-    input.addEventListener('input', () => {
-      const value = parseFloat(input.value);
-      if (valueSpan) {
-        valueSpan.textContent = value.toFixed(2);
-      }
-      viewer.setCoilParam(param, value);
-    });
-  }
-});
 
 // Wire up editable title
 if (toolbarTitle) {
@@ -1026,8 +925,9 @@ window.addEventListener('beforeunload', () => {
     });
   }
 
-  // Cleanup search controller
+  // Cleanup controllers
   searchController?.dispose();
+  coilControlsPanel?.dispose();
 });
 
 // Also save periodically while using (every 30 seconds if there's a trace loaded)
