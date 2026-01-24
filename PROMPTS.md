@@ -1006,3 +1006,15 @@ i now want to adddress the IndexedDB storage issue.  Go ahead and document it, a
 ## 2026-01-24T22:06:42Z
 
 with the clear button, i meant in the workspace, but actually just turning the existing "clear all" to a red button that indicates we can't get it back
+
+---
+
+## 2026-01-24T22:17:25Z
+
+i see a lot of inline styles, does it make sense to use a stylesheet?
+
+---
+
+## 2026-01-24T22:28:45Z
+
+yes extract the css appropriately

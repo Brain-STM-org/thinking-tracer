@@ -2,6 +2,8 @@
  * Standalone viewer entry point
  */
 
+import './styles/main.css';
+
 import { Viewer } from './core/Viewer';
 import { hashContent } from './utils/hash';
 import { escapeHtml } from './export';

@@ -289,19 +289,6 @@ export class FileLoader {
     if (!notif) {
       notif = document.createElement('div');
       notif.id = 'watch-notification';
-      notif.style.cssText = `
-        position: fixed;
-        bottom: 20px;
-        left: 50%;
-        transform: translateX(-50%);
-        background: rgba(80, 200, 120, 0.95);
-        color: white;
-        padding: 8px 16px;
-        border-radius: 6px;
-        font-size: 13px;
-        z-index: 1000;
-        transition: opacity 0.3s;
-      `;
       document.body.appendChild(notif);
     }
 
