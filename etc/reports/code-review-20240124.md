@@ -346,3 +346,192 @@ The recommended refactoring path:
 4. Address accessibility gaps
 
 These changes would significantly improve maintainability without requiring architectural rewrites.
+
+---
+
+## Post-Refactoring Update
+
+**Date**: 2026-01-24 (afternoon session)
+**Scope**: Modularization and testability improvements
+
+### Summary of Changes
+
+Following the initial review, significant refactoring was completed to address the highest-priority issues. The main.ts file has been reduced by ~50% and the Viewer.ts has been made significantly more testable through extraction of pure logic.
+
+### Completed Refactoring
+
+#### 1. UI Panel Extraction (Priority 1: Split main.ts)
+
+Four UI panels were extracted from main.ts into dedicated, testable modules:
+
+| Module | Location | Tests | Purpose |
+|--------|----------|-------|---------|
+| MetricsPanel | `src/ui/panels/MetricsPanel.ts` | 16 | Token/content metrics display |
+| DetailPanel | `src/ui/panels/DetailPanel.ts` | 38 | Selection details view |
+| WordFrequencyPanel | `src/ui/panels/WordFrequencyPanel.ts` | 36 | Word frequency analysis & highlighting |
+| ConversationPanel | `src/ui/panels/ConversationPanel.ts` | 31 | Scrollable conversation view |
+
+Each panel follows a consistent pattern:
+- Constructor accepts DOM elements and a `ViewerInterface`
+- `render()` method for display updates
+- `dispose()` method for cleanup
+- Full unit test coverage
+
+```typescript
+// Example pattern
+export class MetricsPanel {
+  constructor(elements: MetricsPanelElements, viewer: ViewerInterface) { }
+  public render(): void { }
+  public dispose(): void { }
+}
+```
+
+#### 2. ViewerInterface Abstraction
+
+A clean interface was established for panel-to-viewer communication:
+
+```typescript
+export interface ViewerInterface {
+  getClusterCount(): number;
+  getClusterMetrics(): ClusterMetrics[];
+  getSearchableContent(): SearchableCluster[];
+  getConversation(): ConversationData | null;
+  selectClusterByIndex(index: number): void;
+  toggleCluster(index: number): void;
+  focusOnCluster(index: number): void;
+  highlightClustersWithWord(word: string, color: number): number[];
+  unhighlightClustersByColor(color: number): void;
+  clearAllHighlights(): void;
+}
+```
+
+This enables mock-based testing without THREE.js dependencies.
+
+#### 3. Pure Logic Extraction from Viewer.ts
+
+The 3D Viewer was made testable by extracting pure math/logic into separate modules:
+
+**Layout Module** (`src/core/layout/`)
+- `coil-layout.ts` - Pure functions for 3D spiral calculations
+- 28 unit tests covering all layout math
+- Functions: `getVerticalSpacing`, `getPathProgress`, `getSpiralPosition`, `calculateAllPositions`, `getBoundingBox`, `getExpandedBlockPositions`
+
+**Clusters Module** (`src/core/clusters/`)
+- `cluster-builder.ts` - Pure functions for building clusters from turns
+- 39 unit tests covering cluster building and search
+- Functions: `buildClusters`, `extractSearchableContent`, `calculateClusterMetrics`, `clusterContainsWord`, `findClustersWithWord`
+
+The Viewer.ts now delegates to these modules:
+
+```typescript
+// Before: 100+ lines of inline cluster building
+private buildClusters(): void {
+  this.clusters = buildClustersFromConversation(this.conversation);
+}
+
+// Before: 50+ lines of inline position calculation
+private getSpiralPosition(index: number): THREE.Vector3 {
+  const pos = getLayoutPosition(index, this.getLayoutParams());
+  return new THREE.Vector3(pos.x, pos.y, pos.z);
+}
+```
+
+#### 4. Export Module
+
+Search and export functionality were extracted earlier in the session:
+
+- `src/export/` - HTML/Markdown export with escaping utilities
+- `src/search/` - Search algorithms with 48 tests
+
+### Metrics Comparison
+
+| Metric | Before | After | Change |
+|--------|--------|-------|--------|
+| main.ts lines | ~3000 | 1558 | -48% |
+| Viewer.ts lines | 1760 | 1535 | -13% |
+| Total test count | ~100 | 289 | +189% |
+| Test files | 4 | 9 | +5 |
+
+### Test Coverage by Module
+
+```
+src/core/layout/coil-layout.test.ts        28 tests
+src/core/clusters/cluster-builder.test.ts  39 tests
+src/search/searcher.test.ts                48 tests
+src/export/exporter.test.ts                41 tests
+src/ui/panels/MetricsPanel.test.ts         16 tests
+src/ui/panels/DetailPanel.test.ts          38 tests
+src/ui/panels/WordFrequencyPanel.test.ts   36 tests
+src/ui/panels/ConversationPanel.test.ts    31 tests
+src/data/parsers/claude-code.test.ts       12 tests
+─────────────────────────────────────────────────
+Total                                      289 tests
+```
+
+### Remaining Items from Original Review
+
+| Issue | Status | Notes |
+|-------|--------|-------|
+| Monolithic main.ts | **Addressed** | Reduced by ~50%, UI panels extracted |
+| Magic Numbers | **Partially Addressed** | Layout params now in `DEFAULT_COIL_PARAMS` with types |
+| Test Coverage Gaps | **Addressed** | 189 new tests added |
+| Type Escape Hatches | Remaining | Some `as` casts still exist |
+| Memory Leaks (listeners) | Remaining | Window listeners still need AbortController |
+| Duplicated hashContent() | Remaining | Still in two locations |
+| No Debouncing | Remaining | Search still triggers on every keypress |
+| Accessibility | Remaining | No changes to ARIA labels or screen reader support |
+| Inconsistent Error Handling | Remaining | Patterns not yet unified |
+
+### Architecture After Refactoring
+
+```
+src/
+├── core/
+│   ├── Viewer.ts          (1535 lines - 3D rendering, delegates to modules)
+│   ├── Scene.ts           (Three.js scene setup)
+│   ├── Controls.ts        (Camera controls)
+│   ├── layout/            ← NEW
+│   │   ├── coil-layout.ts (Pure layout math)
+│   │   └── index.ts
+│   └── clusters/          ← NEW
+│       ├── cluster-builder.ts (Pure cluster logic)
+│       └── index.ts
+├── ui/
+│   ├── types.ts           (ViewerInterface, shared types)
+│   └── panels/            ← NEW
+│       ├── MetricsPanel.ts
+│       ├── DetailPanel.ts
+│       ├── WordFrequencyPanel.ts
+│       ├── ConversationPanel.ts
+│       └── index.ts
+├── export/                ← NEW
+│   ├── exporter.ts
+│   └── index.ts
+├── search/                ← NEW
+│   ├── searcher.ts
+│   └── index.ts
+├── data/
+│   ├── types.ts
+│   └── parsers/
+└── main.ts                (1558 lines - wiring & initialization)
+```
+
+### Recommendations for Next Phase
+
+1. **Continue main.ts reduction**: Extract remaining functionality:
+   - File drop/loading logic → `FileLoader.ts`
+   - Recent traces management → `RecentTraces.ts`
+   - View switching logic → `ViewSwitcher.ts`
+   - Coil controls UI → `CoilControlsPanel.ts`
+
+2. **Add AbortController cleanup**: Implement proper listener cleanup as outlined in original review.
+
+3. **Debounce search**: Add 300ms debounce to search input handler.
+
+4. **Consolidate utilities**: Move `hashContent()` to shared `src/utils/hash.ts`.
+
+5. **Consider state management**: As main.ts shrinks further, evaluate whether a lightweight state container (e.g., Zustand, or custom pub/sub) would simplify coordination between panels.
+
+### Conclusion
+
+The refactoring has made substantial progress on the highest-priority issues. The codebase is now significantly more maintainable and testable. The pure logic extraction pattern used for `layout/` and `clusters/` modules provides a template for further improvements. Test coverage has nearly tripled, providing confidence for future changes.
