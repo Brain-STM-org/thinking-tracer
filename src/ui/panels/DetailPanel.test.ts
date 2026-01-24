@@ -12,9 +12,13 @@ function createMockViewer(overrides: Partial<ViewerInterface> = {}): ViewerInter
     getClusterCount: vi.fn().mockReturnValue(5),
     getClusterMetrics: vi.fn().mockReturnValue([]),
     getSearchableContent: vi.fn().mockReturnValue([]),
+    getConversation: vi.fn().mockReturnValue(null),
     selectClusterByIndex: vi.fn(),
     toggleCluster: vi.fn(),
     focusOnCluster: vi.fn(),
+    highlightClustersWithWord: vi.fn().mockReturnValue([]),
+    unhighlightClustersByColor: vi.fn(),
+    clearAllHighlights: vi.fn(),
     ...overrides,
   };
 }

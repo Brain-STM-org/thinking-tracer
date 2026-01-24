@@ -31,9 +31,13 @@ const createMockViewer = (metrics: ClusterMetrics[]): ViewerInterface => ({
   getClusterCount: vi.fn().mockReturnValue(metrics.length),
   getClusterMetrics: vi.fn().mockReturnValue(metrics),
   getSearchableContent: vi.fn().mockReturnValue([]),
+  getConversation: vi.fn().mockReturnValue(null),
   selectClusterByIndex: vi.fn(),
   toggleCluster: vi.fn(),
   focusOnCluster: vi.fn(),
+  highlightClustersWithWord: vi.fn().mockReturnValue([]),
+  unhighlightClustersByColor: vi.fn(),
+  clearAllHighlights: vi.fn(),
 });
 
 // Helper to mock read-only DOM properties

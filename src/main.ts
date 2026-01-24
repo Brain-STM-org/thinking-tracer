@@ -22,7 +22,6 @@ import {
   downloadFile,
   getSafeFilename,
   escapeHtml,
-  renderMarkdown,
 } from './export';
 import {
   isValidRegex,
@@ -35,7 +34,7 @@ import {
   type SearchResult,
   type SearchContentType,
 } from './search';
-import { MetricsPanel, DetailPanel } from './ui';
+import { MetricsPanel, DetailPanel, WordFrequencyPanel, ConversationPanel } from './ui';
 import type { Selection } from './ui';
 
 // Get DOM elements
@@ -103,6 +102,8 @@ let allExpanded = false;
 let currentFocusIndex = 0;
 let metricsPanel: MetricsPanel | null = null;
 let detailPanel: DetailPanel | null = null;
+let wordFrequencyPanel: WordFrequencyPanel | null = null;
+let conversationPanel: ConversationPanel | null = null;
 
 // View mode: '3d' | 'split' | 'conversation'
 let viewMode: '3d' | 'split' | 'conversation' = 'split';
@@ -223,6 +224,26 @@ if (metricsStack) {
 // Create detail panel
 if (detailPanelContent) {
   detailPanel = new DetailPanel({ container: detailPanelContent }, viewer);
+}
+
+// Create word frequency panel
+if (wordFreqChart) {
+  wordFrequencyPanel = new WordFrequencyPanel(
+    { container: wordFreqChart, sourceSelect: wordFreqSource },
+    viewer
+  );
+}
+
+// Create conversation panel
+if (conversationContent) {
+  conversationPanel = new ConversationPanel(
+    {
+      container: conversationContent,
+      turnIndicator: conversationTurnIndicator,
+      filtersContainer: conversationFilters,
+    },
+    viewer
+  );
 }
 
 // Setup stats display
@@ -350,7 +371,7 @@ async function loadFile(content: string, filename: string, skipSave = false, cus
 
     setTimeout(() => {
       metricsPanel?.draw(currentFocusIndex);
-      renderWordFrequencyChart();
+      wordFrequencyPanel?.render();
 
       // Set initial camera view for new traces
       if (isNewTrace) {
@@ -742,14 +763,14 @@ function applyViewMode(): void {
       conversationPane?.classList.remove('full-width');
       splitHandle?.classList.add('visible');
       legend?.classList.add('visible');
-      renderConversation();
+      conversationPanel?.render();
       break;
     case 'conversation':
       canvasPane?.classList.add('hidden');
       conversationPane?.classList.add('visible', 'full-width');
       splitHandle?.classList.remove('visible');
       legend?.classList.remove('visible');
-      renderConversation();
+      conversationPanel?.render();
       break;
   }
 
@@ -1091,7 +1112,7 @@ viewer.onSelect((selection: Selection | null) => {
     metricsPanel?.draw(currentFocusIndex);
 
     // Sync conversation scroll to selection
-    scrollConversationToCluster(selection.clusterIndex);
+    conversationPanel?.scrollToCluster(selection.clusterIndex);
   }
 
   // Update detail panel
@@ -1112,216 +1133,6 @@ if (sidebar) {
     });
   });
   resizeObserver.observe(sidebar);
-}
-
-// ============================================
-// Word Frequency Analysis
-// ============================================
-
-// Color palette for word highlighting (10 distinct colors)
-const WORD_HIGHLIGHT_COLORS = [
-  0xe6194b, // red
-  0x3cb44b, // green
-  0xffe119, // yellow
-  0x4363d8, // blue
-  0xf58231, // orange
-  0x911eb4, // purple
-  0x42d4f4, // cyan
-  0xf032e6, // magenta
-  0xbfef45, // lime
-  0xfabed4, // pink
-];
-
-// Track which words are currently highlighted
-const highlightedWords = new Map<string, number>(); // word -> color
-
-// Common stop words to filter out
-const STOP_WORDS = new Set([
-  'the', 'a', 'an', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for', 'of', 'with',
-  'by', 'from', 'as', 'is', 'was', 'are', 'were', 'been', 'be', 'have', 'has', 'had',
-  'do', 'does', 'did', 'will', 'would', 'could', 'should', 'may', 'might', 'must',
-  'shall', 'can', 'need', 'dare', 'ought', 'used', 'it', 'its', 'this', 'that',
-  'these', 'those', 'i', 'you', 'he', 'she', 'we', 'they', 'what', 'which', 'who',
-  'whom', 'when', 'where', 'why', 'how', 'all', 'each', 'every', 'both', 'few',
-  'more', 'most', 'other', 'some', 'such', 'no', 'nor', 'not', 'only', 'own', 'same',
-  'so', 'than', 'too', 'very', 'just', 'also', 'now', 'here', 'there', 'then',
-  'if', 'else', 'while', 'about', 'into', 'through', 'during', 'before', 'after',
-  'above', 'below', 'between', 'under', 'again', 'further', 'once', 'any', 'your',
-  'my', 'his', 'her', 'our', 'their', 'me', 'him', 'us', 'them', 'myself', 'yourself',
-  'himself', 'herself', 'itself', 'ourselves', 'themselves', 'am', 'being', 'having',
-  'doing', 'because', 'until', 'against', 'up', 'down', 'out', 'off', 'over', 'under',
-  'let', 'make', 'like', 'get', 'got', 'go', 'going', 'know', 'see', 'think', 'want',
-  'use', 'using', 'file', 'files', 'code', 'one', 'two', 'first', 'new', 'way',
-]);
-
-/**
- * Extract words from text and count frequencies
- */
-function extractWords(text: string): Map<string, number> {
-  const words = new Map<string, number>();
-
-  // Split on non-word characters, filter, and count
-  const tokens = text.toLowerCase()
-    .replace(/[^a-z\s]/g, ' ')
-    .split(/\s+/)
-    .filter(word => word.length > 2 && !STOP_WORDS.has(word));
-
-  for (const word of tokens) {
-    words.set(word, (words.get(word) || 0) + 1);
-  }
-
-  return words;
-}
-
-/**
- * Get word frequencies for the conversation
- */
-function getWordFrequencies(source: 'all' | 'user' | 'assistant' | 'thinking'): Array<{ word: string; count: number }> {
-  const searchableContent = viewer.getSearchableContent();
-  const allWords = new Map<string, number>();
-
-  for (const cluster of searchableContent) {
-    let textsToAnalyze: string[] = [];
-
-    if (source === 'all' || source === 'user') {
-      if (cluster.userText) textsToAnalyze.push(cluster.userText);
-    }
-
-    if (source === 'all' || source === 'assistant') {
-      if (cluster.assistantText) textsToAnalyze.push(cluster.assistantText);
-    }
-
-    if (source === 'all' || source === 'thinking') {
-      textsToAnalyze.push(...cluster.thinkingBlocks);
-    }
-
-    // Extract and merge word counts
-    for (const text of textsToAnalyze) {
-      const words = extractWords(text);
-      for (const [word, count] of words) {
-        allWords.set(word, (allWords.get(word) || 0) + count);
-      }
-    }
-  }
-
-  // Sort by count and return top 10
-  return Array.from(allWords.entries())
-    .map(([word, count]) => ({ word, count }))
-    .sort((a, b) => b.count - a.count)
-    .slice(0, 10);
-}
-
-/**
- * Convert hex color to CSS string
- */
-function hexToCSS(hex: number): string {
-  return '#' + hex.toString(16).padStart(6, '0');
-}
-
-/**
- * Toggle word highlight
- */
-function toggleWordHighlight(word: string, colorIndex: number): void {
-  const color = WORD_HIGHLIGHT_COLORS[colorIndex % WORD_HIGHLIGHT_COLORS.length];
-
-  if (highlightedWords.has(word)) {
-    // Unhighlight
-    viewer.unhighlightClustersByColor(highlightedWords.get(word)!);
-    highlightedWords.delete(word);
-  } else {
-    // Highlight
-    const matchedClusters = viewer.highlightClustersWithWord(word, color);
-    if (matchedClusters.length > 0) {
-      highlightedWords.set(word, color);
-    }
-  }
-
-  // Update UI to reflect active state
-  updateWordFreqActiveStates();
-}
-
-/**
- * Update active states on word frequency rows
- */
-function updateWordFreqActiveStates(): void {
-  if (!wordFreqChart) return;
-
-  wordFreqChart.querySelectorAll('.word-freq-row').forEach((row) => {
-    const word = (row as HTMLElement).dataset.word;
-    if (word && highlightedWords.has(word)) {
-      row.classList.add('active');
-    } else {
-      row.classList.remove('active');
-    }
-  });
-}
-
-/**
- * Clear all word highlights
- */
-function clearWordHighlights(): void {
-  viewer.clearAllHighlights();
-  highlightedWords.clear();
-  updateWordFreqActiveStates();
-}
-
-/**
- * Render word frequency chart
- */
-function renderWordFrequencyChart(): void {
-  if (!wordFreqChart) return;
-
-  // Clear highlights when re-rendering (source changed)
-  clearWordHighlights();
-
-  const source = (wordFreqSource?.value || 'all') as 'all' | 'user' | 'assistant' | 'thinking';
-  const frequencies = getWordFrequencies(source);
-
-  if (frequencies.length === 0) {
-    wordFreqChart.innerHTML = '<div style="color: #666; font-size: 11px; text-align: center; padding: 20px;">No words found</div>';
-    return;
-  }
-
-  const maxCount = frequencies[0].count;
-
-  const html = frequencies.map(({ word, count }, index) => {
-    const percentage = (count / maxCount) * 100;
-    const color = WORD_HIGHLIGHT_COLORS[index % WORD_HIGHLIGHT_COLORS.length];
-    const colorCSS = hexToCSS(color);
-    const isActive = highlightedWords.has(word);
-
-    return `
-      <div class="word-freq-row ${isActive ? 'active' : ''}" data-word="${escapeHtml(word)}" data-color-index="${index}">
-        <span class="word-freq-color" style="background: ${colorCSS}"></span>
-        <span class="word-freq-label" title="${escapeHtml(word)}">${escapeHtml(word)}</span>
-        <div class="word-freq-bar-container">
-          <div class="word-freq-bar" style="width: ${percentage}%; background: ${colorCSS}"></div>
-        </div>
-        <span class="word-freq-count">${count}</span>
-      </div>
-    `;
-  }).join('');
-
-  wordFreqChart.innerHTML = html;
-
-  // Wire up click handlers
-  wordFreqChart.querySelectorAll('.word-freq-row').forEach((row) => {
-    row.addEventListener('click', () => {
-      const word = (row as HTMLElement).dataset.word;
-      const colorIndex = parseInt((row as HTMLElement).dataset.colorIndex || '0', 10);
-      if (word) {
-        toggleWordHighlight(word, colorIndex);
-      }
-    });
-  });
-}
-
-// Word frequency is now in sidebar - no positioning needed
-
-
-// Wire up word frequency source selector
-if (wordFreqSource) {
-  wordFreqSource.addEventListener('change', renderWordFrequencyChart);
 }
 
 // ============================================
@@ -1368,323 +1179,6 @@ if (splitHandle && canvasPane && conversationPane && contentArea) {
     }
   });
 }
-
-// ============================================
-// Conversation View
-// ============================================
-
-let isScrollingProgrammatically = false;
-let selectionFromConversationScroll = false;
-let scrollLockTimeout: ReturnType<typeof setTimeout> | null = null;
-
-// Conversation filter state (default: user and output visible)
-const conversationFilterState = {
-  user: true,
-  output: true,
-  thinking: false,
-  tools: false,
-};
-
-/**
- * Apply conversation filters to hide/show elements
- */
-function applyConversationFilters(): void {
-  if (!conversationContent) return;
-
-  // Apply visibility based on filter state
-  conversationContent.querySelectorAll('.conv-user').forEach((el) => {
-    (el as HTMLElement).style.display = conversationFilterState.user ? '' : 'none';
-  });
-  conversationContent.querySelectorAll('.conv-text').forEach((el) => {
-    (el as HTMLElement).style.display = conversationFilterState.output ? '' : 'none';
-  });
-  conversationContent.querySelectorAll('.conv-thinking').forEach((el) => {
-    (el as HTMLElement).style.display = conversationFilterState.thinking ? '' : 'none';
-  });
-  conversationContent.querySelectorAll('.conv-tool').forEach((el) => {
-    (el as HTMLElement).style.display = conversationFilterState.tools ? '' : 'none';
-  });
-}
-
-/**
- * Render the conversation in the side panel
- */
-function renderConversation(): void {
-  if (!conversationContent) return;
-
-  const conversation = viewer.getConversation();
-  if (!conversation) {
-    conversationContent.innerHTML = '<div style="color: #666; text-align: center; padding: 40px;">No conversation loaded</div>';
-    return;
-  }
-
-  const clusterCount = viewer.getClusterCount();
-  const searchableContent = viewer.getSearchableContent();
-
-  let html = '';
-
-  for (let i = 0; i < searchableContent.length; i++) {
-    const cluster = searchableContent[i];
-
-    html += `<div class="conv-turn" data-cluster-index="${i}">`;
-
-    // User message
-    if (cluster.userText) {
-      const len = cluster.userText.length;
-      const charCount = len > 200 ? `<span style="color: #666; font-weight: normal;">(${len.toLocaleString()} chars)</span>` : '';
-      html += `<div class="conv-user expanded">
-<div class="conv-user-header"><span class="arrow">▶</span><span>User</span>${charCount}</div>
-<div class="conv-user-content"><div class="conv-content-wrap markdown-content">${renderMarkdown(cluster.userText)}<button class="conv-expand-btn">More</button></div></div>
-</div>`;
-    }
-
-    // Assistant section
-    html += `<div class="conv-assistant">`;
-
-    // Thinking blocks (default collapsed)
-    for (let t = 0; t < cluster.thinkingBlocks.length; t++) {
-      const thinking = cluster.thinkingBlocks[t];
-      html += `<div class="conv-thinking" data-thinking-index="${t}">
-<div class="conv-thinking-header"><span class="arrow">▶</span><span>Thinking</span><span style="color: #666; font-weight: normal;">(${thinking.length.toLocaleString()} chars)</span></div>
-<div class="conv-thinking-content"><div class="conv-content-wrap markdown-content">${renderMarkdown(thinking)}<button class="conv-expand-btn">More</button></div></div>
-</div>`;
-    }
-
-    // Tool calls and results (interleaved, default collapsed)
-    for (let t = 0; t < cluster.toolUses.length; t++) {
-      const toolUse = cluster.toolUses[t];
-      html += `<div class="conv-tool tool-use" data-tool-index="${t}">
-<div class="conv-tool-header"><span class="arrow">▶</span><span class="conv-tool-name">${escapeHtml(toolUse.name)}</span></div>
-<div class="conv-tool-content"><div class="conv-content-wrap">${escapeHtml(toolUse.input)}<button class="conv-expand-btn">More</button></div></div>
-</div>`;
-
-      // Matching tool result (if exists)
-      if (t < cluster.toolResults.length) {
-        const toolResult = cluster.toolResults[t];
-        const isError = toolResult.isError;
-        html += `<div class="conv-tool tool-result ${isError ? '' : 'success'}" data-result-index="${t}">
-<div class="conv-tool-header"><span class="arrow">▶</span><span>${isError ? '✗ Error' : '✓ Result'}</span></div>
-<div class="conv-tool-content"><div class="conv-content-wrap">${escapeHtml(toolResult.content)}<button class="conv-expand-btn">More</button></div></div>
-</div>`;
-      }
-    }
-
-    // Assistant text output
-    if (cluster.assistantText) {
-      const len = cluster.assistantText.length;
-      const charCount = len > 200 ? `<span style="color: #666; font-weight: normal;">(${len.toLocaleString()} chars)</span>` : '';
-      html += `<div class="conv-text expanded">
-<div class="conv-text-header"><span class="arrow">▶</span><span>Output</span>${charCount}</div>
-<div class="conv-text-content"><div class="conv-content-wrap markdown-content">${renderMarkdown(cluster.assistantText)}<button class="conv-expand-btn">More</button></div></div>
-</div>`;
-    }
-
-    html += `</div>`; // close .conv-assistant
-    html += `</div>`; // close .conv-turn
-  }
-
-  conversationContent.innerHTML = html;
-
-  // Wire up collapsible sections
-  conversationContent.querySelectorAll('.conv-thinking-header, .conv-tool-header, .conv-user-header, .conv-text-header').forEach((header) => {
-    header.addEventListener('click', (e) => {
-      e.stopPropagation();
-      const parent = header.parentElement;
-      parent?.classList.toggle('expanded');
-    });
-  });
-
-  // Check which content wraps actually overflow and need truncation
-  conversationContent.querySelectorAll('.conv-content-wrap').forEach((wrap) => {
-    const el = wrap as HTMLElement;
-    // Temporarily apply max-height to measure overflow
-    el.style.maxHeight = '120px';
-    el.style.overflow = 'hidden';
-    const needsTruncation = el.scrollHeight > el.clientHeight + 10;
-    el.style.maxHeight = '';
-    el.style.overflow = '';
-
-    if (needsTruncation) {
-      el.classList.add('needs-truncation');
-    }
-  });
-
-  // Wire up "More" buttons for truncated content
-  conversationContent.querySelectorAll('.conv-expand-btn').forEach((btn) => {
-    btn.addEventListener('click', (e) => {
-      e.stopPropagation();
-      const wrap = btn.parentElement;
-      wrap?.classList.remove('needs-truncation');
-      wrap?.classList.add('full');
-    });
-  });
-
-  // Wire up turn click to select in 3D
-  conversationContent.querySelectorAll('.conv-turn').forEach((turn) => {
-    turn.addEventListener('click', () => {
-      const clusterIndex = parseInt((turn as HTMLElement).dataset.clusterIndex || '0', 10);
-
-      // Lock scroll sync briefly since we're already at this turn
-      isScrollingProgrammatically = true;
-      if (scrollLockTimeout) clearTimeout(scrollLockTimeout);
-
-      // Highlight this turn
-      conversationContent!.querySelectorAll('.conv-turn.focused').forEach((t) => t.classList.remove('focused'));
-      turn.classList.add('focused');
-
-      // Select in 3D (this will try to scroll back to us, but we're locked)
-      viewer.selectClusterByIndex(clusterIndex);
-
-      // Unlock after a short delay
-      scrollLockTimeout = setTimeout(() => {
-        isScrollingProgrammatically = false;
-      }, 300);
-    });
-  });
-
-  // Setup scroll sync (conversation scroll → 3D selection)
-  setupScrollSync();
-
-  // Update turn indicator
-  if (conversationTurnIndicator) {
-    conversationTurnIndicator.textContent = `${clusterCount} turns`;
-  }
-
-  // Apply visibility filters
-  applyConversationFilters();
-}
-
-// Wire up conversation filter toggles
-if (conversationFilters) {
-  conversationFilters.querySelectorAll('.conv-filter').forEach((btn) => {
-    btn.addEventListener('click', () => {
-      const filter = (btn as HTMLElement).dataset.filter as keyof typeof conversationFilterState;
-      if (!filter) return;
-
-      // Toggle filter state
-      conversationFilterState[filter] = !conversationFilterState[filter];
-
-      // Update button active state
-      btn.classList.toggle('active', conversationFilterState[filter]);
-
-      // Apply filters
-      applyConversationFilters();
-    });
-  });
-}
-
-/**
- * Filter conversation to show only specific clusters
- * Pass null to show all clusters
- */
-function filterConversation(clusterIndices: number[] | null): void {
-  if (!conversationContent) return;
-
-  const turns = conversationContent.querySelectorAll('.conv-turn');
-
-  if (clusterIndices === null) {
-    // Show all turns
-    turns.forEach((turn) => {
-      (turn as HTMLElement).style.display = '';
-    });
-  } else {
-    // Show only matching turns
-    const matchSet = new Set(clusterIndices);
-    turns.forEach((turn) => {
-      const idx = parseInt((turn as HTMLElement).dataset.clusterIndex || '0', 10);
-      (turn as HTMLElement).style.display = matchSet.has(idx) ? '' : 'none';
-    });
-  }
-}
-
-/**
- * Setup scroll sync - scrolling conversation selects 3D node
- */
-function setupScrollSync(): void {
-  if (!conversationContent) return;
-
-  let scrollTimeout: ReturnType<typeof setTimeout> | null = null;
-
-  conversationContent.addEventListener('scroll', () => {
-    // Skip if we're programmatically scrolling (from 3D selection)
-    if (isScrollingProgrammatically) {
-      return;
-    }
-
-    // Debounce scroll handling
-    if (scrollTimeout) clearTimeout(scrollTimeout);
-    scrollTimeout = setTimeout(() => {
-      // Double-check we're not in programmatic scroll
-      if (isScrollingProgrammatically) return;
-
-      const turns = conversationContent.querySelectorAll('.conv-turn');
-      const containerRect = conversationContent.getBoundingClientRect();
-      const containerCenter = containerRect.top + containerRect.height / 3; // Focus on upper third
-
-      let closestTurn: Element | null = null;
-      let closestDistance = Infinity;
-
-      turns.forEach((turn) => {
-        const rect = turn.getBoundingClientRect();
-        const turnCenter = rect.top + rect.height / 2;
-        const distance = Math.abs(turnCenter - containerCenter);
-
-        if (distance < closestDistance) {
-          closestDistance = distance;
-          closestTurn = turn;
-        }
-      });
-
-      if (closestTurn) {
-        const clusterIndex = parseInt((closestTurn as HTMLElement).dataset.clusterIndex || '0', 10);
-        // Mark that this selection came from conversation scroll - don't scroll back
-        selectionFromConversationScroll = true;
-        viewer.selectClusterByIndex(clusterIndex);
-
-        // Update focus highlight without scrolling
-        conversationContent.querySelectorAll('.conv-turn.focused').forEach((t) => t.classList.remove('focused'));
-        (closestTurn as Element).classList.add('focused');
-      }
-    }, 150);
-  });
-}
-
-/**
- * Scroll conversation to a specific cluster
- */
-function scrollConversationToCluster(clusterIndex: number): void {
-  if (!conversationContent) return;
-
-  // If selection came from conversation scroll, don't scroll back
-  if (selectionFromConversationScroll) {
-    selectionFromConversationScroll = false;
-    return;
-  }
-
-  const turn = conversationContent.querySelector(`.conv-turn[data-cluster-index="${clusterIndex}"]`);
-  if (turn) {
-    // Lock scroll sync to prevent feedback loop
-    isScrollingProgrammatically = true;
-
-    // Clear any existing timeout
-    if (scrollLockTimeout) clearTimeout(scrollLockTimeout);
-
-    // Remove previous focus
-    conversationContent.querySelectorAll('.conv-turn.focused').forEach((t) => t.classList.remove('focused'));
-    // Add focus to current
-    turn.classList.add('focused');
-    // Smooth scroll into view
-    turn.scrollIntoView({ behavior: 'smooth', block: 'center' });
-
-    // Unlock after scroll animation completes (give it plenty of time)
-    scrollLockTimeout = setTimeout(() => {
-      isScrollingProgrammatically = false;
-    }, 600);
-  }
-}
-
-// Render conversation when view mode applies it
-// (applyViewMode handles visibility)
 
 // ============================================
 // Search Functionality
@@ -1848,7 +1342,7 @@ function clearSearch(): void {
 
   // Clear filters
   viewer.setSearchFilter(null);
-  filterConversation(null);
+  conversationPanel?.filter(null);
 
   renderSearchResults();
   updateSearchUI();
@@ -1885,7 +1379,7 @@ function handleSearchInput(): void {
     if (searchResults.length > 0) {
       const matchingClusters = getMatchingClusters(searchResults);
       viewer.setSearchFilter(matchingClusters);
-      filterConversation(matchingClusters);
+      conversationPanel?.filter(matchingClusters);
 
       // Highlight matching clusters
       for (const clusterIndex of matchingClusters) {
@@ -1894,7 +1388,7 @@ function handleSearchInput(): void {
       }
     } else {
       viewer.setSearchFilter(null);
-      filterConversation(null);
+      conversationPanel?.filter(null);
     }
 
     // Render the results list

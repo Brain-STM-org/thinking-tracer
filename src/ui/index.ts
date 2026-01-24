@@ -4,6 +4,14 @@
 
 export { MetricsPanel } from './panels';
 export { DetailPanel, truncate, buildTurnText } from './panels';
+export {
+  WordFrequencyPanel,
+  extractWords,
+  getWordFrequencies,
+  hexToCSS,
+  getHighlightColor,
+} from './panels';
+export { ConversationPanel } from './panels';
 export { formatMetricValue } from './panels/MetricsPanel';
 
 export type {
@@ -13,5 +21,8 @@ export type {
   MetricsPanelElements,
   SearchableCluster,
   Selection,
+  ConversationData,
 } from './types';
 export type { DetailPanelElements } from './panels/DetailPanel';
+export type { WordFrequencyPanelElements, WordFrequencySource } from './panels/WordFrequencyPanel';
+export type { ConversationPanelElements, ConversationFilterState } from './panels/ConversationPanel';

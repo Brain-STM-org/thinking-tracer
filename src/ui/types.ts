@@ -49,6 +49,20 @@ export interface Selection {
 }
 
 /**
+ * Conversation data structure (simplified for UI panels)
+ */
+export interface ConversationData {
+  meta: {
+    title?: string;
+    model?: string;
+    cwd?: string;
+    git_branch?: string;
+    duration_ms?: number;
+  };
+  turns: unknown[];
+}
+
+/**
  * Minimal viewer interface for UI panels
  * Panels depend on this interface, not the full Viewer class
  */
@@ -56,9 +70,14 @@ export interface ViewerInterface {
   getClusterCount(): number;
   getClusterMetrics(): ClusterMetrics[];
   getSearchableContent(): SearchableCluster[];
+  getConversation(): ConversationData | null;
   selectClusterByIndex(index: number): void;
   toggleCluster(index: number): void;
   focusOnCluster(index: number): void;
+  // Word highlighting methods
+  highlightClustersWithWord(word: string, color: number): number[];
+  unhighlightClustersByColor(color: number): void;
+  clearAllHighlights(): void;
 }
 
 /**
