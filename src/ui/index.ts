@@ -26,3 +26,14 @@ export type {
 export type { DetailPanelElements } from './panels/DetailPanel';
 export type { WordFrequencyPanelElements, WordFrequencySource } from './panels/WordFrequencyPanel';
 export type { ConversationPanelElements, ConversationFilterState } from './panels/ConversationPanel';
+
+// Loaders
+export { FileLoader, RecentTracesManager } from './loaders';
+export type {
+  FileLoaderOptions,
+  FileLoadCallback,
+  RecentTracesManagerOptions,
+  RecentTraceSelectCallback,
+  RecentTrace,
+  TraceUIState,
+} from './loaders';

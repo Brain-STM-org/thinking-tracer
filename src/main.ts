@@ -3,19 +3,6 @@
  */
 
 import { Viewer } from './core/Viewer';
-import { initFileDrop, decompressGzip, decompressZstdFile, decompressZstdBuffer, FileWatcher } from './utils/file-drop';
-import {
-  saveRecentTrace,
-  getRecentTraces,
-  deleteRecentTrace,
-  clearRecentTraces,
-  updateTraceCustomName,
-  updateTraceUIState,
-  formatSize,
-  formatRelativeTime,
-  type RecentTrace,
-  type TraceUIState,
-} from './utils/recent-traces';
 import {
   exportAsHtml,
   exportAsMarkdown,
@@ -34,8 +21,15 @@ import {
   type SearchResult,
   type SearchContentType,
 } from './search';
-import { MetricsPanel, DetailPanel, WordFrequencyPanel, ConversationPanel } from './ui';
-import type { Selection } from './ui';
+import {
+  MetricsPanel,
+  DetailPanel,
+  WordFrequencyPanel,
+  ConversationPanel,
+  FileLoader,
+  RecentTracesManager,
+} from './ui';
+import type { Selection, RecentTrace, TraceUIState } from './ui';
 
 // Get DOM elements
 const container = document.getElementById('canvas-container');
@@ -104,6 +98,8 @@ let metricsPanel: MetricsPanel | null = null;
 let detailPanel: DetailPanel | null = null;
 let wordFrequencyPanel: WordFrequencyPanel | null = null;
 let conversationPanel: ConversationPanel | null = null;
+let fileLoader: FileLoader | null = null;
+let recentTracesManager: RecentTracesManager | null = null;
 
 // View mode: '3d' | 'split' | 'conversation'
 let viewMode: '3d' | 'split' | 'conversation' = 'split';
@@ -150,14 +146,10 @@ function getCurrentUIState(): TraceUIState {
  * Save current UI state to storage
  */
 async function saveCurrentUIState(): Promise<void> {
-  if (!currentTraceId) return;
+  if (!currentTraceId || !recentTracesManager) return;
 
-  try {
-    const uiState = getCurrentUIState();
-    await updateTraceUIState(currentTraceId, uiState);
-  } catch (err) {
-    console.warn('Failed to save UI state:', err);
-  }
+  const uiState = getCurrentUIState();
+  await recentTracesManager.updateUIState(currentTraceId, uiState);
 }
 
 /**
@@ -258,18 +250,7 @@ viewer.onStats((stats) => {
   }
 });
 
-/**
- * Generate a simple hash for content identification (matches recent-traces.ts)
- */
-function hashContent(content: string): string {
-  let hash = 0;
-  for (let i = 0; i < Math.min(content.length, 10000); i++) {
-    const char = content.charCodeAt(i);
-    hash = ((hash << 5) - hash) + char;
-    hash = hash & hash;
-  }
-  return `${hash.toString(16)}-${content.length}`;
-}
+// hashContent is now provided by FileLoader.hashContent
 
 /**
  * Load a conversation file
@@ -283,7 +264,7 @@ async function loadFile(content: string, filename: string, skipSave = false, cus
     const turnCount = conversation?.turns.length || 0;
 
     // Track current trace for name editing
-    currentTraceId = hashContent(content);
+    currentTraceId = FileLoader.hashContent(content);
 
     // Use custom name if provided, otherwise use original title
     const displayName = customName || originalTitle;
@@ -292,11 +273,9 @@ async function loadFile(content: string, filename: string, skipSave = false, cus
     if (!skipSave) {
       // Mark as new trace - will set initial view
       isNewTrace = true;
-      try {
-        await saveRecentTrace(filename, originalTitle, turnCount, content);
-        await refreshRecentTraces();
-      } catch (err) {
-        console.warn('Failed to save to recent traces:', err);
+      if (recentTracesManager) {
+        await recentTracesManager.saveTrace(filename, originalTitle, turnCount, content);
+        await recentTracesManager.refresh();
       }
     }
 
@@ -396,10 +375,8 @@ async function loadFile(content: string, filename: string, skipSave = false, cus
  */
 async function loadRecentTrace(trace: RecentTrace): Promise<void> {
   // Update last opened time by re-saving
-  try {
-    await saveRecentTrace(trace.filename, trace.title, trace.turnCount, trace.content);
-  } catch (err) {
-    console.warn('Failed to update recent trace:', err);
+  if (recentTracesManager) {
+    await recentTracesManager.touchTrace(trace);
   }
 
   // Mark as not a new trace (has saved state)
@@ -431,273 +408,39 @@ async function loadRecentTrace(trace: RecentTrace): Promise<void> {
   }
 }
 
-/**
- * Refresh the recent traces list
- */
-async function refreshRecentTraces(): Promise<void> {
-  if (!recentTracesEl || !recentListEl) return;
-
-  try {
-    const traces = await getRecentTraces();
-
-    if (traces.length === 0) {
-      recentTracesEl.classList.add('hidden');
-      return;
-    }
-
-    recentTracesEl.classList.remove('hidden');
-    recentListEl.innerHTML = traces.map(renderRecentItem).join('');
-
-    // Attach event listeners
-    recentListEl.querySelectorAll('.recent-item').forEach((item, index) => {
-      const trace = traces[index];
-
-      item.addEventListener('click', (e) => {
-        // Don't trigger if clicking delete button
-        if ((e.target as HTMLElement).closest('.recent-item-delete')) return;
-        loadRecentTrace(trace);
-      });
-
-      const deleteBtn = item.querySelector('.recent-item-delete');
-      deleteBtn?.addEventListener('click', async (e) => {
-        e.stopPropagation();
-        await deleteRecentTrace(trace.id);
-        await refreshRecentTraces();
-      });
-    });
-  } catch (err) {
-    console.warn('Failed to load recent traces:', err);
-    recentTracesEl.classList.add('hidden');
-  }
-}
-
-/**
- * Render a recent trace item
- */
-function renderRecentItem(trace: RecentTrace): string {
-  const displayName = trace.customName || trace.title;
-  const hasCustomName = !!trace.customName;
-
-  // Shorten path for display, show full in tooltip
-  const shortPath = trace.filename.length > 50
-    ? '...' + trace.filename.slice(-47)
-    : trace.filename;
-
-  return `
-    <div class="recent-item" data-id="${trace.id}">
-      <div class="recent-item-icon">📄</div>
-      <div class="recent-item-info">
-        <div class="recent-item-title ${hasCustomName ? 'custom' : ''}">${escapeHtml(displayName)}</div>
-        <div class="recent-item-path" title="${escapeHtml(trace.filename)}">${escapeHtml(shortPath)}</div>
-        <div class="recent-item-meta">
-          ${trace.turnCount} turns · ${formatSize(trace.size)} · ${formatRelativeTime(trace.lastOpened)}
-        </div>
-      </div>
-      <button class="recent-item-delete" title="Remove from history">&times;</button>
-    </div>
-  `;
-}
-
-// Setup file drop
-initFileDrop({
-  target: document.body,
-  overlay: dropOverlay ?? undefined,
-  accept: ['.json', '.jsonl'],
-  onDrop: (content, filename) => loadFile(content, filename),
+// Create FileLoader
+fileLoader = new FileLoader({
+  fileInput: fileInput,
+  fileSelectBtn: fileSelectBtn,
+  trySampleBtn: trySampleBtn,
+  watchToggle: watchToggle,
+  dropOverlay: dropOverlay,
+  onLoad: loadFile,
   onError: (error) => {
-    console.error('File drop error:', error);
     alert(error.message);
   },
 });
 
-// Setup file select button
-if (fileSelectBtn && fileInput) {
-  fileSelectBtn.addEventListener('click', () => {
-    fileInput.click();
-  });
-
-  fileInput.addEventListener('change', async () => {
-    const file = fileInput.files?.[0];
-    if (!file) return;
-
-    try {
-      const name = file.name.toLowerCase();
-      const isGzipped = name.endsWith('.gz');
-      const isZstd = name.endsWith('.zst') || name.endsWith('.zstd');
-
-      let content: string;
-      let displayName = file.name;
-
-      if (isGzipped) {
-        content = await decompressGzip(file);
-        displayName = file.name.slice(0, -3);
-      } else if (isZstd) {
-        content = await decompressZstdFile(file);
-        displayName = name.endsWith('.zstd') ? file.name.slice(0, -5) : file.name.slice(0, -4);
-      } else {
-        content = await file.text();
-      }
-
-      await loadFile(content, displayName);
-    } catch (error) {
-      console.error('Failed to read file:', error);
-      alert(`Failed to read file: ${error instanceof Error ? error.message : error}`);
-    }
-
-    // Reset input so the same file can be selected again
-    fileInput.value = '';
-  });
-}
-
-// File watcher instance
-let fileWatcher: FileWatcher | null = null;
-
-// Update watch button state
-function updateWatchButtonState(): void {
-  if (!watchToggle) return;
-
-  if (fileWatcher?.isWatching()) {
-    watchToggle.classList.add('watching');
-    watchToggle.textContent = 'Watching';
-  } else {
-    watchToggle.classList.remove('watching');
-    watchToggle.textContent = 'Watch';
-  }
-}
-
-// Setup watch toggle button (inside viewer experience)
-if (watchToggle) {
-  // Disable if File System Access API not supported
-  if (!FileWatcher.isSupported()) {
-    (watchToggle as HTMLButtonElement).disabled = true;
-    watchToggle.title = 'File watching requires Chromium-based browser';
-  }
-
-  watchToggle.addEventListener('click', async () => {
-    // If already watching, stop
-    if (fileWatcher?.isWatching()) {
-      fileWatcher.stop();
-      fileWatcher = null;
-      updateWatchButtonState();
-      showWatchNotification('Stopped watching');
-      return;
-    }
-
-    // Create new watcher
-    fileWatcher = new FileWatcher({
-      onChange: async (content, filename) => {
-        console.log(`File changed: ${filename}`);
-        // Reload the file with updated content
-        await loadFile(content, filename, false);
-        // Show a brief notification
-        showWatchNotification('File updated');
-      },
-      onError: (error) => {
-        console.error('Watch error:', error);
-        showWatchNotification('Watch stopped: ' + error.message);
-        updateWatchButtonState();
-      },
-      pollInterval: 1000,
-    });
-
-    const result = await fileWatcher.openAndWatch();
-    if (result) {
-      await loadFile(result.content, result.filename);
-      updateWatchButtonState();
-      showWatchNotification(`Watching: ${result.filename}`);
-    } else {
-      // User cancelled or error
-      fileWatcher = null;
-      updateWatchButtonState();
-    }
-  });
-}
-
-// Show a brief notification for watch events
-function showWatchNotification(message: string): void {
-  // Create or reuse notification element
-  let notif = document.getElementById('watch-notification');
-  if (!notif) {
-    notif = document.createElement('div');
-    notif.id = 'watch-notification';
-    notif.style.cssText = `
-      position: fixed;
-      bottom: 20px;
-      left: 50%;
-      transform: translateX(-50%);
-      background: rgba(80, 200, 120, 0.95);
-      color: white;
-      padding: 8px 16px;
-      border-radius: 6px;
-      font-size: 13px;
-      z-index: 1000;
-      transition: opacity 0.3s;
-    `;
-    document.body.appendChild(notif);
-  }
-
-  notif.textContent = message;
-  notif.style.opacity = '1';
-
-  setTimeout(() => {
-    notif!.style.opacity = '0';
-  }, 2000);
-}
-
-// Setup try sample button (now a clickable div with overlay)
-if (trySampleBtn) {
-  trySampleBtn.addEventListener('click', async () => {
-    if (trySampleBtn.classList.contains('loading')) return;
-
-    const btnText = trySampleBtn.querySelector('.sample-preview-btn');
-    try {
-      trySampleBtn.classList.add('loading');
-      if (btnText) btnText.textContent = 'Loading...';
-
-      const response = await fetch('samples/sample-trace.jsonl.zstd');
-      if (!response.ok) {
-        throw new Error(`Failed to fetch sample: ${response.status}`);
-      }
-
-      const buffer = await response.arrayBuffer();
-      const content = decompressZstdBuffer(buffer);
-      await loadFile(content, 'sample-trace.jsonl', false, 'Thinking Tracer');
-    } catch (error) {
-      console.error('Failed to load sample:', error);
-      alert(`Failed to load sample: ${error instanceof Error ? error.message : error}`);
-    } finally {
-      trySampleBtn.classList.remove('loading');
-      if (btnText) btnText.textContent = 'See How This Was Built';
-    }
-  });
-}
-
-// Setup clear all recent traces button
-if (recentClearBtn) {
-  recentClearBtn.addEventListener('click', async () => {
-    if (confirm('Clear all recent traces?')) {
-      await clearRecentTraces();
-      await refreshRecentTraces();
-    }
-  });
-}
+// Create RecentTracesManager
+recentTracesManager = new RecentTracesManager({
+  container: recentTracesEl,
+  listElement: recentListEl,
+  clearBtn: recentClearBtn,
+  onSelect: loadRecentTrace,
+});
 
 /**
  * Show the file selector overlay
  */
 async function showFileSelector(): Promise<void> {
   // Stop any active file watcher
-  if (fileWatcher) {
-    fileWatcher.stop();
-    fileWatcher = null;
-    updateWatchButtonState();
-  }
+  fileLoader?.stopWatching();
 
   // Save current UI state before switching away
   await saveCurrentUIState();
 
   // Refresh recent traces list
-  await refreshRecentTraces();
+  await recentTracesManager?.refresh();
 
   // Show drop overlay
   if (dropOverlay) {
@@ -1003,13 +746,8 @@ if (toolbarTitle) {
     toolbarTitle.dataset.fullTitle = displayName;
 
     // Save to storage
-    if (currentTraceId) {
-      try {
-        await updateTraceCustomName(currentTraceId, customName);
-        await refreshRecentTraces();
-      } catch (err) {
-        console.warn('Failed to save custom name:', err);
-      }
+    if (currentTraceId && recentTracesManager) {
+      await recentTracesManager.updateCustomName(currentTraceId, customName);
     }
   };
 
@@ -1532,15 +1270,15 @@ if (exportMenu) {
 }
 
 // Load recent traces on startup
-refreshRecentTraces();
+recentTracesManager?.refresh();
 
 // Save UI state before leaving
 window.addEventListener('beforeunload', () => {
   // Use synchronous-ish approach - fire and forget
   // IndexedDB operations will likely complete before page closes
-  if (currentTraceId) {
+  if (currentTraceId && recentTracesManager) {
     const uiState = getCurrentUIState();
-    updateTraceUIState(currentTraceId, uiState).catch(() => {
+    recentTracesManager.updateUIState(currentTraceId, uiState).catch(() => {
       // Ignore errors on unload
     });
   }

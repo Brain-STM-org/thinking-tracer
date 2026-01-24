@@ -535,3 +535,196 @@ src/
 ### Conclusion
 
 The refactoring has made substantial progress on the highest-priority issues. The codebase is now significantly more maintainable and testable. The pure logic extraction pattern used for `layout/` and `clusters/` modules provides a template for further improvements. Test coverage has nearly tripled, providing confidence for future changes.
+
+---
+
+## Continued Refactoring: File Loading & Recent Traces
+
+**Date**: 2026-01-24 (continued session)
+**Scope**: Extract FileLoader and RecentTracesManager from main.ts
+
+### Summary
+
+Following the initial panel extractions, the file loading and recent traces management functionality was extracted into dedicated modules, further reducing main.ts complexity.
+
+### New Modules Created
+
+#### FileLoader (`src/ui/loaders/FileLoader.ts`)
+
+Handles all file loading operations:
+- File drop handling (drag & drop)
+- File input/select button
+- Compression support (gzip, zstd)
+- File watching (live reload)
+- Sample file loading
+
+```typescript
+export class FileLoader {
+  constructor(options: FileLoaderOptions) { }
+
+  // Static utility
+  static hashContent(content: string): string;
+
+  // File operations
+  async readFile(file: File): Promise<{ content: string; displayName: string }>;
+  async loadFromUrl(url: string, filename: string): Promise<void>;
+
+  // Watch control
+  isWatching(): boolean;
+  stopWatching(): void;
+
+  dispose(): void;
+}
+```
+
+**Tests**: 12 unit tests
+
+#### RecentTracesManager (`src/ui/loaders/RecentTracesManager.ts`)
+
+Handles recent traces UI and storage:
+- Display recent trace list with metadata
+- Delete individual traces
+- Clear all traces
+- Custom name persistence
+- UI state persistence (camera position, view mode, etc.)
+
+```typescript
+export class RecentTracesManager {
+  constructor(options: RecentTracesManagerOptions) { }
+
+  // List management
+  async refresh(): Promise<void>;
+  async clearAll(): Promise<void>;
+
+  // Trace operations
+  async saveTrace(filename: string, title: string, turnCount: number, content: string): Promise<void>;
+  async touchTrace(trace: RecentTrace): Promise<void>;
+  async updateCustomName(traceId: string, customName: string): Promise<void>;
+  async updateUIState(traceId: string, uiState: TraceUIState): Promise<void>;
+
+  // Queries
+  getTraceCount(): number;
+  hasTraces(): boolean;
+
+  dispose(): void;
+}
+```
+
+**Tests**: 25 unit tests
+
+### Updated Metrics
+
+| Metric | After Panels | After Loaders | Change |
+|--------|--------------|---------------|--------|
+| main.ts lines | 1558 | 1296 | -262 (-17%) |
+| Total tests | 289 | 326 | +37 |
+| Test files | 9 | 11 | +2 |
+
+### Cumulative Reduction
+
+| Metric | Original | Current | Total Change |
+|--------|----------|---------|--------------|
+| main.ts lines | ~3000 | 1296 | -57% |
+| Total tests | ~100 | 326 | +226% |
+
+### Updated Architecture
+
+```
+src/
+├── core/
+│   ├── Viewer.ts          (1535 lines)
+│   ├── Scene.ts
+│   ├── Controls.ts
+│   ├── layout/
+│   │   └── coil-layout.ts
+│   └── clusters/
+│       └── cluster-builder.ts
+├── ui/
+│   ├── types.ts
+│   ├── panels/
+│   │   ├── MetricsPanel.ts
+│   │   ├── DetailPanel.ts
+│   │   ├── WordFrequencyPanel.ts
+│   │   └── ConversationPanel.ts
+│   └── loaders/           ← NEW
+│       ├── FileLoader.ts
+│       ├── RecentTracesManager.ts
+│       └── index.ts
+├── export/
+├── search/
+├── data/
+└── main.ts                (1296 lines - wiring & UI controls)
+```
+
+### Integration Pattern
+
+main.ts now instantiates the modules and wires them together:
+
+```typescript
+// Create FileLoader
+fileLoader = new FileLoader({
+  fileInput,
+  fileSelectBtn,
+  trySampleBtn,
+  watchToggle,
+  dropOverlay,
+  onLoad: loadFile,
+  onError: (error) => alert(error.message),
+});
+
+// Create RecentTracesManager
+recentTracesManager = new RecentTracesManager({
+  container: recentTracesEl,
+  listElement: recentListEl,
+  clearBtn: recentClearBtn,
+  onSelect: loadRecentTrace,
+});
+```
+
+### Remaining in main.ts
+
+The following functionality still resides in main.ts:
+- View mode switching (3D/split/conversation)
+- Sidebar toggle and resize
+- Split pane resize
+- Search functionality (UI wiring)
+- Export dropdown
+- Coil controls panel
+- Editable title handling
+- Keyboard shortcuts
+- Panel instantiation and wiring
+
+### Recommendations for Further Extraction
+
+1. **SearchController**: Extract search UI handling (~100 lines)
+2. **ViewModeController**: Extract view mode logic (~50 lines)
+3. **CoilControlsPanel**: Extract coil parameter UI (~100 lines)
+4. **SidebarController**: Extract sidebar logic (~50 lines)
+
+### Test Coverage Summary
+
+```
+src/core/layout/coil-layout.test.ts           28 tests
+src/core/clusters/cluster-builder.test.ts     39 tests
+src/search/searcher.test.ts                   48 tests
+src/export/exporter.test.ts                   41 tests
+src/ui/panels/MetricsPanel.test.ts            16 tests
+src/ui/panels/DetailPanel.test.ts             38 tests
+src/ui/panels/WordFrequencyPanel.test.ts      36 tests
+src/ui/panels/ConversationPanel.test.ts       31 tests
+src/ui/loaders/FileLoader.test.ts             12 tests
+src/ui/loaders/RecentTracesManager.test.ts    25 tests
+src/data/parsers/claude-code.test.ts          12 tests
+───────────────────────────────────────────────────
+Total                                         326 tests
+```
+
+### Conclusion
+
+The extraction of FileLoader and RecentTracesManager continues the modularization effort. main.ts has been reduced by 57% from its original size, with all extracted functionality now fully tested. The codebase follows a consistent pattern of:
+- Pure logic in dedicated modules
+- UI components as classes with constructor injection
+- Callbacks for cross-component communication
+- Comprehensive unit test coverage
+
+The remaining main.ts code primarily handles UI wiring and coordination between modules, which is an appropriate responsibility for an application entry point.
