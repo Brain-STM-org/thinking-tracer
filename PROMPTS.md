@@ -821,3 +821,15 @@ is there any testing for that exporter module?
 ## 2026-01-24T15:53:43Z
 
 yes, refactor out the search module.  create unit tests as well
+
+---
+
+## 2026-01-24T16:18:28Z
+
+lets start addressing user interface code refactoring.  we have panels that can be broken out into their own modules or files.  review what to do there and prose a plan.  i'm concerned how it might affect data flow
+
+---
+
+## 2026-01-24T16:21:23Z
+
+great plan, start with MetricsPanel

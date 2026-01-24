@@ -35,6 +35,7 @@ import {
   type SearchResult,
   type SearchContentType,
 } from './search';
+import { MetricsPanel } from './ui';
 
 // Get DOM elements
 const container = document.getElementById('canvas-container');
@@ -99,7 +100,7 @@ let allExpanded = false;
 
 // Chart state
 let currentFocusIndex = 0;
-type MetricKey = 'totalTokens' | 'outputTokens' | 'inputTokens' | 'thinkingCount' | 'toolCount' | 'contentLength';
+let metricsPanel: MetricsPanel | null = null;
 
 // View mode: '3d' | 'split' | 'conversation'
 let viewMode: '3d' | 'split' | 'conversation' = 'split';
@@ -204,6 +205,18 @@ const viewer = new Viewer({
   container,
   background: 0x1a1a2e,
 });
+
+// Create metrics panel
+if (metricsStack) {
+  metricsPanel = new MetricsPanel(
+    {
+      container: metricsStack,
+      rangeLabel: chartRange,
+      tooltip: chartTooltip,
+    },
+    viewer
+  );
+}
 
 // Setup stats display
 viewer.onStats((stats) => {
@@ -329,7 +342,7 @@ async function loadFile(content: string, filename: string, skipSave = false, cus
     }
 
     setTimeout(() => {
-      drawCharts(currentFocusIndex);
+      metricsPanel?.draw(currentFocusIndex);
       renderWordFrequencyChart();
 
       // Set initial camera view for new traces
@@ -1307,228 +1320,11 @@ function formatDuration(ms: number): string {
   return `${hours}h ${remainingMinutes}m`;
 }
 
-// Metrics are now in sidebar - no positioning needed
-
-// Minimum bar width for readability
-const MIN_BAR_WIDTH = 4;
-const BAR_GAP = 1;
-const CHART_PADDING = 2;
-
-/**
- * Draw a single metric chart with scrollable support
- */
-function drawMetricChart(canvas: HTMLCanvasElement, values: number[], focusIndex?: number, color = '#4a90d9'): void {
-  const maxValue = Math.max(...values, 1);
-  const container = canvas.parentElement;
-  if (!container) return;
-
-  const dpr = window.devicePixelRatio || 1;
-  const containerWidth = container.clientWidth;
-  const height = 24;
-
-  // Calculate bar width - use minimum if needed, otherwise fit to container
-  const naturalBarWidth = (containerWidth - CHART_PADDING * 2) / values.length - BAR_GAP;
-  const barWidth = Math.max(MIN_BAR_WIDTH, naturalBarWidth);
-
-  // Calculate required canvas width
-  const requiredWidth = CHART_PADDING * 2 + values.length * (barWidth + BAR_GAP);
-  const canvasWidth = Math.max(containerWidth, requiredWidth);
-
-  // Set canvas size
-  canvas.width = canvasWidth * dpr;
-  canvas.height = height * dpr;
-  canvas.style.width = `${canvasWidth}px`;
-  canvas.style.height = `${height}px`;
-
-  const ctx = canvas.getContext('2d');
-  if (!ctx) return;
-
-  ctx.scale(dpr, dpr);
-
-  // Clear
-  ctx.fillStyle = '#2a2a40';
-  ctx.fillRect(0, 0, canvasWidth, height);
-
-  // Draw bars
-  const minBarHeight = 3; // Minimum visible height for non-zero values
-  for (let i = 0; i < values.length; i++) {
-    const value = values[i];
-
-    // Skip zero values entirely
-    if (value === 0) continue;
-
-    // Non-zero values get at least minBarHeight so they're visible
-    const scaledHeight = (value / maxValue) * (height - CHART_PADDING * 2);
-    const barHeight = Math.max(minBarHeight, scaledHeight);
-    const x = CHART_PADDING + i * (barWidth + BAR_GAP);
-    const y = height - CHART_PADDING - barHeight;
-
-    // Highlight focused bar
-    if (focusIndex !== undefined && i === focusIndex) {
-      ctx.fillStyle = '#ffffff';
-    } else {
-      ctx.fillStyle = color;
-    }
-
-    ctx.fillRect(x, y, barWidth, barHeight);
-  }
-
-  // Auto-scroll to focused bar if needed
-  if (focusIndex !== undefined && canvasWidth > containerWidth) {
-    const focusX = CHART_PADDING + focusIndex * (barWidth + BAR_GAP);
-    const scrollTarget = focusX - containerWidth / 2 + barWidth / 2;
-    container.scrollLeft = Math.max(0, Math.min(scrollTarget, canvasWidth - containerWidth));
-  }
-}
-
-/**
- * Draw all visible metric charts
- */
-function drawCharts(focusIndex?: number): void {
-  if (!metricsStack) return;
-
-  const metrics = viewer.getClusterMetrics();
-  if (metrics.length === 0) {
-    return;
-  }
-
-  // Update range label
-  if (chartRange) {
-    chartRange.textContent = `1-${metrics.length}`;
-  }
-
-  // Color map for different metrics
-  const colors: Record<MetricKey, string> = {
-    totalTokens: '#4a90d9',
-    outputTokens: '#50c878',
-    inputTokens: '#9b59b6',
-    thinkingCount: '#9b59b6',
-    toolCount: '#f39c12',
-    contentLength: '#888888',
-  };
-
-  // Draw each visible chart and update totals
-  const rows = metricsStack.querySelectorAll('.metric-row');
-  rows.forEach((row) => {
-    const metricKey = row.getAttribute('data-metric') as MetricKey;
-    const canvas = row.querySelector('.metric-canvas') as HTMLCanvasElement;
-    const totalEl = row.querySelector('.metric-total') as HTMLElement;
-
-    if (!metricKey || !canvas) return;
-
-    const values = metrics.map(m => m[metricKey]);
-    drawMetricChart(canvas, values, focusIndex, colors[metricKey]);
-
-    // Update total
-    if (totalEl) {
-      const total = values.reduce((sum, v) => sum + v, 0);
-      totalEl.textContent = formatMetricValue(total);
-    }
-  });
-}
-
-/**
- * Format metric value for display (compact numbers)
- */
-function formatMetricValue(value: number): string {
-  if (value >= 1000000) {
-    return (value / 1000000).toFixed(1) + 'M';
-  }
-  if (value >= 1000) {
-    return (value / 1000).toFixed(1) + 'K';
-  }
-  return value.toString();
-}
-
-// Setup metric click-to-select
-if (metricsStack) {
-  // Click on chart to select cluster
-  metricsStack.addEventListener('click', (e) => {
-    const container = (e.target as HTMLElement).closest('.metric-chart-container');
-    const canvas = container?.querySelector('.metric-canvas') as HTMLCanvasElement;
-    if (!container || !canvas) return;
-
-    const clusterCount = viewer.getClusterCount();
-    if (clusterCount === 0) return;
-
-    // Get click position relative to canvas (accounting for scroll)
-    const containerRect = container.getBoundingClientRect();
-    const x = e.clientX - containerRect.left + container.scrollLeft;
-
-    // Calculate bar width (same logic as drawing)
-    const containerWidth = container.clientWidth;
-    const naturalBarWidth = (containerWidth - CHART_PADDING * 2) / clusterCount - BAR_GAP;
-    const barWidth = Math.max(MIN_BAR_WIDTH, naturalBarWidth);
-
-    // Calculate which cluster was clicked
-    const clusterIndex = Math.floor((x - CHART_PADDING) / (barWidth + BAR_GAP));
-
-    if (clusterIndex >= 0 && clusterIndex < clusterCount) {
-      viewer.selectClusterByIndex(clusterIndex);
-    }
-  });
-
-  // Chart tooltip on hover
-  metricsStack.addEventListener('mousemove', (e) => {
-    if (!chartTooltip) return;
-
-    const container = (e.target as HTMLElement).closest('.metric-chart-container');
-    const row = (e.target as HTMLElement).closest('.metric-row');
-    const canvas = container?.querySelector('.metric-canvas') as HTMLCanvasElement;
-
-    if (!container || !row || !canvas) {
-      chartTooltip.classList.remove('visible');
-      return;
-    }
-
-    const metricKey = row.getAttribute('data-metric') as MetricKey;
-    const metrics = viewer.getClusterMetrics();
-    if (metrics.length === 0) {
-      chartTooltip.classList.remove('visible');
-      return;
-    }
-
-    // Get click position relative to canvas (accounting for scroll)
-    const containerRect = container.getBoundingClientRect();
-    const x = e.clientX - containerRect.left + container.scrollLeft;
-
-    // Calculate bar width (same logic as drawing)
-    const containerWidth = container.clientWidth;
-    const naturalBarWidth = (containerWidth - CHART_PADDING * 2) / metrics.length - BAR_GAP;
-    const barWidth = Math.max(MIN_BAR_WIDTH, naturalBarWidth);
-
-    // Calculate which cluster is hovered
-    const clusterIndex = Math.floor((x - CHART_PADDING) / (barWidth + BAR_GAP));
-
-    if (clusterIndex >= 0 && clusterIndex < metrics.length) {
-      const value = metrics[clusterIndex][metricKey];
-      const turnEl = chartTooltip.querySelector('.tooltip-turn');
-      const valueEl = chartTooltip.querySelector('.tooltip-value');
-
-      if (turnEl) turnEl.textContent = `Turn ${clusterIndex + 1}`;
-      if (valueEl) valueEl.textContent = value.toLocaleString();
-
-      // Position tooltip near cursor
-      chartTooltip.style.left = `${e.clientX + 12}px`;
-      chartTooltip.style.top = `${e.clientY - 10}px`;
-      chartTooltip.classList.add('visible');
-    } else {
-      chartTooltip.classList.remove('visible');
-    }
-  });
-
-  metricsStack.addEventListener('mouseleave', () => {
-    if (chartTooltip) {
-      chartTooltip.classList.remove('visible');
-    }
-  });
-}
-
 // Update charts and conversation when selection changes
 viewer.onSelect((selection) => {
   if (selection?.clusterIndex !== undefined) {
     currentFocusIndex = selection.clusterIndex;
-    drawCharts(currentFocusIndex);
+    metricsPanel?.draw(currentFocusIndex);
 
     // Sync conversation scroll to selection
     scrollConversationToCluster(selection.clusterIndex);
@@ -1660,7 +1456,7 @@ viewer.onSelect((selection) => {
 
 // Redraw charts on window resize
 window.addEventListener('resize', () => {
-  drawCharts(currentFocusIndex);
+  metricsPanel?.draw(currentFocusIndex);
 });
 
 // Redraw charts when sidebar is resized
@@ -1668,7 +1464,7 @@ if (sidebar) {
   const resizeObserver = new ResizeObserver(() => {
     // Small delay to let layout settle
     requestAnimationFrame(() => {
-      drawCharts(currentFocusIndex);
+      metricsPanel?.draw(currentFocusIndex);
     });
   });
   resizeObserver.observe(sidebar);
