@@ -817,12 +817,12 @@ window.addEventListener('beforeunload', () => {
   splitPaneController?.dispose();
 });
 
-// Also save periodically while using (every 30 seconds if there's a trace loaded)
-setInterval(() => {
+// Register periodic autosave with the viewer's render loop (every 30 seconds)
+viewer.onPeriodicTick(() => {
   if (currentTraceId) {
     saveCurrentUIState();
   }
-}, 30000);
+}, 30);
 
 // Log ready state
 console.log('Thinking Tracer ready');

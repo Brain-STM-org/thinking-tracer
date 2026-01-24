@@ -955,3 +955,9 @@ with regards to usage of setInterval and timers and listeners, are we using any 
 ## 2026-01-24T21:06:51Z
 
 start with 1
+
+---
+
+## 2026-01-24T21:11:09Z
+
+2 move autosave to render loop

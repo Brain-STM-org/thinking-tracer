@@ -110,6 +110,11 @@ export class Viewer {
   private mouseDownPos = { x: 0, y: 0 };
   private mouseDownTime = 0;
 
+  // Periodic callback for tasks like autosave (called from render loop)
+  private periodicCallback?: () => void;
+  private periodicIntervalSeconds = 30;
+  private timeSincePeriodicCallback = 0;
+
   // Materials for different node types
   private materials: Record<NodeType, THREE.MeshStandardMaterial>;
   private highlightMaterial: THREE.MeshStandardMaterial;
@@ -233,6 +238,7 @@ export class Viewer {
     this.scene.start((deltaTime) => {
       this.controls.update();
       this.updateAnimation(deltaTime);
+      this.updatePeriodicCallback(deltaTime);
     });
   }
 
@@ -968,6 +974,31 @@ export class Viewer {
         this.cameraAnimating = false;
       }
     }
+  }
+
+  /**
+   * Update periodic callback timer
+   */
+  private updatePeriodicCallback(deltaTime: number): void {
+    if (!this.periodicCallback) return;
+
+    this.timeSincePeriodicCallback += deltaTime;
+    if (this.timeSincePeriodicCallback >= this.periodicIntervalSeconds) {
+      this.periodicCallback();
+      this.timeSincePeriodicCallback = 0;
+    }
+  }
+
+  /**
+   * Register a callback to be called periodically from the render loop.
+   * This is useful for tasks like autosaving UI state.
+   * @param callback Function to call periodically
+   * @param intervalSeconds How often to call (default 30 seconds)
+   */
+  public onPeriodicTick(callback: () => void, intervalSeconds = 30): void {
+    this.periodicCallback = callback;
+    this.periodicIntervalSeconds = intervalSeconds;
+    this.timeSincePeriodicCallback = 0;
   }
 
   /**
