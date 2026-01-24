@@ -875,3 +875,11 @@ let's continue refactoring, we can work on the intro/loading page.  refactor out
 ## 2026-01-24T18:46:54Z
 
 let's pull hash utils into its own util file
+
+---
+
+## 2026-01-24T18:58:36Z
+
+let's address magic numbers, especially in the realm of layouts.   i would like both the layout state and the entire application styling to be well typed with a default struct, which is the primary refactoring task this step
+
+

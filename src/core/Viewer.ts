@@ -20,6 +20,11 @@ import {
   getSpiralPosition as getLayoutPosition,
   type CoilLayoutParams,
 } from './layout';
+import {
+  DEFAULT_LAYOUT_CONFIG,
+  DEFAULT_THEME_CONFIG,
+  DEFAULT_TIMING_CONFIG,
+} from '../config';
 
 export interface ViewerOptions extends Omit<SceneOptions, 'container'> {
   /** Container element or selector */
@@ -58,8 +63,12 @@ export interface SelectionInfo {
   clusterIndex?: number;
 }
 
-// Animation duration in ms
-const ANIMATION_DURATION = 400;
+// Config defaults for use within this module
+const config = {
+  layout: DEFAULT_LAYOUT_CONFIG,
+  theme: DEFAULT_THEME_CONFIG,
+  timing: DEFAULT_TIMING_CONFIG,
+};
 
 export class Viewer {
   private scene: Scene;
@@ -93,9 +102,6 @@ export class Viewer {
   private cameraStartLookAt = new THREE.Vector3();
   private cameraTargetLookAt = new THREE.Vector3();
 
-  // Selection scale
-  private readonly selectedScale = 1.25; // 25% larger
-
   // Double-click detection
   private lastClickTime = 0;
   private lastClickedNode: VisualNode | null = null;
@@ -114,21 +120,21 @@ export class Viewer {
   private clusterLineMaterial: LineMaterial;
 
   // Layout parameters - primary spiral (tight coil)
-  private spiralRadius = 2.5;        // Radius of the tight spiral
-  private spiralAngleStep = Math.PI / 2.5; // Angle per cluster on tight spiral
-  private readonly expandedSpacing = 2;
-  private readonly blockSpacing = 1.2;
+  private spiralRadius = config.layout.coil.spiralRadius;
+  private spiralAngleStep = config.layout.coil.spiralAngleStep;
+  private readonly expandedSpacing = config.layout.expanded.turnSpacing;
+  private readonly blockSpacing = config.layout.expanded.blockSpacing;
 
   // Secondary coil parameters (the path the spiral follows)
-  private coilRadius = 6;            // Radius of the larger coil path
-  private coilAngleStep = Math.PI / 8; // Slower rotation for the coil path
-  private coilVerticalStep = 1.5;    // Vertical rise per coil rotation
+  private coilRadius = config.layout.coil.coilRadius;
+  private coilAngleStep = config.layout.coil.coilAngleStep;
+  private coilVerticalStep = config.layout.coil.coilVerticalStep;
 
   // Slinky effect parameters
   private focusClusterIndex = 0;
-  private minVerticalSpacing = 0.2;  // Compressed spacing at ends
-  private maxVerticalSpacing = 1.5;  // Expanded spacing at focus
-  private focusRadius = 4;           // How many clusters around focus get expanded
+  private minVerticalSpacing = config.layout.focus.minVerticalSpacing;
+  private maxVerticalSpacing = config.layout.focus.maxVerticalSpacing;
+  private focusRadius = config.layout.focus.focusRadius;
 
   // Search filter - null means show all, Set means show only those clusters
   private searchFilterClusters: Set<number> | null = null;
@@ -151,38 +157,56 @@ export class Viewer {
       domElement: this.scene.renderer.domElement,
     });
 
-    // Initialize materials
+    // Initialize materials from theme config
+    const { nodes: nodeThemes, highlight, connectionLine, clusterLine } = config.theme;
     this.materials = {
-      user: new THREE.MeshStandardMaterial({ color: 0x4a90d9, roughness: 0.5 }),
-      assistant: new THREE.MeshStandardMaterial({ color: 0x50c878, roughness: 0.5 }),
-      thinking: new THREE.MeshStandardMaterial({ color: 0x9b59b6, roughness: 0.3, transparent: true, opacity: 0.8 }),
-      tool_use: new THREE.MeshStandardMaterial({ color: 0xf39c12, roughness: 0.4 }),
-      tool_result: new THREE.MeshStandardMaterial({ color: 0xe74c3c, roughness: 0.4 }),
+      user: new THREE.MeshStandardMaterial({
+        color: nodeThemes.user.color,
+        roughness: nodeThemes.user.material.roughness,
+      }),
+      assistant: new THREE.MeshStandardMaterial({
+        color: nodeThemes.assistant.color,
+        roughness: nodeThemes.assistant.material.roughness,
+      }),
+      thinking: new THREE.MeshStandardMaterial({
+        color: nodeThemes.thinking.color,
+        roughness: nodeThemes.thinking.material.roughness,
+        transparent: nodeThemes.thinking.material.transparent,
+        opacity: nodeThemes.thinking.material.opacity,
+      }),
+      tool_use: new THREE.MeshStandardMaterial({
+        color: nodeThemes.toolUse.color,
+        roughness: nodeThemes.toolUse.material.roughness,
+      }),
+      tool_result: new THREE.MeshStandardMaterial({
+        color: nodeThemes.toolResult.color,
+        roughness: nodeThemes.toolResult.material.roughness,
+      }),
       cluster: this.createClusterMaterial(),
     };
 
     // Highlight material for selected nodes
     this.highlightMaterial = new THREE.MeshStandardMaterial({
-      color: 0xffffff,
-      roughness: 0.2,
-      emissive: 0x444444,
+      color: highlight.color,
+      roughness: highlight.material.roughness,
+      emissive: highlight.material.emissive,
     });
 
     // Line material for connections within expanded clusters
     this.lineMaterial = new LineMaterial({
-      color: 0x666688,
+      color: connectionLine.color,
       transparent: true,
-      opacity: 0.6,
-      linewidth: 2,
+      opacity: connectionLine.opacity,
+      linewidth: connectionLine.width,
       resolution: new THREE.Vector2(window.innerWidth, window.innerHeight),
     });
 
-    // Line material for cluster-to-cluster connections (using LineMaterial for proper width support)
+    // Line material for cluster-to-cluster connections
     this.clusterLineMaterial = new LineMaterial({
-      color: 0xb7410e, // rusty red
+      color: clusterLine.color,
       transparent: true,
-      opacity: 0.4,
-      linewidth: 6, // in pixels
+      opacity: clusterLine.opacity,
+      linewidth: clusterLine.width,
       resolution: new THREE.Vector2(window.innerWidth, window.innerHeight),
     });
 
@@ -209,10 +233,11 @@ export class Viewer {
    * Create gradient-like material for clusters
    */
   private createClusterMaterial(): THREE.MeshStandardMaterial {
+    const { cluster } = config.theme.nodes;
     return new THREE.MeshStandardMaterial({
-      color: 0x5a9a7a, // Blend of user blue and assistant green
-      roughness: 0.3,
-      metalness: 0.1,
+      color: cluster.color,
+      roughness: cluster.material.roughness,
+      metalness: cluster.material.metalness,
     });
   }
 
@@ -234,8 +259,9 @@ export class Viewer {
       const dy = event.clientY - mouseDownPos.y;
       const dist = Math.sqrt(dx * dx + dy * dy);
       const duration = Date.now() - mouseDownTime;
+      const { maxClickDistance, maxClickDuration } = config.timing.interaction;
 
-      if (dist < 5 && duration < 300) {
+      if (dist < maxClickDistance && duration < maxClickDuration) {
         this.handleClick(event);
       }
     });
@@ -351,7 +377,8 @@ export class Viewer {
    * Get nodes that are currently selectable (visible)
    */
   private getSelectableNodes(): VisualNode[] {
-    return this.nodes.filter(n => n.mesh.visible && n.mesh.scale.x > 0.01);
+    const threshold = config.layout.selection.visibilityThreshold;
+    return this.nodes.filter(n => n.mesh.visible && n.mesh.scale.x > threshold);
   }
 
   /**
@@ -393,7 +420,8 @@ export class Viewer {
 
       if (node) {
         const now = Date.now();
-        const isDoubleClick = (now - this.lastClickTime < 400) && (this.lastClickedNode === node);
+        const { doubleClickWindow } = config.timing.interaction;
+        const isDoubleClick = (now - this.lastClickTime < doubleClickWindow) && (this.lastClickedNode === node);
 
         if (isDoubleClick && node.type === 'cluster') {
           // Double-click on cluster: toggle expand/collapse
@@ -457,7 +485,8 @@ export class Viewer {
       (node as any).originalScale = node.mesh.scale.x;
     }
     const originalScale = (node as any).originalScale as number;
-    node.mesh.scale.setScalar(originalScale * this.selectedScale);
+    const { selectedScale } = config.layout.selection;
+    node.mesh.scale.setScalar(originalScale * selectedScale);
   }
 
   /**
@@ -477,8 +506,9 @@ export class Viewer {
     const nodePos = node.mesh.position.clone();
     const currentTarget = this.controls.getTarget();
 
-    // Only animate the look-at target towards the node (blend 30% towards it)
-    const targetLookAt = currentTarget.clone().lerp(nodePos, 0.3);
+    // Only animate the look-at target towards the node
+    const { lookAtBlendFactor } = config.layout.camera;
+    const targetLookAt = currentTarget.clone().lerp(nodePos, lookAtBlendFactor);
 
     // Start camera animation (only adjusting look-at, not position)
     this.cameraAnimating = true;
@@ -656,12 +686,12 @@ export class Viewer {
    * Create a cluster node
    */
   private createClusterNode(cluster: TurnCluster): VisualNode {
-    // Size based on content
-    const baseSize = 0.8;
-    const sizeBonus = Math.min(0.5, (cluster.thinkingCount + cluster.toolCount) * 0.1);
-    const size = baseSize + sizeBonus;
+    // Size based on content from config
+    const { clusterBase, clusterMaxBonus, clusterSegments } = config.layout.nodeSize;
+    const sizeBonus = Math.min(clusterMaxBonus, (cluster.thinkingCount + cluster.toolCount) * 0.1);
+    const size = clusterBase + sizeBonus;
 
-    const geometry = new THREE.SphereGeometry(size, 24, 24);
+    const geometry = new THREE.SphereGeometry(size, clusterSegments, clusterSegments);
     const material = this.materials.cluster;
     const mesh = new THREE.Mesh(geometry, material);
 
@@ -690,19 +720,20 @@ export class Viewer {
    * Get geometry for a node type
    */
   private getGeometryForType(type: NodeType): THREE.BufferGeometry {
+    const { nodeSize } = config.layout;
     switch (type) {
       case 'user':
-        return new THREE.BoxGeometry(0.8, 0.8, 0.8);
+        return new THREE.BoxGeometry(...nodeSize.user);
       case 'assistant':
-        return new THREE.BoxGeometry(1, 1, 1);
+        return new THREE.BoxGeometry(...nodeSize.assistant);
       case 'thinking':
-        return new THREE.SphereGeometry(0.4, 16, 16);
+        return new THREE.SphereGeometry(nodeSize.thinkingRadius, nodeSize.thinkingSegments, nodeSize.thinkingSegments);
       case 'tool_use':
-        return new THREE.ConeGeometry(0.3, 0.6, 6);
+        return new THREE.ConeGeometry(nodeSize.toolUseRadius, nodeSize.toolUseHeight, nodeSize.toolUseSegments);
       case 'tool_result':
-        return new THREE.OctahedronGeometry(0.3);
+        return new THREE.OctahedronGeometry(nodeSize.toolResultSize);
       case 'cluster':
-        return new THREE.SphereGeometry(0.8, 24, 24);
+        return new THREE.SphereGeometry(nodeSize.clusterBase, nodeSize.clusterSegments, nodeSize.clusterSegments);
       default:
         return new THREE.BoxGeometry(0.5, 0.5, 0.5);
     }
@@ -767,16 +798,17 @@ export class Viewer {
           const pos = clusterPos.clone();
           pos.y += offsetY;
 
-          // Offset different types
+          // Offset different types using config
+          const { thinkingOffset, toolUseOffset, toolResultOffset } = config.layout.expanded;
           if (node.type === 'thinking') {
-            pos.x += 1;
-            pos.z += 0.5;
+            pos.x += thinkingOffset[0];
+            pos.z += thinkingOffset[1];
           } else if (node.type === 'tool_use') {
-            pos.x += 0.8;
-            pos.z -= 0.5;
+            pos.x += toolUseOffset[0];
+            pos.z += toolUseOffset[1];
           } else if (node.type === 'tool_result') {
-            pos.x += 1.2;
-            pos.z -= 0.3;
+            pos.x += toolResultOffset[0];
+            pos.z += toolResultOffset[1];
           }
 
           node.targetPosition = pos;
@@ -806,13 +838,14 @@ export class Viewer {
       this.startAnimation();
     } else {
       // Apply immediately
+      const threshold = config.layout.selection.visibilityThreshold;
       for (const node of this.nodes) {
         if (node.targetPosition) {
           node.mesh.position.copy(node.targetPosition);
         }
         if (node.targetScale !== undefined) {
           node.mesh.scale.setScalar(node.targetScale);
-          node.mesh.visible = node.targetScale > 0.01;
+          node.mesh.visible = node.targetScale > threshold;
         }
       }
     }
@@ -837,10 +870,12 @@ export class Viewer {
    * Update animation frame
    */
   private updateAnimation(_deltaTime: number): void {
+    const animationDuration = config.timing.animation.layoutTransition;
+
     // Layout animation
     if (this.animating) {
       const elapsed = Date.now() - this.animationStart;
-      const progress = Math.min(1, elapsed / ANIMATION_DURATION);
+      const progress = Math.min(1, elapsed / animationDuration);
 
       // Ease out cubic
       const eased = 1 - Math.pow(1 - progress, 3);
@@ -856,7 +891,7 @@ export class Viewer {
         if (node.targetScale !== undefined && startScale !== undefined) {
           const newScale = startScale + (node.targetScale - startScale) * eased;
           node.mesh.scale.setScalar(newScale);
-          node.mesh.visible = newScale > 0.01;
+          node.mesh.visible = newScale > config.layout.selection.visibilityThreshold;
         }
       }
 
@@ -881,8 +916,9 @@ export class Viewer {
 
     // Camera animation
     if (this.cameraAnimating) {
+      const cameraAnimDuration = config.timing.animation.cameraTransition;
       const elapsed = Date.now() - this.cameraAnimStart;
-      const progress = Math.min(1, elapsed / ANIMATION_DURATION);
+      const progress = Math.min(1, elapsed / cameraAnimDuration);
 
       // Ease out cubic
       const eased = 1 - Math.pow(1 - progress, 3);
@@ -1042,12 +1078,13 @@ export class Viewer {
     const center = box.getCenter(new THREE.Vector3());
     const size = box.getSize(new THREE.Vector3());
     const maxDim = Math.max(size.x, size.y, size.z);
+    const [offsetX, offsetY, offsetZ] = config.layout.camera.fitViewOffset;
 
     this.controls.setTarget(center.x, center.y, center.z);
     this.scene.camera.position.set(
-      center.x + maxDim * 0.8,
-      center.y + maxDim * 0.5,
-      center.z + maxDim * 1.2
+      center.x + maxDim * offsetX,
+      center.y + maxDim * offsetY,
+      center.z + maxDim * offsetZ
     );
   }
 
@@ -1465,14 +1502,15 @@ export class Viewer {
    * Reset coil parameters to defaults
    */
   public resetCoilParams(): void {
-    this.spiralRadius = 2.5;
-    this.spiralAngleStep = Math.PI / 2.5;
-    this.coilRadius = 6;
-    this.coilAngleStep = Math.PI / 8;
-    this.coilVerticalStep = 1.5;
-    this.focusRadius = 4;
-    this.minVerticalSpacing = 0.2;
-    this.maxVerticalSpacing = 1.5;
+    const { coil, focus } = config.layout;
+    this.spiralRadius = coil.spiralRadius;
+    this.spiralAngleStep = coil.spiralAngleStep;
+    this.coilRadius = coil.coilRadius;
+    this.coilAngleStep = coil.coilAngleStep;
+    this.coilVerticalStep = coil.coilVerticalStep;
+    this.focusRadius = focus.focusRadius;
+    this.minVerticalSpacing = focus.minVerticalSpacing;
+    this.maxVerticalSpacing = focus.maxVerticalSpacing;
     this.animateLayout();
   }
 

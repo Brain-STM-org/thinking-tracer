@@ -728,3 +728,227 @@ The extraction of FileLoader and RecentTracesManager continues the modularizatio
 - Comprehensive unit test coverage
 
 The remaining main.ts code primarily handles UI wiring and coordination between modules, which is an appropriate responsibility for an application entry point.
+
+---
+
+## Configuration Module: Typed Defaults for Magic Numbers
+
+**Date**: 2026-01-24 (continued session)
+**Scope**: Extract all magic numbers into well-typed configuration module
+
+### Summary
+
+Following recommendations from the initial review to address magic numbers, a comprehensive configuration module was created to provide typed defaults for all layout, theme, timing, and UI constants throughout the application.
+
+### New Module Structure
+
+```
+src/config/
+├── index.ts           (AppConfig combination & utilities)
+├── layout.ts          (3D layout parameters)
+├── theme.ts           (Colors, materials, visual styling)
+├── timing.ts          (Animation durations, debounce, intervals)
+├── ui.ts              (UI constraints, chart params, scroll)
+└── config.test.ts     (37 tests)
+```
+
+### Configuration Interfaces
+
+#### LayoutConfig (`src/config/layout.ts`)
+
+Defines all 3D layout parameters:
+
+```typescript
+export interface LayoutConfig {
+  coil: CoilLayoutConfig;      // Spiral/coil parameters
+  focus: FocusConfig;          // Slinky effect parameters
+  nodeSize: NodeSizeConfig;    // Geometry dimensions for each node type
+  expanded: ExpandedLayoutConfig; // Spacing when clusters expand
+  camera: CameraConfig;        // FOV, clipping planes, fit offsets
+  selection: SelectionConfig;  // Scale factor, visibility threshold
+}
+```
+
+Key values now typed and documented:
+- `spiralRadius: 2.5` - Radius of the tight inner spiral
+- `coilRadius: 6` - Radius of the larger coil path
+- `selectedScale: 1.25` - 25% enlargement on selection
+- `visibilityThreshold: 0.01` - Hide nodes below this scale
+
+#### ThemeConfig (`src/config/theme.ts`)
+
+Defines all colors and material properties:
+
+```typescript
+export interface ThemeConfig {
+  nodes: NodeThemes;           // Colors/materials per node type
+  highlight: HighlightTheme;   // Selection highlight
+  connectionLine: LineTheme;   // Lines within expanded clusters
+  clusterLine: LineTheme;      // Cluster-to-cluster connections
+  scene: SceneTheme;           // Background, lighting
+  chart: ChartColors;          // Metrics chart colors (CSS)
+  wordHighlightPalette: number[]; // 10-color palette for word frequency
+  ui: UIColors;                // Muted text, notifications
+}
+```
+
+Includes utility functions:
+- `hexToCSS(0x4a90d9)` → `'#4a90d9'`
+- `cssToHex('#4a90d9')` → `0x4a90d9`
+
+#### TimingConfig (`src/config/timing.ts`)
+
+Defines all timing-related constants:
+
+```typescript
+export interface TimingConfig {
+  animation: AnimationTimingConfig;   // Layout/camera transitions
+  debounce: DebounceConfig;           // Search, render delays
+  interval: IntervalConfig;           // Autosave, file watch poll
+  interaction: InteractionTimingConfig; // Click/double-click detection
+}
+```
+
+Key values:
+- `layoutTransition: 400` - ms for layout animation
+- `doubleClickWindow: 400` - ms to detect double-click
+- `maxClickDistance: 5` - px threshold for click vs drag
+
+#### UIConfig (`src/config/ui.ts`)
+
+Defines UI constraints:
+
+```typescript
+export interface UIConfig {
+  sidebar: SidebarConfig;       // Min/max/default widths
+  splitPane: SplitPaneConfig;   // Min canvas/conversation widths
+  chart: ChartConfig;           // Bar dimensions, padding
+  textDisplay: TextDisplayConfig; // Length indicator threshold
+  scroll: ScrollConfig;         // Focus point ratio
+  renderer: RendererConfig;     // Max pixel ratio
+}
+```
+
+### Integration Points
+
+#### Viewer.ts
+
+Before:
+```typescript
+// Magic numbers scattered throughout
+private spiralRadius = 2.5;
+private coilRadius = 6;
+const ANIMATION_DURATION = 400;
+this.materials = {
+  user: new THREE.MeshStandardMaterial({ color: 0x4a90d9, roughness: 0.5 }),
+  // ...
+};
+```
+
+After:
+```typescript
+import { DEFAULT_LAYOUT_CONFIG, DEFAULT_THEME_CONFIG, DEFAULT_TIMING_CONFIG } from '../config';
+
+const config = {
+  layout: DEFAULT_LAYOUT_CONFIG,
+  theme: DEFAULT_THEME_CONFIG,
+  timing: DEFAULT_TIMING_CONFIG,
+};
+
+// All values from config
+private spiralRadius = config.layout.coil.spiralRadius;
+const animationDuration = config.timing.animation.layoutTransition;
+const { nodes: nodeThemes } = config.theme;
+this.materials = {
+  user: new THREE.MeshStandardMaterial({
+    color: nodeThemes.user.color,
+    roughness: nodeThemes.user.material.roughness,
+  }),
+  // ...
+};
+```
+
+#### Scene.ts
+
+Before:
+```typescript
+const { background = 0x1a1a2e } = options;
+this.camera = new THREE.PerspectiveCamera(60, aspect, 0.1, 1000);
+this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+const ambient = new THREE.AmbientLight(0xffffff, 0.6);
+```
+
+After:
+```typescript
+import { DEFAULT_LAYOUT_CONFIG, DEFAULT_THEME_CONFIG, DEFAULT_UI_CONFIG } from '../config';
+
+const { background = themeConfig.scene.background } = options;
+const { fov, near, far, initialZ } = layoutConfig.camera;
+this.camera = new THREE.PerspectiveCamera(fov, aspect, near, far);
+this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, uiConfig.renderer.maxPixelRatio));
+const ambient = new THREE.AmbientLight(
+  themeConfig.scene.ambientLightColor,
+  themeConfig.scene.ambientLightIntensity
+);
+```
+
+### Configuration Utilities
+
+The module provides utilities for customization:
+
+```typescript
+// Simple partial override
+const customConfig = createConfig({
+  layout: { ...DEFAULT_LAYOUT_CONFIG, coil: { ...DEFAULT_COIL, spiralRadius: 5 } },
+});
+
+// Deep merge utility
+const merged = mergeConfig(baseConfig, partialOverrides);
+```
+
+### Test Coverage
+
+37 tests covering:
+- All default value validations (positive numbers, valid ranges)
+- Configuration composition (defaults combine correctly)
+- Utility function behavior (hexToCSS, cssToHex roundtrip)
+- mergeConfig deep merge semantics
+
+### Benefits
+
+1. **Single Source of Truth**: All defaults defined once
+2. **Type Safety**: Full TypeScript interfaces prevent typos
+3. **Documentation**: Interfaces serve as documentation
+4. **Customization Ready**: Structure supports future theming/config overrides
+5. **Testable**: Configuration can be validated programmatically
+
+### Updated Metrics
+
+| Metric | After Loaders | After Config | Change |
+|--------|---------------|--------------|--------|
+| Total tests | 326 | 374 | +48 |
+| Magic numbers in Viewer.ts | ~25 | 0 | -100% |
+| Magic numbers in Scene.ts | ~10 | 0 | -100% |
+
+### Updated Issue Status
+
+| Issue | Status | Notes |
+|-------|--------|-------|
+| Magic Numbers | **Resolved** | All values now in typed config module |
+| Monolithic main.ts | Addressed | 57% reduction, ongoing |
+| Test Coverage Gaps | Addressed | 274 new tests since review |
+| Duplicated hashContent() | Resolved | Consolidated in `src/utils/hash.ts` |
+| Type Escape Hatches | Remaining | Some `as` casts still exist |
+| Memory Leaks (listeners) | Remaining | Window listeners need cleanup |
+| No Debouncing | Remaining | Timing config ready, not wired |
+| Accessibility | Remaining | No changes yet |
+
+### Conclusion
+
+The configuration module successfully addresses the "magic numbers" issue identified in the initial review. All layout, theme, timing, and UI constants are now:
+- Centrally defined with explicit types
+- Documented through interface properties
+- Validated through comprehensive tests
+- Ready for future customization/theming
+
+The module follows TypeScript best practices with explicit interface definitions and const defaults, enabling future features like user-customizable themes or presets without code changes to core components.
