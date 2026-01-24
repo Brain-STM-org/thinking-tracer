@@ -18,11 +18,13 @@ Conversations are organized as a **spiral helix** of turn clusters, providing a 
 - **Slinky effect**: The spiral compresses at the ends and expands around your focus point
 - **Click to navigate**: Select any cluster to focus on it
 - **Expand/collapse**: Double-click or press Enter to expand clusters and see individual blocks
+- **Configurable coiling**: Adjust spiral parameters in real-time via the Coil controls panel
 
 ### Interactive 3D Navigation
 - **Orbit controls**: Drag to rotate, scroll to zoom, Shift+drag to pan
 - **Keyboard navigation**: Arrow keys to move between nodes, Home/End for first/last
 - **Click selection**: Click any node to see its details
+- **Connection lines**: Visualize the path through clusters with customizable lines
 
 ### Metrics Dashboard
 A resizable panel shows per-turn metrics as stacked bar charts:
@@ -49,14 +51,33 @@ Displays conversation context:
 - Working directory
 
 ### Recent Traces
-Automatically saves recently viewed traces (IndexedDB) for quick access.
+Automatically saves recently viewed traces (IndexedDB) for quick access. Supports custom naming.
+
+### View Modes
+Switch between three viewing modes:
+- **3D View**: Full spatial visualization
+- **Split View**: 3D canvas alongside conversation panel
+- **Conversation View**: Linear text display with filtering
+
+### Conversation Filters
+In conversation and split views, filter content by type:
+- User messages
+- Assistant output
+- Thinking blocks
+- Tool calls/results
 
 ### Export
 Export conversations in two formats for sharing or documentation:
 - **HTML**: Self-contained styled document with collapsible sections
 - **Markdown**: Clean text format for documentation, GitHub issues, or further processing
 
-Access export options from the conversation view toolbar.
+### File Watching
+Watch files for live updates during active Claude Code sessions (Chromium browsers with File System Access API).
+
+### Compression Support
+Load compressed trace files directly:
+- Gzip (`.gz`)
+- Zstandard (`.zst`, `.zstd`)
 
 ## Getting Started
 
@@ -64,7 +85,7 @@ Access export options from the conversation view toolbar.
 Visit the [live demo](https://brain-stm-org.github.io/thinking-tracer/) and drag-and-drop a Claude Code `.jsonl` file.
 
 ### Try the Sample
-A sample trace file is included at [`public/samples/sample-trace.jsonl`](public/samples/sample-trace.jsonl) - this is the actual conversation trace from building this tool with Claude! Click "See How This Was Built" on the live demo to load it instantly.
+A sample trace file is included - this is the actual conversation trace from building this tool with Claude! Click "See How This Was Built" on the live demo to load it instantly.
 
 ### Local Development
 
@@ -101,7 +122,7 @@ npm run test
 |--------|-----------|--------|
 | Claude Code | `.jsonl` | `~/.claude/projects/*/*.jsonl` |
 
-Additional agent formats planned.
+Additional agent formats planned (Amp, ChatGPT).
 
 ## Keyboard Shortcuts
 
@@ -135,8 +156,11 @@ src/
 |-------|--------|
 | Language | TypeScript |
 | 3D Rendering | Three.js (WebGL) |
+| Line Rendering | Line2/LineMaterial |
 | Build Tool | Vite |
 | Testing | Vitest |
+| Compression | fzstd |
+| Markdown | marked |
 
 ## Deployment
 

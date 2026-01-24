@@ -785,3 +785,9 @@ we need to modify vite config server.allowedHosts  i'm getting blocked
 ## 2026-01-24T11:44:50Z
 
 you must set it to a boolean true (not a string)
+
+---
+
+## 2026-01-24T11:57:07Z
+
+we are going to step back for a moment.  first, i would like you to review the repo, update the plan and readme and agent files as applicable.

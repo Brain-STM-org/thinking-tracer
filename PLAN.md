@@ -68,7 +68,7 @@ Before implementation, these research-backed principles guide feature decisions:
   - Tool calls (orange cone)
   - Tool results (red octahedron)
   - Clusters (teal sphere, sized by content)
-- [x] Color legend panel
+- [x] Color legend panel (collapsible)
 
 ### 2.3 Thinking Block Visualization
 *Research: Reasoning is often more valuable than output*
@@ -137,7 +137,6 @@ Before implementation, these research-backed principles guide feature decisions:
 - [x] Git branch display
 - [x] Session duration
 - [x] Working directory
-- [x] Claude Code version
 
 ### 4.3 Detail Panel
 - [x] Content block type summary
@@ -149,13 +148,14 @@ Before implementation, these research-backed principles guide feature decisions:
 
 ---
 
-## Phase 5: Polish & UX - PARTIAL
+## Phase 5: Polish & UX - COMPLETE
 
 ### 5.1 Recent Traces
 - [x] IndexedDB storage for recent traces
 - [x] List in drop overlay
 - [x] Click to reload
 - [x] Delete individual / clear all
+- [x] Custom naming for traces
 
 ### 5.2 Deployment
 - [x] GitHub Actions workflow for GitHub Pages
@@ -165,15 +165,80 @@ Before implementation, these research-backed principles guide feature decisions:
 ### 5.3 UI Chrome
 - [x] Control panel (info, legend, detail, metrics)
 - [x] Back button to file selector
-- [ ] Help overlay / keyboard shortcuts guide
-- [ ] Loading states for large files
+- [x] Collapsible legend
+- [x] View mode switcher (3D / Split / Conversation)
 
-### 5.4 Performance Optimization
+### 5.4 Export
+- [x] Export to HTML (styled, collapsible sections)
+- [x] Export to Markdown
+- [x] Markdown rendering in conversation view
+
+### 5.5 File Handling
+- [x] Gzip compression support (.gz)
+- [x] Zstd compression support (.zst, .zstd)
+- [x] File watching for live updates (File System Access API)
+
+### 5.6 Conversation View
+- [x] Linear conversation display
+- [x] Filter toggles (User, Output, Thinking, Tools)
+- [x] Collapsible content blocks
+- [x] Markdown rendering
+
+---
+
+## Phase 6: Advanced Visualization - COMPLETE
+
+### 6.1 Coil Parameter Controls
+- [x] Interactive sliders for spiral layout tuning
+  - Primary spiral: radius, angle step
+  - Secondary coil: radius, angle step, vertical step
+  - Slinky effect: focus radius, min/max spacing
+- [x] Reset to defaults button
+- [x] Real-time animated updates
+
+### 6.2 Cluster Connection Lines
+- [x] Toggle for cluster-to-cluster connection lines
+- [x] Line2 rendering (triangle strips) for proper width support
+- [x] Customizable color picker with hex display
+- [x] Width slider (1-50 pixels)
+- [x] Opacity slider
+- [x] All lines use Line2 for cross-platform compatibility
+
+---
+
+## Phase 7: Expansion - PLANNED
+
+### 7.1 Additional Agent Formats
+- [ ] Abstract parser interface (partially done)
+- [ ] Amp thread format support
+- [ ] ChatGPT export format support
+- [ ] Document format specification for contributors
+
+### 7.2 Sub-Agent Visualization
+*Research: Amp sub-agents "execute parallel tasks and report results back"*
+
+- [ ] Detect sub-agent spawning in traces
+- [ ] Render sub-agents as nested hierarchies
+- [ ] Show parallel execution visually
+
+### 7.3 Embedding API
+- [ ] Define public component API
+- [ ] React wrapper component
+- [ ] Publish as npm package
+
+### 7.4 Advanced Search & Filter
+- [x] Text search across all content (basic)
+- [x] Regex search support
+- [x] Filter by content type
+- [x] Highlight search matches in 3D view
+- [ ] Advanced query syntax
+
+### 7.5 Performance Optimization
 - [ ] Instanced rendering for many nodes
 - [ ] Level-of-detail (simplify distant nodes)
 - [ ] Lazy loading for large conversations
 
-### 5.5 Accessibility
+### 7.6 Accessibility
 - [x] Keyboard navigation
 - [ ] 2D fallback mode (no WebGL required)
 - [ ] Screen reader descriptions
@@ -181,48 +246,28 @@ Before implementation, these research-backed principles guide feature decisions:
 
 ---
 
-## Phase 6: Expansion - PLANNED
-
-### 6.1 Additional Agent Formats
-- [ ] Abstract parser interface (partially done)
-- [ ] Amp thread format support
-- [ ] ChatGPT export format support
-- [ ] Document format specification for contributors
-
-### 6.2 Sub-Agent Visualization
-*Research: Amp sub-agents "execute parallel tasks and report results back"*
-
-- [ ] Detect sub-agent spawning in traces
-- [ ] Render sub-agents as nested hierarchies
-- [ ] Show parallel execution visually
-
-### 6.3 Embedding API
-- [ ] Define public component API
-- [ ] React wrapper component
-- [ ] Publish as npm package
-
-### 6.4 Search & Filter
-- [ ] Text search across all content
-- [ ] Filter by node type
-- [ ] Highlight search matches
-
----
-
 ## Current Status
 
-**Phases 1-4 Complete**: Core viewer functionality is working with:
-- Spiral cluster layout with slinky focus effect
+**Phases 1-6 Complete**: Full-featured viewer with:
+- Spiral cluster layout with configurable coil parameters
+- Slinky focus effect with adjustable spacing
 - Full expand/collapse interaction
+- Cluster-to-cluster connection lines with customization
 - Metrics dashboard with click-to-navigate
 - Detail panel with copy buttons
 - Session metadata display
-- Recent traces storage
+- Recent traces storage with custom naming
 - GitHub Pages deployment
+- Export to HTML and Markdown
+- Compression support (gzip, zstd)
+- File watching for live updates
+- Conversation view with filters
 
 **Next priorities**:
-1. Additional agent format support
-2. Search/filter functionality
+1. Additional agent format support (Amp, ChatGPT)
+2. Sub-agent visualization
 3. Performance optimization for large traces
+4. npm package publishing
 
 ---
 
@@ -232,7 +277,10 @@ Before implementation, these research-backed principles guide feature decisions:
 |-------|--------|-----------|
 | Language | TypeScript | Type safety, IDE support |
 | Rendering | Three.js (WebGL) | Mature, well-documented |
+| Lines | Line2/LineMaterial | Proper width on all platforms |
 | Build | Vite | Fast dev server, good defaults |
 | Testing | Vitest | Fast, Vite-compatible |
 | Storage | IndexedDB | Recent traces persistence |
+| Compression | fzstd | Zstd format support |
+| Markdown | marked | Content rendering |
 | Deployment | GitHub Pages | Free static hosting |

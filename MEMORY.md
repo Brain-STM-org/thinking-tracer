@@ -126,6 +126,66 @@ Treat conversation structure as a **visualization problem**, not a text display 
 - Store start positions, interpolate to targets
 - Selection transfers to parent cluster when child collapses
 
+### Line Rendering
+
+**Decision**: Use Line2/LineMaterial (triangle strips) instead of WebGL lines
+
+**Rationale**: WebGL's native `lineWidth` only works on some platforms (usually capped at 1px). Line2 renders lines as geometry strips, providing consistent line width across all platforms.
+
+**Implementation**:
+- Import from `three/examples/jsm/lines/`
+- LineMaterial requires resolution to be set and updated on resize
+- LineGeometry stores positions as flat arrays
+- Both cluster connection lines and intra-cluster lines use Line2
+
+### Coil Parameter Exposure
+
+**Decision**: Expose spiral layout parameters as interactive controls
+
+**Rationale**: Different conversations benefit from different spatial arrangements. Allowing users to tune the coil in real-time enables exploration of optimal layouts.
+
+**Implementation**:
+- All coil parameters (spiral radius, angle, coil radius, vertical step, slinky effect) accessible via sliders
+- Changes trigger animated layout transitions
+- Reset button restores defaults
+- Parameters: spiralRadius, spiralAngleStep, coilRadius, coilAngleStep, coilVerticalStep, focusRadius, minVerticalSpacing, maxVerticalSpacing
+
+### Cluster Connection Lines
+
+**Decision**: Visualize the path through conversation clusters
+
+**Rationale**: Connection lines help users trace the flow of conversation, especially useful with the spiral layout where spatial proximity doesn't always indicate temporal sequence.
+
+**Implementation**:
+- Default ON with rusty red color (#B7410E), 6px width, 40% opacity
+- Customizable color (with hex code display), width (1-50px), and opacity
+- Lines connect visible nodes (cluster nodes or first child when expanded)
+- Updates dynamically during layout animations
+
+### Compression Support
+
+**Decision**: Support gzip and zstd compressed trace files
+
+**Rationale**: Claude Code trace files can be large (10-30MB). Zstd compression achieves ~95% reduction. Supporting compressed files makes sharing and storage more practical.
+
+**Implementation**:
+- Gzip: Native browser DecompressionStream API
+- Zstd: fzstd library (pure JavaScript decoder)
+- Automatic detection by file extension (.gz, .zst, .zstd)
+- Transparent to the rest of the pipeline
+
+### File Watching
+
+**Decision**: Support live file watching for active sessions
+
+**Rationale**: Users often want to visualize conversations in progress. Polling for file changes enables live updates without manual reloading.
+
+**Implementation**:
+- Uses File System Access API (Chromium only)
+- Polling-based (1 second interval) checking lastModified and size
+- Toggle button in viewer UI
+- Graceful degradation on unsupported browsers
+
 ### Recent Traces Storage
 
 **Decision**: Use IndexedDB for recent trace persistence

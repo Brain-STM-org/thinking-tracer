@@ -26,6 +26,7 @@ We maintain a series of Markdown documents to facilitate this project.
 |------|-------|
 | [etc/reports/3d_libraries.md](./etc/reports/3d_libraries.md) | 3D framework evaluation (Three.js, Babylon, R3F) |
 | [etc/reports/clustering_ux_research.md](./etc/reports/clustering_ux_research.md) | Graph clustering and expand/collapse UX patterns |
+| [etc/reports/session-merge-analysis.md](./etc/reports/session-merge-analysis.md) | Multi-session trace merging workflow |
 
 ## Research: Amp Code Trace/Thread Features
 
