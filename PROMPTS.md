@@ -760,3 +760,28 @@ change the default to be on with width of 6 and a rusty red color.  show the "#F
 ## 2026-01-24T11:12:27Z
 
 i presume all the other lines are rendered with WebGL Lines, update them to use strips
+
+---
+
+## 2026-01-24T11:29:01Z
+
+the GitHub organiation is incorrect in a few spots.  it is under brain-stm-org (BrainSTM), not neomantra.
+  please fix that in the docs and the site
+
+---
+
+## 2026-01-24T11:33:31Z
+
+i can't access via tailscale, i think you are only binding localhost with the serve, can you bind 0.0.0.0 
+
+---
+
+## 2026-01-24T11:39:37Z
+
+we need to modify vite config server.allowedHosts  i'm getting blocked
+
+---
+
+## 2026-01-24T11:44:50Z
+
+you must set it to a boolean true (not a string)

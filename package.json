@@ -41,7 +41,7 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/neomantra/thinking-tracer"
+    "url": "https://github.com/brain-stm-org/thinking-tracer"
   },
   "devDependencies": {
     "@types/three": "^0.170.0",

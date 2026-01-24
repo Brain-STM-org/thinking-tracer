@@ -2,7 +2,7 @@
 
 A 3D visualization tool for exploring LLM conversation traces. Navigate complex conversations with thinking blocks, tool calls, and multi-turn interactions in an interactive WebGL environment.
 
-**[Live Demo](https://neomantra.github.io/thinking-tracer/)** | [Documentation](#documentation)
+**[Live Demo](https://brain-stm-org.github.io/thinking-tracer/)** | [Documentation](#documentation)
 
 <p align="center">
   <a href="etc/images/screenshot.png" target="_blank">
@@ -61,7 +61,7 @@ Access export options from the conversation view toolbar.
 ## Getting Started
 
 ### Online
-Visit the [live demo](https://neomantra.github.io/thinking-tracer/) and drag-and-drop a Claude Code `.jsonl` file.
+Visit the [live demo](https://brain-stm-org.github.io/thinking-tracer/) and drag-and-drop a Claude Code `.jsonl` file.
 
 ### Try the Sample
 A sample trace file is included at [`public/samples/sample-trace.jsonl`](public/samples/sample-trace.jsonl) - this is the actual conversation trace from building this tool with Claude! Click "See How This Was Built" on the live demo to load it instantly.
@@ -70,7 +70,7 @@ A sample trace file is included at [`public/samples/sample-trace.jsonl`](public/
 
 ```bash
 # Clone the repository
-git clone https://github.com/neomantra/thinking-tracer
+git clone https://github.com/brain-stm-org/thinking-tracer
 cd thinking-tracer
 
 # Install dependencies
