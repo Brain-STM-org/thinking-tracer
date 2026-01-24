@@ -1049,18 +1049,27 @@
       }
 
       .recent-clear-btn {
-        background: none;
-        border: none;
-        color: #666;
+        background: rgba(231, 76, 60, 0.15);
+        border: 1px solid rgba(231, 76, 60, 0.3);
+        color: #e74c3c;
         font-size: 12px;
         cursor: pointer;
-        padding: 4px 8px;
+        padding: 4px 10px;
         border-radius: 4px;
+        transition: all 0.2s;
       }
 
       .recent-clear-btn:hover {
-        color: #e74c3c;
-        background: rgba(231, 76, 60, 0.1);
+        color: #fff;
+        background: #e74c3c;
+        border-color: #e74c3c;
+      }
+
+      .recent-footer {
+        margin-top: 12px;
+        text-align: center;
+        color: #666;
+        font-size: 11px;
       }
 
       .recent-list {
@@ -2531,6 +2540,7 @@
             <button class="recent-clear-btn" id="recent-clear-btn">Clear All</button>
           </div>
           <div class="recent-list" id="recent-list"></div>
+          <div class="recent-footer">Stored locally in your browser</div>
         </div>
       </div>
 

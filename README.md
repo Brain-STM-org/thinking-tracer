@@ -51,7 +51,7 @@ Displays conversation context:
 - Working directory
 
 ### Recent Traces
-Automatically saves recently viewed traces (IndexedDB) for quick access. Supports custom naming.
+Automatically saves recently viewed traces for quick access. Supports custom naming.
 
 ### View Modes
 Switch between three viewing modes:
@@ -179,6 +179,40 @@ To enable:
 | [MEMORY.md](./MEMORY.md) | Architecture decisions |
 | [PLAN.md](./PLAN.md) | Implementation roadmap |
 | [etc/reports/](./etc/reports/) | Research notes |
+
+## Privacy & Data Storage
+
+**All data stays in your browser.** This tool never sends conversation data to any server.
+
+### What's Stored
+
+Thinking Tracer uses your browser's IndexedDB to store:
+- **Recent traces** (up to 10): Full conversation content for quick reload
+- **UI state**: Camera position, view mode, selected cluster per trace
+- **Custom names**: Any titles you've assigned to traces
+
+### Why Full Content?
+
+We store the complete conversation to enable instant reload without re-selecting files. This includes:
+- User messages and prompts
+- Assistant responses and thinking blocks
+- Tool call inputs and outputs
+
+### Security Considerations
+
+- **Sensitive data**: Conversations may contain file paths, code snippets, credentials, or other sensitive information. This data persists in IndexedDB until explicitly cleared.
+- **Same-origin access**: Other JavaScript running on the same origin could potentially access stored data.
+- **Shared computers**: On shared machines, other users with access to the same browser profile could view stored traces.
+
+### Clearing Your Data
+
+Two options to remove stored data:
+
+1. **Clear All** button (in Recent Traces header): Removes trace history but keeps the app open
+2. **Clear All Data & Close** link: Removes all data and closes the tab
+
+You can also clear data via browser DevTools:
+- Open DevTools → Application → IndexedDB → `thinking-tracer` → Delete database
 
 ## License
 

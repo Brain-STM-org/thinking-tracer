@@ -994,3 +994,15 @@ is there anything else to do before we hand off to red team and then work on imp
 
 great, for markdown xss, please sanitize any rendering like that, DOMPurify sounds great.  you can also clean up logging console statements.  also add test run to GitHub action
 
+
+---
+
+## 2026-01-24T22:02:03Z
+
+i now want to adddress the IndexedDB storage issue.  Go ahead and document it, and also ensure that there's a "clear and exit" option
+
+---
+
+## 2026-01-24T22:06:42Z
+
+with the clear button, i meant in the workspace, but actually just turning the existing "clear all" to a red button that indicates we can't get it back
