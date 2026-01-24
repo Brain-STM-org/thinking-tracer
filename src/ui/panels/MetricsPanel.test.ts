@@ -30,7 +30,10 @@ const createMetrics = (count: number): ClusterMetrics[] => {
 const createMockViewer = (metrics: ClusterMetrics[]): ViewerInterface => ({
   getClusterCount: vi.fn().mockReturnValue(metrics.length),
   getClusterMetrics: vi.fn().mockReturnValue(metrics),
+  getSearchableContent: vi.fn().mockReturnValue([]),
   selectClusterByIndex: vi.fn(),
+  toggleCluster: vi.fn(),
+  focusOnCluster: vi.fn(),
 });
 
 // Helper to mock read-only DOM properties

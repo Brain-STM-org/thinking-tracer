@@ -833,3 +833,9 @@ lets start addressing user interface code refactoring.  we have panels that can 
 ## 2026-01-24T16:21:23Z
 
 great plan, start with MetricsPanel
+
+---
+
+## 2026-01-24T16:34:58Z
+
+proceed with "Details Panel"
