@@ -106,6 +106,10 @@ export class Viewer {
   private lastClickTime = 0;
   private lastClickedNode: VisualNode | null = null;
 
+  // Click detection state (for distinguishing clicks from drags)
+  private mouseDownPos = { x: 0, y: 0 };
+  private mouseDownTime = 0;
+
   // Materials for different node types
   private materials: Record<NodeType, THREE.MeshStandardMaterial>;
   private highlightMaterial: THREE.MeshStandardMaterial;
@@ -138,6 +142,12 @@ export class Viewer {
 
   // Search filter - null means show all, Set means show only those clusters
   private searchFilterClusters: Set<number> | null = null;
+
+  // Bound event handlers for cleanup
+  private boundHandleResize: () => void;
+  private boundHandleMouseDown: (e: MouseEvent) => void;
+  private boundHandleMouseUp: (e: MouseEvent) => void;
+  private boundHandleKeyDown: (e: KeyboardEvent) => void;
 
   constructor(options: ViewerOptions) {
     const container =
@@ -210,17 +220,14 @@ export class Viewer {
       resolution: new THREE.Vector2(window.innerWidth, window.innerHeight),
     });
 
-    // Update resolution on window resize
-    window.addEventListener('resize', () => {
-      this.lineMaterial.resolution.set(window.innerWidth, window.innerHeight);
-      this.clusterLineMaterial.resolution.set(window.innerWidth, window.innerHeight);
-    });
+    // Bind event handlers
+    this.boundHandleResize = this.handleResize.bind(this);
+    this.boundHandleMouseDown = this.handleMouseDown.bind(this);
+    this.boundHandleMouseUp = this.handleMouseUp.bind(this);
+    this.boundHandleKeyDown = this.handleKeyDown.bind(this);
 
-    // Setup click handler
-    this.setupClickHandler();
-
-    // Setup keyboard handler
-    this.setupKeyboardHandler();
+    // Attach event listeners
+    this.attachListeners();
 
     // Start render loop
     this.scene.start((deltaTime) => {
@@ -242,74 +249,97 @@ export class Viewer {
   }
 
   /**
-   * Setup click detection for node selection
+   * Attach all event listeners
    */
-  private setupClickHandler(): void {
-    let mouseDownPos = { x: 0, y: 0 };
-    let mouseDownTime = 0;
-
-    this.scene.renderer.domElement.addEventListener('mousedown', (event) => {
-      mouseDownPos = { x: event.clientX, y: event.clientY };
-      mouseDownTime = Date.now();
-    });
-
-    this.scene.renderer.domElement.addEventListener('mouseup', (event) => {
-      // Only count as click if mouse didn't move much and was quick
-      const dx = event.clientX - mouseDownPos.x;
-      const dy = event.clientY - mouseDownPos.y;
-      const dist = Math.sqrt(dx * dx + dy * dy);
-      const duration = Date.now() - mouseDownTime;
-      const { maxClickDistance, maxClickDuration } = config.timing.interaction;
-
-      if (dist < maxClickDistance && duration < maxClickDuration) {
-        this.handleClick(event);
-      }
-    });
+  private attachListeners(): void {
+    window.addEventListener('resize', this.boundHandleResize);
+    window.addEventListener('keydown', this.boundHandleKeyDown);
+    this.scene.renderer.domElement.addEventListener('mousedown', this.boundHandleMouseDown);
+    this.scene.renderer.domElement.addEventListener('mouseup', this.boundHandleMouseUp);
   }
 
   /**
-   * Setup keyboard navigation
+   * Remove all event listeners
    */
-  private setupKeyboardHandler(): void {
-    window.addEventListener('keydown', (event) => {
-      // Don't handle if focus is on an input element
-      if (event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement) {
-        return;
-      }
+  private detachListeners(): void {
+    window.removeEventListener('resize', this.boundHandleResize);
+    window.removeEventListener('keydown', this.boundHandleKeyDown);
+    this.scene.renderer.domElement.removeEventListener('mousedown', this.boundHandleMouseDown);
+    this.scene.renderer.domElement.removeEventListener('mouseup', this.boundHandleMouseUp);
+  }
 
-      switch (event.key) {
-        case 'ArrowRight':
-        case 'ArrowDown':
-          event.preventDefault();
-          this.selectNext();
-          break;
-        case 'ArrowLeft':
-        case 'ArrowUp':
-          event.preventDefault();
-          this.selectPrevious();
-          break;
-        case 'Escape':
-          this.clearSelection();
-          break;
-        case 'Home':
-          event.preventDefault();
-          this.selectFirst();
-          break;
-        case 'End':
-          event.preventDefault();
-          this.selectLast();
-          break;
-        case 'Enter':
-        case ' ':
-          event.preventDefault();
-          this.toggleSelectedCluster();
-          break;
-        case 'Backspace':
-          event.preventDefault();
-          this.collapseSelected();
-          break;
-      }
-    });
+  /**
+   * Handle window resize - update line material resolution
+   */
+  private handleResize(): void {
+    this.lineMaterial.resolution.set(window.innerWidth, window.innerHeight);
+    this.clusterLineMaterial.resolution.set(window.innerWidth, window.innerHeight);
+  }
+
+  /**
+   * Handle mouse down - track for click detection
+   */
+  private handleMouseDown(event: MouseEvent): void {
+    this.mouseDownPos = { x: event.clientX, y: event.clientY };
+    this.mouseDownTime = Date.now();
+  }
+
+  /**
+   * Handle mouse up - detect clicks (vs drags)
+   */
+  private handleMouseUp(event: MouseEvent): void {
+    const dx = event.clientX - this.mouseDownPos.x;
+    const dy = event.clientY - this.mouseDownPos.y;
+    const dist = Math.sqrt(dx * dx + dy * dy);
+    const duration = Date.now() - this.mouseDownTime;
+    const { maxClickDistance, maxClickDuration } = config.timing.interaction;
+
+    if (dist < maxClickDistance && duration < maxClickDuration) {
+      this.handleClick(event);
+    }
+  }
+
+  /**
+   * Handle keyboard navigation
+   */
+  private handleKeyDown(event: KeyboardEvent): void {
+    // Don't handle if focus is on an input element
+    if (event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement) {
+      return;
+    }
+
+    switch (event.key) {
+      case 'ArrowRight':
+      case 'ArrowDown':
+        event.preventDefault();
+        this.selectNext();
+        break;
+      case 'ArrowLeft':
+      case 'ArrowUp':
+        event.preventDefault();
+        this.selectPrevious();
+        break;
+      case 'Escape':
+        this.clearSelection();
+        break;
+      case 'Home':
+        event.preventDefault();
+        this.selectFirst();
+        break;
+      case 'End':
+        event.preventDefault();
+        this.selectLast();
+        break;
+      case 'Enter':
+      case ' ':
+        event.preventDefault();
+        this.toggleSelectedCluster();
+        break;
+      case 'Backspace':
+        event.preventDefault();
+        this.collapseSelected();
+        break;
+    }
   }
 
   /**
@@ -1423,6 +1453,9 @@ export class Viewer {
    * Dispose of all resources
    */
   public dispose(): void {
+    // Remove event listeners first
+    this.detachListeners();
+
     this.clearAllHighlights();
     this.clearNodes();
     Object.values(this.materials).forEach((m) => m.dispose());

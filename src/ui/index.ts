@@ -56,3 +56,7 @@ export type { SidebarControllerElements, SidebarControllerOptions } from './side
 // Export
 export { ExportController } from './export';
 export type { ExportControllerElements, ExportControllerOptions, ExportDataProvider } from './export';
+
+// Split pane
+export { SplitPaneController } from './split';
+export type { SplitPaneControllerElements, SplitPaneControllerOptions } from './split';

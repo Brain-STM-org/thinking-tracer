@@ -17,6 +17,7 @@ import {
   SearchController,
   SidebarController,
   ExportController,
+  SplitPaneController,
 } from './ui';
 import type { Selection, RecentTrace, TraceUIState } from './ui';
 
@@ -93,6 +94,7 @@ let recentTracesManager: RecentTracesManager | null = null;
 let searchController: SearchController | null = null;
 let sidebarController: SidebarController | null = null;
 let exportController: ExportController | null = null;
+let splitPaneController: SplitPaneController | null = null;
 
 // View mode: '3d' | 'split' | 'conversation'
 let viewMode: '3d' | 'split' | 'conversation' = 'split';
@@ -696,44 +698,21 @@ if (sidebar) {
 // Split Pane Resizing
 // ============================================
 
-let isSplitDragging = false;
-
 if (splitHandle && canvasPane && conversationPane && contentArea) {
-  splitHandle.addEventListener('mousedown', (e) => {
-    isSplitDragging = true;
-    splitHandle.classList.add('dragging');
-    document.body.style.cursor = 'ew-resize';
-    document.body.style.userSelect = 'none';
-    e.preventDefault();
-  });
-
-  document.addEventListener('mousemove', (e) => {
-    if (!isSplitDragging) return;
-
-    // Get position relative to content area, not viewport
-    const contentRect = contentArea.getBoundingClientRect();
-    const relativeX = e.clientX - contentRect.left;
-    const containerWidth = contentRect.width;
-    const minCanvasWidth = 300;
-    const minConvWidth = 250;
-
-    if (relativeX >= minCanvasWidth && (containerWidth - relativeX - 6) >= minConvWidth) {
-      canvasPane.style.flex = 'none';
-      canvasPane.style.width = `${relativeX}px`;
-      conversationPane.style.width = `${containerWidth - relativeX - 6}px`;
-    }
-  });
-
-  document.addEventListener('mouseup', () => {
-    if (isSplitDragging) {
-      isSplitDragging = false;
-      splitHandle.classList.remove('dragging');
-      document.body.style.cursor = '';
-      document.body.style.userSelect = '';
-
+  splitPaneController = new SplitPaneController({
+    elements: {
+      handle: splitHandle,
+      primaryPane: canvasPane,
+      secondaryPane: conversationPane,
+      container: contentArea,
+    },
+    minPrimaryWidth: 300,
+    minSecondaryWidth: 250,
+    gapWidth: 6,
+    onResizeEnd: () => {
       // Trigger resize for Three.js canvas
       window.dispatchEvent(new Event('resize'));
-    }
+    },
   });
 }
 
@@ -835,6 +814,7 @@ window.addEventListener('beforeunload', () => {
   coilControlsPanel?.dispose();
   sidebarController?.dispose();
   exportController?.dispose();
+  splitPaneController?.dispose();
 });
 
 // Also save periodically while using (every 30 seconds if there's a trace loaded)

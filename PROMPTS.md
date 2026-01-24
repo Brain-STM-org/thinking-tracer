@@ -919,3 +919,39 @@ yes SideBarController next
 ## 2026-01-24T20:41:18Z
 
 yes ExportController next
+
+---
+
+## 2026-01-24T20:47:54Z
+
+yes refactor SplitPaneController
+
+---
+
+## 2026-01-24T20:54:43Z
+
+review main.ts   any other suggestions for refactoring?
+
+---
+
+## 2026-01-24T20:58:14Z
+
+review main.ts   any other suggestions for refactoring?
+
+---
+
+## 2026-01-24T21:00:09Z
+
+since we've refactored things, there are probably similar issues across modules.  at least they are better scoped to each component.  explore each module and ensure that the memory leaks and disposal issues are handled correctly
+
+---
+
+## 2026-01-24T21:03:18Z
+
+with regards to usage of setInterval and timers and listeners, are we using any ThreeJS feature or other library to handle cohesive listening and update, dealing with requestAnimationFrame, etc?  
+
+---
+
+## 2026-01-24T21:06:51Z
+
+start with 1
