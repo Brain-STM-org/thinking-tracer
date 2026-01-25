@@ -206,39 +206,89 @@ Before implementation, these research-backed principles guide feature decisions:
 
 ---
 
-## Phase 7: Expansion - PLANNED
+## Phase 7: Parser & Type System Rewrite - COMPLETE
 
-### 7.1 Additional Agent Formats
+### 7.0 Type System Enrichment (`src/data/types.ts`)
+- [x] Add `EntryType` union (7 JSONL entry types)
+- [x] Add `Entry` interface (full JSONL line representation, ~30 fields)
+- [x] Add `ThinkingMetadata`, `CacheCreation`, `ParsedUserMessage`, `ParsedAssistantMessage`
+- [x] Enrich `ThinkingBlock` (+signature), `TokenUsage` (+cache_creation, server_tool_use, service_tier)
+- [x] Enrich `Turn` (+isSidechain, agentId, error, isApiErrorMessage, stopReason, requestId, thinkingMetadata, permissionMode, entryType)
+- [x] Enrich `ConversationMeta` (+slug, summaries, systemMessageCount, hasErrors, agentIds)
+- [x] Enrich `SearchableCluster` (+isSidechain, agentId, hasError, stopReason, error)
+- [x] Add `entries?: Entry[]` to `Conversation`
+
+### 7.1 Parser Rewrite (`src/data/parsers/claude-code.ts`)
+- [x] `parseEntry()` - maps all fields from raw JSON, parses messages by entry type
+- [x] `parseUserMessage()` / `parseAssistantMessage()` - with roleHint parameter
+- [x] `entryToTurn()` - converts user/assistant entries to Turn, populates all new fields
+- [x] `extractMeta()` - extracts summaries, systemMessageCount, hasErrors, agentIds from entries
+- [x] `computeTotalUsage()` - includes CacheCreation fields
+- [x] Pipeline: JSONL → parseJsonl() → parseEntry() → entryToTurn() → extractMeta() → Conversation
+
+### 7.2 Cluster Builder Enrichment (`src/core/clusters/cluster-builder.ts`)
+- [x] Add isSidechain, agentId, hasError, stopReason to TurnCluster
+- [x] `enrichCluster()` helper to populate from turns
+- [x] Propagate fields through `extractSearchableContent()`
+
+### 7.3 3D Visualization Updates (`src/core/Viewer.ts`)
+- [x] Sidechain clusters: transparent, muted material (opacity 0.5)
+- [x] Error clusters: red-tinted material (#cc4444 with emissive)
+
+### 7.4 Conversation Panel Updates (`src/ui/panels/ConversationPanel.ts`)
+- [x] Badges row (sidechain, agent ID, non-standard stop reason)
+- [x] Error banner with error text
+- [x] CSS for badges and banners
+
+### 7.5 Detail Panel Updates (`src/ui/panels/DetailPanel.ts`)
+- [x] Error details, stop reason, sidechain status, agent ID, thinking metadata sections
+
+### 7.6 Export Updates (`src/export/exporter.ts`)
+- [x] HTML export: badges (sidechain, agent, stop reason), error banner, sidechain styling
+- [x] Markdown export: badges as inline code, error as blockquote
+- [x] CSS for new export elements
+
+### 7.7 Tests
+- [x] 54 parser tests (42 new) covering all entry types and fields
+- [x] 58 exporter tests (17 new) covering badges, errors, sidechain, stop reason
+- [x] All 562 tests passing
+
+---
+
+## Phase 8: Expansion - PLANNED
+
+### 8.1 Additional Agent Formats
 - [ ] Abstract parser interface (partially done)
 - [ ] Amp thread format support
 - [ ] ChatGPT export format support
 - [ ] Document format specification for contributors
 
-### 7.2 Sub-Agent Visualization
+### 8.2 Sub-Agent Visualization
 *Research: Amp sub-agents "execute parallel tasks and report results back"*
 
-- [ ] Detect sub-agent spawning in traces
+- [x] Detect sub-agent spawning in traces (isSidechain, agentId fields)
+- [x] Visual differentiation in 3D (transparent material) and UI (badges)
 - [ ] Render sub-agents as nested hierarchies
 - [ ] Show parallel execution visually
 
-### 7.3 Embedding API
+### 8.3 Embedding API
 - [ ] Define public component API
 - [ ] React wrapper component
 - [ ] Publish as npm package
 
-### 7.4 Advanced Search & Filter
+### 8.4 Advanced Search & Filter
 - [x] Text search across all content (basic)
 - [x] Regex search support
 - [x] Filter by content type
 - [x] Highlight search matches in 3D view
 - [ ] Advanced query syntax
 
-### 7.5 Performance Optimization
+### 8.5 Performance Optimization
 - [ ] Instanced rendering for many nodes
 - [ ] Level-of-detail (simplify distant nodes)
 - [ ] Lazy loading for large conversations
 
-### 7.6 Accessibility
+### 8.6 Accessibility
 - [x] Keyboard navigation
 - [ ] 2D fallback mode (no WebGL required)
 - [ ] Screen reader descriptions
@@ -248,7 +298,7 @@ Before implementation, these research-backed principles guide feature decisions:
 
 ## Current Status
 
-**Phases 1-6 Complete**: Full-featured viewer with:
+**Phases 1-7 Complete**: Full-featured viewer with:
 - Spiral cluster layout with configurable coil parameters
 - Slinky focus effect with adjustable spacing
 - Full expand/collapse interaction
@@ -258,14 +308,17 @@ Before implementation, these research-backed principles guide feature decisions:
 - Session metadata display
 - Recent traces storage with custom naming
 - GitHub Pages deployment
-- Export to HTML and Markdown
+- Export to HTML and Markdown (with sidechain/error/agent badges)
 - Compression support (gzip, zstd)
 - File watching for live updates
 - Conversation view with filters
+- Full JSONL entry parsing (all 7 entry types)
+- Enriched type system (Entry, Turn, SearchableCluster with sidechain/agent/error fields)
+- Sub-agent detection and visual differentiation (3D materials, UI badges, export badges)
 
 **Next priorities**:
 1. Additional agent format support (Amp, ChatGPT)
-2. Sub-agent visualization
+2. Full sub-agent hierarchy visualization
 3. Performance optimization for large traces
 4. npm package publishing
 

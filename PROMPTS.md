@@ -1503,3 +1503,9 @@ Add CSS for new UI elements in `src/styles/main.css`.
 
 
 If you need specific details from before exiting plan mode (like exact code snippets, error messages, or content you generated), read the full transcript at: /Users/evan/.claude/projects/-Users-evan-brainstm-thinking-trace-viewer/f8e63d17-d382-42b7-9ce1-58f8cdb889c2.jsonl
+
+---
+
+## 2026-01-25T02:38:44Z
+
+given those changes, review the exporter's coverage of fields.  you can look at the staged diff if that's helpful (it's all your work from last step). also update any relevant documentation

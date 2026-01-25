@@ -199,17 +199,45 @@ Treat conversation structure as a **visualization problem**, not a text display 
 
 ## Data Model
 
+The data model is defined in `src/data/types.ts`. It uses a two-layer architecture:
+
+1. **Entry** - Raw JSONL line representation (all 7 entry types)
+2. **Turn** - Normalized conversation turn (only user/assistant entries)
+
+### Entry (raw JSONL representation)
+
+```
+Entry
+├── type: EntryType ('user' | 'assistant' | 'system' | 'progress' | 'file-history-snapshot' | 'summary' | 'queue-operation')
+├── uuid?, parentUuid?, sessionId?
+├── timestamp?, version?, cwd?, gitBranch?
+├── parsedUserMessage?: { role, content: ContentBlock[] | string }
+├── parsedAssistantMessage?: { role, model?, content: ContentBlock[], stopReason?, usage? }
+├── isSidechain?, agentId?
+├── error?, isApiErrorMessage?
+├── stopReason?, requestId?
+├── thinkingMetadata?: { level?, disabled?, triggers? }
+├── permissionMode?
+├── summary?           // for type='summary'
+├── progressStatus?    // for type='progress'
+└── rawMessage?        // unparsed fallback
+```
+
 ### Conversation
 
 ```
 Conversation
-├── id: string
-├── metadata: ConversationMetadata
-│   ├── model: string
-│   ├── startTime: Date
-│   ├── totalTokens: number
-│   └── source: "claude-code" | "amp" | ...
-└── turns: Turn[]
+├── meta: ConversationMeta
+│   ├── id?, title?, model?, source?, source_version?
+│   ├── created_at?, updated_at?, duration_ms?
+│   ├── cwd?, git_branch?, slug?
+│   ├── total_usage?: TokenUsage
+│   ├── summaries?: string[]         // from summary entries
+│   ├── systemMessageCount?: number  // count of system entries
+│   ├── hasErrors?: boolean
+│   └── agentIds?: string[]          // unique agent IDs found
+├── turns: Turn[]                    // only user/assistant entries
+└── entries?: Entry[]                // all raw entries
 ```
 
 ### Turn
@@ -217,43 +245,62 @@ Conversation
 ```
 Turn
 ├── id: string
-├── role: "user" | "assistant" | "system"
+├── role: 'user' | 'assistant' | 'system'
 ├── content: ContentBlock[]
-├── thinking?: ThinkingBlock[]
-├── toolCalls?: ToolCall[]
-├── toolResults?: ToolResult[]
-└── metadata: TurnMetadata
-    ├── timestamp: Date
-    ├── tokenCount: number
-    └── duration?: number
+├── timestamp?, model?
+├── usage?: TokenUsage
+├── parentId?
+├── isSidechain?, agentId?
+├── error?, isApiErrorMessage?
+├── stopReason?, requestId?
+├── thinkingMetadata?: ThinkingMetadata
+├── permissionMode?
+└── entryType?: EntryType
 ```
 
-### ContentBlock
+### ContentBlock (discriminated union)
 
 ```
-ContentBlock
-├── type: "text" | "code" | "image" | ...
-├── content: string
-└── language?: string  // for code blocks
+ContentBlock = TextBlock | ThinkingBlock | ToolUseBlock | ToolResultBlock | ImageBlock
+
+TextBlock     { type: 'text', text: string }
+ThinkingBlock { type: 'thinking', thinking: string, redacted?, signature? }
+ToolUseBlock  { type: 'tool_use', id, name, input: Record<string, unknown> }
+ToolResultBlock { type: 'tool_result', tool_use_id, content: string | ContentBlock[], is_error? }
+ImageBlock    { type: 'image', source: { type, media_type?, data?, url? } }
 ```
 
-### ToolCall
+### TokenUsage
 
 ```
-ToolCall
-├── id: string
-├── name: string
-├── arguments: Record<string, any>
-└── result?: ToolResult
+TokenUsage
+├── input_tokens?, output_tokens?, thinking_tokens?
+├── cache_read_input_tokens?, cache_creation_input_tokens?
+├── cache_creation?: { ephemeral_5m_input_tokens?, ephemeral_1h_input_tokens? }
+├── server_tool_use?
+└── service_tier?
 ```
 
-### ThinkingBlock
+### SearchableCluster (export/display data)
 
 ```
-ThinkingBlock
-├── content: string
-├── tokenCount: number
-└── redacted: boolean  // for safety-flagged content
+SearchableCluster
+├── clusterIndex, userText, assistantText
+├── thinkingBlocks: string[]
+├── toolUses: Array<{ name, input }>
+├── toolResults: Array<{ content, isError }>
+├── isSidechain?, agentId?
+├── hasError?, stopReason?, error?
+```
+
+### Parser Pipeline
+
+```
+JSONL string → parseJsonl() → raw objects[]
+  → map(parseEntry) → Entry[] (with parsed messages)
+  → filter(user|assistant).map(entryToTurn) → Turn[]
+  → extractMeta(entries) → ConversationMeta
+  → { meta, turns, entries } → Conversation
 ```
 
 ## Design Principles
@@ -293,7 +340,11 @@ ThinkingBlock
 
 ## Open Questions
 
-- [ ] How to represent sub-agents and parallel execution?
 - [ ] Should we support annotation/commenting on traces?
 - [ ] What export formats would be useful (image, PDF, shareable link)?
 - [ ] How to handle branching conversations (edit/retry)?
+
+## Answered Questions (continued)
+
+### How to represent sub-agents and parallel execution?
+**Answer**: Sub-agents are represented via `isSidechain` and `agentId` fields on Turn, TurnCluster, and SearchableCluster. The parser extracts these from Claude Code JSONL entries. In the 3D view, sidechain clusters render with transparent/muted material. In conversation and export views, they display as badges. Full parallel execution visualization (e.g., branching timelines) remains future work.

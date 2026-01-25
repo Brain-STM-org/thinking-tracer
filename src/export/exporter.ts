@@ -97,6 +97,13 @@ const HTML_EXPORT_STYLES = `
     .tool-error { background: #ffebee; }
     .tool-error .tool-header { color: #c62828; }
     .text { }
+    .badges { display: flex; gap: 6px; margin-bottom: 10px; flex-wrap: wrap; }
+    .badge { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 11px; font-weight: 600; }
+    .badge-sidechain { background: #e0e0e0; color: #555; }
+    .badge-agent { background: #e3f2fd; color: #1565c0; }
+    .badge-stop-reason { background: #fff3e0; color: #e65100; }
+    .error-banner { background: #ffebee; color: #c62828; padding: 10px 15px; border-radius: 6px; margin-bottom: 10px; font-weight: 500; border-left: 4px solid #c62828; }
+    .turn-sidechain { border-left: 3px solid #bbb; opacity: 0.85; }
     .meta { color: #666; font-size: 12px; margin-top: 20px; padding-top: 10px; border-top: 1px solid #ddd; }
     /* Markdown content */
     .user > div:last-child, .text, .thinking-content { line-height: 1.6; }
@@ -129,7 +136,25 @@ export function exportAsHtml(clusters: SearchableCluster[], title: string): stri
 `;
 
   for (const cluster of clusters) {
-    html += `  <div class="turn">\n`;
+    const turnClass = cluster.isSidechain ? 'turn turn-sidechain' : 'turn';
+    html += `  <div class="${turnClass}">\n`;
+
+    // Badges row (sidechain, agent, stop reason)
+    const badges: string[] = [];
+    if (cluster.isSidechain) badges.push('<span class="badge badge-sidechain">sidechain</span>');
+    if (cluster.agentId) badges.push(`<span class="badge badge-agent">${escapeHtml(cluster.agentId)}</span>`);
+    if (cluster.stopReason && cluster.stopReason !== 'end_turn') {
+      badges.push(`<span class="badge badge-stop-reason">${escapeHtml(cluster.stopReason)}</span>`);
+    }
+    if (badges.length > 0) {
+      html += `    <div class="badges">${badges.join('')}</div>\n`;
+    }
+
+    // Error banner
+    if (cluster.hasError) {
+      const errorText = cluster.error ? escapeHtml(cluster.error) : 'Error occurred';
+      html += `    <div class="error-banner">${errorText}</div>\n`;
+    }
 
     // User message
     if (cluster.userText) {
@@ -194,6 +219,23 @@ export function exportAsMarkdown(clusters: SearchableCluster[], title: string): 
     const cluster = clusters[i];
     md += `---\n\n`;
     md += `## Turn ${i + 1}\n\n`;
+
+    // Badges (sidechain, agent, stop reason)
+    const badges: string[] = [];
+    if (cluster.isSidechain) badges.push('`sidechain`');
+    if (cluster.agentId) badges.push(`\`agent: ${cluster.agentId}\``);
+    if (cluster.stopReason && cluster.stopReason !== 'end_turn') {
+      badges.push(`\`stop: ${cluster.stopReason}\``);
+    }
+    if (badges.length > 0) {
+      md += `${badges.join(' ')}\n\n`;
+    }
+
+    // Error banner
+    if (cluster.hasError) {
+      const errorText = cluster.error || 'Error occurred';
+      md += `> **Error:** ${errorText}\n\n`;
+    }
 
     // User message
     if (cluster.userText) {
