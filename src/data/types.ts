@@ -8,7 +8,8 @@ export type ContentBlockType =
   | 'thinking'
   | 'tool_use'
   | 'tool_result'
-  | 'image';
+  | 'image'
+  | 'document';
 
 /** Base interface for all content blocks */
 export interface ContentBlockBase {
@@ -59,13 +60,28 @@ export interface ImageBlock extends ContentBlockBase {
   };
 }
 
+/** Document content block (PDFs, text files, etc.) */
+export interface DocumentBlock extends ContentBlockBase {
+  type: 'document';
+  source: {
+    type: 'base64' | 'url' | 'file';
+    media_type?: string;
+    data?: string;
+    url?: string;
+    file_id?: string;
+  };
+  title?: string;
+  context?: string;
+}
+
 /** Union of all content block types */
 export type ContentBlock =
   | TextBlock
   | ThinkingBlock
   | ToolUseBlock
   | ToolResultBlock
-  | ImageBlock;
+  | ImageBlock
+  | DocumentBlock;
 
 /** Role in a conversation turn */
 export type Role = 'user' | 'assistant' | 'system';
@@ -184,6 +200,20 @@ export interface TraceParser {
 }
 
 /**
+ * Document/media attachment metadata
+ */
+export interface DocumentMeta {
+  /** MIME type (e.g., "image/png", "application/pdf") */
+  mediaType: string;
+  /** Source type: url, base64, or file (Files API) */
+  sourceType: 'url' | 'base64' | 'file';
+  /** Size in bytes (for base64 data) */
+  size?: number;
+  /** Document title if provided */
+  title?: string;
+}
+
+/**
  * Searchable content extracted from a cluster/turn
  * Used for search, export, and display purposes
  */
@@ -194,6 +224,8 @@ export interface SearchableCluster {
   thinkingBlocks: string[];
   toolUses: Array<{ name: string; input: string }>;
   toolResults: Array<{ content: string; isError: boolean }>;
+  /** Document/media attachments (images, PDFs, etc.) - metadata only */
+  documents: DocumentMeta[];
   /** Whether this cluster is from a sidechain */
   isSidechain?: boolean;
   /** Agent ID if from a sub-agent */

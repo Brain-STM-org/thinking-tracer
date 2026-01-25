@@ -166,6 +166,7 @@ describe('performSearch', () => {
       thinkingBlocks: ['Let me think about TypeScript...'],
       toolUses: [{ name: 'read_file', input: '{"path": "tsconfig.json"}' }],
       toolResults: [{ content: '{"compilerOptions": {}}', isError: false }],
+      documents: [],
     },
     {
       clusterIndex: 1,
@@ -174,6 +175,7 @@ describe('performSearch', () => {
       thinkingBlocks: [],
       toolUses: [],
       toolResults: [],
+      documents: [],
     },
   ];
 

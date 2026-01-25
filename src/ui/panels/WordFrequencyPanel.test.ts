@@ -39,6 +39,7 @@ function createMockClusters(): SearchableCluster[] {
       thinkingBlocks: ['Thinking about the test scenario'],
       toolUses: [],
       toolResults: [],
+      documents: [],
     },
     {
       clusterIndex: 1,
@@ -47,6 +48,7 @@ function createMockClusters(): SearchableCluster[] {
       thinkingBlocks: ['More thinking about quality'],
       toolUses: [],
       toolResults: [],
+      documents: [],
     },
   ];
 }
@@ -112,6 +114,7 @@ describe('getWordFrequencies', () => {
       thinkingBlocks: [],
       toolUses: [],
       toolResults: [],
+      documents: [],
     }];
 
     const frequencies = getWordFrequencies(clusters, 'all');
@@ -132,6 +135,7 @@ describe('getWordFrequencies', () => {
       thinkingBlocks: ['thinkingword'],
       toolUses: [],
       toolResults: [],
+      documents: [],
     }];
 
     const frequencies = getWordFrequencies(clusters, 'user');
@@ -148,6 +152,7 @@ describe('getWordFrequencies', () => {
       thinkingBlocks: ['thinkingword'],
       toolUses: [],
       toolResults: [],
+      documents: [],
     }];
 
     const frequencies = getWordFrequencies(clusters, 'assistant');
@@ -164,6 +169,7 @@ describe('getWordFrequencies', () => {
       thinkingBlocks: ['thinkingword thinkingword'],
       toolUses: [],
       toolResults: [],
+      documents: [],
     }];
 
     const frequencies = getWordFrequencies(clusters, 'thinking');
@@ -180,6 +186,7 @@ describe('getWordFrequencies', () => {
       thinkingBlocks: ['thinkingword'],
       toolUses: [],
       toolResults: [],
+      documents: [],
     }];
 
     const frequencies = getWordFrequencies(clusters, 'all');
@@ -202,6 +209,7 @@ describe('getWordFrequencies', () => {
         thinkingBlocks: [],
         toolUses: [],
         toolResults: [],
+        documents: [],
       },
       {
         clusterIndex: 1,
@@ -210,6 +218,7 @@ describe('getWordFrequencies', () => {
         thinkingBlocks: [],
         toolUses: [],
         toolResults: [],
+        documents: [],
       },
     ];
 

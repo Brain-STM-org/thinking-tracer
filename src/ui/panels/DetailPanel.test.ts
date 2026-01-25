@@ -32,6 +32,7 @@ function createMockCluster(overrides: Partial<SearchableCluster> = {}): Searchab
     thinkingBlocks: ['Some thinking'],
     toolUses: [{ name: 'Read', input: '{"file_path": "/test.txt"}' }],
     toolResults: [{ content: 'File contents', isError: false }],
+    documents: [],
     ...overrides,
   };
 }

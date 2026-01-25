@@ -33,6 +33,7 @@ function createMockClusters(): SearchableCluster[] {
       thinkingBlocks: ['Thinking about greeting...'],
       toolUses: [{ name: 'Read', input: '{"file": "test.txt"}' }],
       toolResults: [{ content: 'File contents here', isError: false }],
+      documents: [],
     },
     {
       clusterIndex: 1,
@@ -41,6 +42,7 @@ function createMockClusters(): SearchableCluster[] {
       thinkingBlocks: [],
       toolUses: [],
       toolResults: [],
+      documents: [],
     },
   ];
 }
@@ -164,6 +166,7 @@ describe('ConversationPanel', () => {
           thinkingBlocks: [],
           toolUses: [],
           toolResults: [],
+          documents: [],
         }]),
       });
       panel = new ConversationPanel({ container, turnIndicator, filtersContainer }, viewer);

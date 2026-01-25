@@ -39,7 +39,7 @@ export interface ViewerStats {
 }
 
 /** Node types for visualization */
-type NodeType = 'user' | 'assistant' | 'thinking' | 'tool_use' | 'tool_result' | 'cluster';
+type NodeType = 'user' | 'assistant' | 'thinking' | 'tool_use' | 'tool_result' | 'document' | 'cluster';
 
 /** Visual node in the scene */
 interface VisualNode {
@@ -197,6 +197,11 @@ export class Viewer {
       tool_result: new THREE.MeshStandardMaterial({
         color: nodeThemes.toolResult.color,
         roughness: nodeThemes.toolResult.material.roughness,
+      }),
+      document: new THREE.MeshStandardMaterial({
+        color: nodeThemes.document.color,
+        roughness: nodeThemes.document.material.roughness,
+        metalness: nodeThemes.document.material.metalness,
       }),
       cluster: this.createClusterMaterial(),
     };
@@ -722,6 +727,25 @@ export class Viewer {
             resultNode.mesh.scale.setScalar(0.01);
             this.nodes.push(resultNode);
             this.scene.add(resultNode.mesh);
+          } else if (block.type === 'image' || block.type === 'document') {
+            const docNode = this.createNode('document', block, cluster.assistantTurnIndex, cluster.index);
+            docNode.mesh.visible = false;
+            docNode.mesh.scale.setScalar(0.01);
+            this.nodes.push(docNode);
+            this.scene.add(docNode.mesh);
+          }
+        }
+      }
+
+      // Create document nodes from user turn (images, PDFs, etc.)
+      if (cluster.userTurn && cluster.userTurnIndex !== undefined) {
+        for (const block of cluster.userTurn.content) {
+          if (block.type === 'image' || block.type === 'document') {
+            const docNode = this.createNode('document', block, cluster.userTurnIndex, cluster.index);
+            docNode.mesh.visible = false;
+            docNode.mesh.scale.setScalar(0.01);
+            this.nodes.push(docNode);
+            this.scene.add(docNode.mesh);
           }
         }
       }
@@ -1272,6 +1296,7 @@ export class Viewer {
     thinkingBlocks: string[];
     toolUses: Array<{ name: string; input: string }>;
     toolResults: Array<{ content: string; isError: boolean }>;
+    documents: Array<{ mediaType: string; sourceType: 'url' | 'base64' | 'file'; size?: number; title?: string }>;
   }> {
     return extractSearchableContent(this.clusters);
   }

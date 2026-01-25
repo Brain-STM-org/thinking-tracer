@@ -60,6 +60,7 @@ function createMockDataProvider(): ExportDataProvider {
         toolCalls: [],
         toolUses: [],
         toolResults: [],
+        documents: [],
       },
     ]),
     getConversationTitle: vi.fn(() => 'Test Conversation'),

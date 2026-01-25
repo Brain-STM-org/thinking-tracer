@@ -365,6 +365,7 @@ describe('extractSearchableContent', () => {
       expanded: false,
       thinkingCount: 0,
       toolCount: 0,
+      documentCount: 0,
     }];
 
     const content = extractSearchableContent(clusters);
@@ -379,6 +380,7 @@ describe('extractSearchableContent', () => {
       expanded: false,
       thinkingCount: 0,
       toolCount: 0,
+      documentCount: 0,
     }];
 
     const content = extractSearchableContent(clusters);
@@ -393,6 +395,7 @@ describe('extractSearchableContent', () => {
       expanded: false,
       thinkingCount: 0,
       toolCount: 0,
+      documentCount: 0,
     }];
 
     const content = extractSearchableContent(clusters);
@@ -410,6 +413,7 @@ describe('extractSearchableContent', () => {
       expanded: false,
       thinkingCount: 2,
       toolCount: 0,
+      documentCount: 0,
     }];
 
     const content = extractSearchableContent(clusters);
@@ -428,6 +432,7 @@ describe('extractSearchableContent', () => {
       expanded: false,
       thinkingCount: 0,
       toolCount: 1,
+      documentCount: 0,
     }];
 
     const content = extractSearchableContent(clusters);
@@ -446,6 +451,7 @@ describe('extractSearchableContent', () => {
       expanded: false,
       thinkingCount: 0,
       toolCount: 0,
+      documentCount: 0,
     }];
 
     const content = extractSearchableContent(clusters);
@@ -464,6 +470,7 @@ describe('extractSearchableContent', () => {
       expanded: false,
       thinkingCount: 0,
       toolCount: 0,
+      documentCount: 0,
     }];
 
     const content = extractSearchableContent(clusters);
@@ -473,9 +480,9 @@ describe('extractSearchableContent', () => {
 
   it('preserves cluster index', () => {
     const clusters: TurnCluster[] = [
-      { index: 0, expanded: false, thinkingCount: 0, toolCount: 0 },
-      { index: 1, expanded: false, thinkingCount: 0, toolCount: 0 },
-      { index: 2, expanded: false, thinkingCount: 0, toolCount: 0 },
+      { index: 0, expanded: false, thinkingCount: 0, toolCount: 0, documentCount: 0 },
+      { index: 1, expanded: false, thinkingCount: 0, toolCount: 0, documentCount: 0 },
+      { index: 2, expanded: false, thinkingCount: 0, toolCount: 0, documentCount: 0 },
     ];
 
     const content = extractSearchableContent(clusters);
@@ -499,6 +506,7 @@ describe('calculateClusterMetrics', () => {
       expanded: false,
       thinkingCount: 0,
       toolCount: 0,
+      documentCount: 0,
     }];
 
     const metrics = calculateClusterMetrics(clusters);
@@ -513,6 +521,7 @@ describe('calculateClusterMetrics', () => {
       expanded: false,
       thinkingCount: 0,
       toolCount: 0,
+      documentCount: 0,
     }];
 
     const metrics = calculateClusterMetrics(clusters);
@@ -530,6 +539,7 @@ describe('calculateClusterMetrics', () => {
       expanded: false,
       thinkingCount: 1,
       toolCount: 0,
+      documentCount: 0,
     }];
 
     const metrics = calculateClusterMetrics(clusters);
@@ -544,6 +554,7 @@ describe('calculateClusterMetrics', () => {
       expanded: false,
       thinkingCount: 0,
       toolCount: 0,
+      documentCount: 0,
     }];
 
     const metrics = calculateClusterMetrics(clusters);
@@ -558,6 +569,7 @@ describe('calculateClusterMetrics', () => {
       expanded: false,
       thinkingCount: 0,
       toolCount: 0,
+      documentCount: 0,
     }];
 
     const metrics = calculateClusterMetrics(clusters);
@@ -575,6 +587,7 @@ describe('calculateClusterMetrics', () => {
       expanded: false,
       thinkingCount: 0,
       toolCount: 0,
+      documentCount: 0,
     }];
 
     const metrics = calculateClusterMetrics(clusters);
@@ -590,6 +603,7 @@ describe('calculateClusterMetrics', () => {
       expanded: false,
       thinkingCount: 0,
       toolCount: 0,
+      documentCount: 0,
     }];
 
     const metrics = calculateClusterMetrics(clusters);
@@ -603,6 +617,7 @@ describe('calculateClusterMetrics', () => {
       expanded: false,
       thinkingCount: 3,
       toolCount: 5,
+      documentCount: 0,
     }];
 
     const metrics = calculateClusterMetrics(clusters);
@@ -620,6 +635,7 @@ describe('clusterContainsWord', () => {
     thinkingBlocks: [],
     toolUses: [],
     toolResults: [],
+    documents: [],
   };
 
   it('finds word in user text', () => {
@@ -669,7 +685,7 @@ describe('clusterContainsWord', () => {
 describe('findClustersWithWord', () => {
   it('returns empty array when no matches', () => {
     const content: SearchableClusterContent[] = [
-      { clusterIndex: 0, userText: 'Hello', assistantText: '', thinkingBlocks: [], toolUses: [], toolResults: [] },
+      { clusterIndex: 0, userText: 'Hello', assistantText: '', thinkingBlocks: [], toolUses: [], toolResults: [], documents: [] },
     ];
 
     const indices = findClustersWithWord(content, 'goodbye');
@@ -679,9 +695,9 @@ describe('findClustersWithWord', () => {
 
   it('returns indices of matching clusters', () => {
     const content: SearchableClusterContent[] = [
-      { clusterIndex: 0, userText: 'Hello', assistantText: '', thinkingBlocks: [], toolUses: [], toolResults: [] },
-      { clusterIndex: 1, userText: 'World', assistantText: '', thinkingBlocks: [], toolUses: [], toolResults: [] },
-      { clusterIndex: 2, userText: 'Hello again', assistantText: '', thinkingBlocks: [], toolUses: [], toolResults: [] },
+      { clusterIndex: 0, userText: 'Hello', assistantText: '', thinkingBlocks: [], toolUses: [], toolResults: [], documents: [] },
+      { clusterIndex: 1, userText: 'World', assistantText: '', thinkingBlocks: [], toolUses: [], toolResults: [], documents: [] },
+      { clusterIndex: 2, userText: 'Hello again', assistantText: '', thinkingBlocks: [], toolUses: [], toolResults: [], documents: [] },
     ];
 
     const indices = findClustersWithWord(content, 'hello');
@@ -691,8 +707,8 @@ describe('findClustersWithWord', () => {
 
   it('returns all indices when all match', () => {
     const content: SearchableClusterContent[] = [
-      { clusterIndex: 0, userText: 'test', assistantText: '', thinkingBlocks: [], toolUses: [], toolResults: [] },
-      { clusterIndex: 1, userText: 'test', assistantText: '', thinkingBlocks: [], toolUses: [], toolResults: [] },
+      { clusterIndex: 0, userText: 'test', assistantText: '', thinkingBlocks: [], toolUses: [], toolResults: [], documents: [] },
+      { clusterIndex: 1, userText: 'test', assistantText: '', thinkingBlocks: [], toolUses: [], toolResults: [], documents: [] },
     ];
 
     const indices = findClustersWithWord(content, 'test');

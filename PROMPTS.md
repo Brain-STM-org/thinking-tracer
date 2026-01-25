@@ -1657,3 +1657,27 @@ let's add wasd style movement
 ## 2026-01-25T04:42:59Z
 
 allow a shift-modifier with w/s to move forward/backward
+
+---
+
+## 2026-01-25T04:48:27Z
+
+right now, how are we handling all the encoded content (attachments, images, etc)?
+
+---
+
+## 2026-01-25T11:39:08Z
+
+Let's include the number of these attachments in a summary and be sure that we include them in conversation and as a node.  let's ignore it in search for now
+
+---
+
+## 2026-01-25T12:00:04Z
+
+is "images" correct, can it be other content than images like PDF or movie?
+
+---
+
+## 2026-01-25T12:21:27Z
+
+call them Documents and add handlers for the various media types (is is based on mime type or something?)

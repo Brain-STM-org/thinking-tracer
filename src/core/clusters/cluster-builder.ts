@@ -5,7 +5,7 @@
  * A cluster groups a user message with its corresponding assistant response.
  */
 
-import type { Conversation, Turn, ContentBlock, SearchableCluster } from '../../data/types';
+import type { Conversation, Turn, ContentBlock, SearchableCluster, ImageBlock, DocumentBlock, DocumentMeta } from '../../data/types';
 
 /**
  * Check if a turn contains only tool_result content blocks.
@@ -33,6 +33,8 @@ export interface TurnCluster {
   expanded: boolean;
   thinkingCount: number;
   toolCount: number;
+  /** Count of document/media attachments (images, PDFs, etc.) */
+  documentCount: number;
   /** Whether this cluster is from a sidechain (sub-agent) */
   isSidechain?: boolean;
   /** Agent ID if from a sub-agent */
@@ -126,6 +128,7 @@ export function buildClusters(conversation: Conversation | null): TurnCluster[] 
         expanded: false,
         thinkingCount: 0,
         toolCount: 0,
+        documentCount: 0,
       };
 
       // Collect all consecutive assistant turns and merge their content
@@ -164,10 +167,15 @@ export function buildClusters(conversation: Conversation | null): TurnCluster[] 
         cluster.assistantTurn = mergedAssistantTurn;
         cluster.assistantTurnIndex = firstAssistantIndex;
 
-        // Count thinking and tool blocks
+        // Count thinking, tool, and document blocks
         for (const block of mergedAssistantContent) {
           if (block.type === 'thinking') cluster.thinkingCount++;
           if (block.type === 'tool_use') cluster.toolCount++;
+          if (block.type === 'image' || block.type === 'document') cluster.documentCount++;
+        }
+        // Also count documents in user content
+        for (const block of mergedUserContent) {
+          if (block.type === 'image' || block.type === 'document') cluster.documentCount++;
         }
       }
 
@@ -208,11 +216,13 @@ export function buildClusters(conversation: Conversation | null): TurnCluster[] 
         expanded: false,
         thinkingCount: 0,
         toolCount: 0,
+        documentCount: 0,
       };
 
       for (const block of mergedContent) {
         if (block.type === 'thinking') cluster.thinkingCount++;
         if (block.type === 'tool_use') cluster.toolCount++;
+        if (block.type === 'image' || block.type === 'document') cluster.documentCount++;
       }
 
       enrichCluster(cluster);
@@ -241,11 +251,41 @@ export function extractSearchableContent(clusters: TurnCluster[]): SearchableClu
         .join('\n');
     }
 
-    // Extract assistant text, thinking blocks, and tool info
+    // Extract assistant text, thinking blocks, tool info, and documents
     let assistantText = '';
     const thinkingBlocks: string[] = [];
     const toolUses: Array<{ name: string; input: string }> = [];
     const toolResults: Array<{ content: string; isError: boolean }> = [];
+    const documents: DocumentMeta[] = [];
+
+    // Helper to extract document metadata from image or document blocks
+    const extractDocMeta = (block: ContentBlock): DocumentMeta | null => {
+      if (block.type === 'image') {
+        const img = block as ImageBlock;
+        return {
+          mediaType: img.source.media_type || 'image/unknown',
+          sourceType: img.source.type === 'url' ? 'url' : 'base64',
+          size: img.source.data?.length,
+        };
+      } else if (block.type === 'document') {
+        const doc = block as DocumentBlock;
+        return {
+          mediaType: doc.source.media_type || 'application/octet-stream',
+          sourceType: doc.source.type === 'url' ? 'url' : doc.source.type === 'file' ? 'file' : 'base64',
+          size: doc.source.data?.length,
+          title: doc.title,
+        };
+      }
+      return null;
+    };
+
+    // Extract documents from user turn
+    if (cluster.userTurn) {
+      for (const block of cluster.userTurn.content) {
+        const meta = extractDocMeta(block);
+        if (meta) documents.push(meta);
+      }
+    }
 
     if (cluster.assistantTurn) {
       for (const block of cluster.assistantTurn.content) {
@@ -263,6 +303,9 @@ export function extractSearchableContent(clusters: TurnCluster[]): SearchableClu
             content: String(block.content),
             isError: Boolean((block as { is_error?: boolean }).is_error),
           });
+        } else {
+          const meta = extractDocMeta(block);
+          if (meta) documents.push(meta);
         }
       }
     }
@@ -274,6 +317,7 @@ export function extractSearchableContent(clusters: TurnCluster[]): SearchableClu
       thinkingBlocks,
       toolUses,
       toolResults,
+      documents,
       isSidechain: cluster.isSidechain,
       agentId: cluster.agentId,
       hasError: cluster.hasError,

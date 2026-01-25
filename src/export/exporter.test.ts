@@ -107,6 +107,7 @@ describe('exportAsHtml', () => {
       thinkingBlocks: ['Let me consider this...'],
       toolUses: [{ name: 'read_file', input: '{"path": "/test.txt"}' }],
       toolResults: [{ content: 'File contents here', isError: false }],
+      documents: [],
     },
   ];
 
@@ -180,6 +181,7 @@ describe('exportAsHtml', () => {
         thinkingBlocks: [],
         toolUses: [{ name: 'test', input: '{}' }],
         toolResults: [{ content: 'Error occurred', isError: true }],
+        documents: [],
       },
     ];
 
@@ -221,6 +223,7 @@ describe('exportAsHtml', () => {
         thinkingBlocks: [],
         toolUses: [],
         toolResults: [],
+        documents: [],
         isSidechain: true,
       },
     ];
@@ -241,6 +244,7 @@ describe('exportAsHtml', () => {
         thinkingBlocks: [],
         toolUses: [],
         toolResults: [],
+        documents: [],
         agentId: 'sub-agent-1',
       },
     ];
@@ -260,6 +264,7 @@ describe('exportAsHtml', () => {
         thinkingBlocks: [],
         toolUses: [],
         toolResults: [],
+        documents: [],
         hasError: true,
         error: 'Rate limit exceeded',
       },
@@ -280,6 +285,7 @@ describe('exportAsHtml', () => {
         thinkingBlocks: [],
         toolUses: [],
         toolResults: [],
+        documents: [],
         hasError: true,
       },
     ];
@@ -299,6 +305,7 @@ describe('exportAsHtml', () => {
         thinkingBlocks: [],
         toolUses: [],
         toolResults: [],
+        documents: [],
         stopReason: 'max_tokens',
       },
     ];
@@ -318,6 +325,7 @@ describe('exportAsHtml', () => {
         thinkingBlocks: [],
         toolUses: [],
         toolResults: [],
+        documents: [],
         stopReason: 'end_turn',
       },
     ];
@@ -343,6 +351,7 @@ describe('exportAsHtml', () => {
         thinkingBlocks: [],
         toolUses: [],
         toolResults: [],
+        documents: [],
         isSidechain: true,
         agentId: 'worker-2',
         stopReason: 'tool_use',
@@ -369,6 +378,7 @@ describe('exportAsHtml', () => {
         thinkingBlocks: [],
         toolUses: [],
         toolResults: [],
+        documents: [],
         agentId: '<img onerror=alert(1)>',
         hasError: true,
         error: '<script>xss</script>',
@@ -393,6 +403,7 @@ describe('exportAsMarkdown', () => {
       thinkingBlocks: ['Let me consider this...'],
       toolUses: [{ name: 'read_file', input: '{"path": "/test.txt"}' }],
       toolResults: [{ content: 'File contents here', isError: false }],
+      documents: [],
     },
   ];
 
@@ -455,6 +466,7 @@ describe('exportAsMarkdown', () => {
         thinkingBlocks: [],
         toolUses: [{ name: 'test', input: '{}' }],
         toolResults: [{ content: 'Something failed', isError: true }],
+        documents: [],
       },
     ];
 
@@ -485,6 +497,7 @@ describe('exportAsMarkdown', () => {
         thinkingBlocks: [],
         toolUses: [],
         toolResults: [],
+        documents: [],
       },
       {
         clusterIndex: 1,
@@ -493,6 +506,7 @@ describe('exportAsMarkdown', () => {
         thinkingBlocks: [],
         toolUses: [],
         toolResults: [],
+        documents: [],
       },
     ];
 
@@ -511,6 +525,7 @@ describe('exportAsMarkdown', () => {
         thinkingBlocks: [],
         toolUses: [],
         toolResults: [],
+        documents: [],
         isSidechain: true,
       },
     ];
@@ -529,6 +544,7 @@ describe('exportAsMarkdown', () => {
         thinkingBlocks: [],
         toolUses: [],
         toolResults: [],
+        documents: [],
         agentId: 'worker-3',
       },
     ];
@@ -547,6 +563,7 @@ describe('exportAsMarkdown', () => {
         thinkingBlocks: [],
         toolUses: [],
         toolResults: [],
+        documents: [],
         hasError: true,
         error: 'Connection reset',
       },
@@ -566,6 +583,7 @@ describe('exportAsMarkdown', () => {
         thinkingBlocks: [],
         toolUses: [],
         toolResults: [],
+        documents: [],
         hasError: true,
       },
     ];
@@ -584,6 +602,7 @@ describe('exportAsMarkdown', () => {
         thinkingBlocks: [],
         toolUses: [],
         toolResults: [],
+        documents: [],
         stopReason: 'max_tokens',
       },
     ];
@@ -602,6 +621,7 @@ describe('exportAsMarkdown', () => {
         thinkingBlocks: [],
         toolUses: [],
         toolResults: [],
+        documents: [],
         stopReason: 'end_turn',
       },
     ];
@@ -628,6 +648,7 @@ describe('exportAsMarkdown', () => {
         thinkingBlocks: [],
         toolUses: [],
         toolResults: [],
+        documents: [],
         isSidechain: true,
         agentId: 'builder',
         stopReason: 'tool_use',

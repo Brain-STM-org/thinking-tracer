@@ -22,6 +22,7 @@ export interface ConversationFilterState {
   output: boolean;
   thinking: boolean;
   tools: boolean;
+  documents: boolean;
 }
 
 /**
@@ -46,6 +47,7 @@ export class ConversationPanel {
     output: true,
     thinking: false,
     tools: false,
+    documents: true,
   };
 
   // Bound event handlers for cleanup
@@ -144,6 +146,26 @@ export class ConversationPanel {
 <div class="conv-tool-content"><div class="conv-content-wrap">${escapeHtml(toolResult.content)}<button class="conv-expand-btn">More</button></div></div>
 </div>`;
         }
+      }
+
+      // Documents (images, PDFs, etc.)
+      for (let t = 0; t < cluster.documents.length; t++) {
+        const doc = cluster.documents[t];
+        const sizeStr = doc.size ? ` (${(doc.size / 1024).toFixed(1)} KB)` : '';
+        const sourceLabel = doc.sourceType === 'url' ? 'URL' : doc.sourceType === 'file' ? 'File' : 'Base64';
+        // Determine display name based on media type
+        let docLabel = 'Document';
+        if (doc.mediaType.startsWith('image/')) {
+          docLabel = 'Image';
+        } else if (doc.mediaType === 'application/pdf') {
+          docLabel = 'PDF';
+        } else if (doc.mediaType.startsWith('text/')) {
+          docLabel = 'Text File';
+        }
+        const titleStr = doc.title ? ` "${escapeHtml(doc.title)}"` : '';
+        html += `<div class="conv-document" data-document-index="${t}">
+<div class="conv-document-header"><span class="arrow">▶</span><span>${docLabel}</span><span style="color: #666; font-weight: normal;">${escapeHtml(doc.mediaType)}${titleStr} · ${sourceLabel}${sizeStr}</span></div>
+</div>`;
       }
 
       // Assistant text output
@@ -299,6 +321,9 @@ export class ConversationPanel {
     });
     this.container.querySelectorAll('.conv-tool').forEach((el) => {
       (el as HTMLElement).style.display = this.filterState.tools ? '' : 'none';
+    });
+    this.container.querySelectorAll('.conv-document').forEach((el) => {
+      (el as HTMLElement).style.display = this.filterState.documents ? '' : 'none';
     });
   }
 

@@ -38,6 +38,7 @@ function createMockViewer(): SearchableViewer {
         thinkingBlocks: [],
         toolUses: [],
         toolResults: [],
+        documents: [],
       },
       {
         clusterIndex: 1,
@@ -46,6 +47,7 @@ function createMockViewer(): SearchableViewer {
         thinkingBlocks: ['thinking about search'],
         toolUses: [],
         toolResults: [],
+        documents: [],
       },
     ] as SearchableCluster[]),
     selectClusterByIndex: vi.fn(),

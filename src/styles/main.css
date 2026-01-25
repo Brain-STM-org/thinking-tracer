@@ -825,6 +825,7 @@ html, body {
 .conv-tool.tool-use { --bubble-bg: #2a2a3a; --bubble-color: #f39c12; --bubble-btn-bg: rgba(243, 156, 18, 0.2); }
 .conv-tool.tool-result { --bubble-bg: #2a2a3a; --bubble-color: #e74c3c; --bubble-btn-bg: rgba(231, 76, 60, 0.2); }
 .conv-tool.tool-result.success { --bubble-color: #27ae60; --bubble-btn-bg: rgba(39, 174, 96, 0.2); }
+.conv-document { --bubble-bg: #2a3a4a; --bubble-color: #3498db; --bubble-btn-bg: rgba(52, 152, 219, 0.2); }
 
 .conv-assistant {
   margin-left: 0;
@@ -992,6 +993,29 @@ html, body {
 
 .conv-tool.expanded .conv-tool-content {
   display: block;
+}
+
+/* Document blocks (images, PDFs, etc.) */
+.conv-document {
+  background: #2a3a4a;
+  border-radius: 6px;
+  margin-bottom: 10px;
+  border-left: 3px solid #3498db;
+  overflow: hidden;
+}
+
+.conv-document-header {
+  padding: 8px 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #3498db;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.conv-document-header .arrow {
+  font-size: 10px;
 }
 
 /* ============================================
@@ -1898,6 +1922,7 @@ html, body {
 .legend-color.thinking { background: #9b59b6; }
 .legend-color.tool-use { background: #f39c12; }
 .legend-color.tool-result { background: #e74c3c; }
+.legend-color.document { background: #3498db; }
 
 .legend-section {
   margin-bottom: 12px;

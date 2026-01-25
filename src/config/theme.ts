@@ -42,6 +42,7 @@ export interface NodeThemes {
   thinking: NodeTheme;
   toolUse: NodeTheme;
   toolResult: NodeTheme;
+  document: NodeTheme;
   cluster: NodeTheme;
 }
 
@@ -158,6 +159,10 @@ export const DEFAULT_NODE_THEMES: NodeThemes = {
   toolResult: {
     color: 0xe74c3c, // Red
     material: { roughness: 0.4 },
+  },
+  document: {
+    color: 0x3498db, // Light blue
+    material: { roughness: 0.3, metalness: 0.2 },
   },
   cluster: {
     color: 0x5a9a7a, // Teal (blend of user blue + assistant green)
