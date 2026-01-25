@@ -13,11 +13,12 @@ import {
 function createMockViewer(): CoilControllableViewer {
   const state = {
     params: {
-      spiralRadius: 2.5,
-      spiralAngleStep: 1.26,
-      coilRadius: 6,
-      coilAngleStep: 0.39,
-      coilVerticalStep: 1.5,
+      radius: 6,
+      angleStep: 0.39,
+      verticalStep: 1.5,
+      tiltAngle: 0.17,
+      radiusGrowth: 0.1,
+      descendAngle: 0,
       focusRadius: 4,
       minVerticalSpacing: 0.2,
       maxVerticalSpacing: 1.5,
@@ -37,11 +38,12 @@ function createMockViewer(): CoilControllableViewer {
     }),
     resetCoilParams: vi.fn(() => {
       state.params = {
-        spiralRadius: 2.5,
-        spiralAngleStep: 1.26,
-        coilRadius: 6,
-        coilAngleStep: 0.39,
-        coilVerticalStep: 1.5,
+        radius: 6,
+        angleStep: 0.39,
+        verticalStep: 1.5,
+        tiltAngle: 0.17,
+        radiusGrowth: 0.1,
+        descendAngle: 0,
         focusRadius: 4,
         minVerticalSpacing: 0.2,
         maxVerticalSpacing: 1.5,
@@ -73,7 +75,7 @@ function createMockElements(): CoilControlsPanelElements {
 
   // Create slider elements
   const slidersContainer = document.createElement('div');
-  const sliderParams = ['spiralRadius', 'coilRadius', 'focusRadius'];
+  const sliderParams = ['radius', 'angleStep', 'focusRadius'];
   sliderParams.forEach((param) => {
     const sliderDiv = document.createElement('div');
     sliderDiv.className = 'coil-slider';
@@ -257,7 +259,7 @@ describe('CoilControlsPanel', () => {
       slider.value = '5';
       slider.dispatchEvent(new Event('input'));
 
-      expect(viewer.setCoilParam).toHaveBeenCalledWith('spiralRadius', 5);
+      expect(viewer.setCoilParam).toHaveBeenCalledWith('radius', 5);
     });
 
     it('updates value display when slider changes', () => {
@@ -284,8 +286,8 @@ describe('CoilControlsPanel', () => {
       slider2.value = '8';
       slider2.dispatchEvent(new Event('input'));
 
-      expect(viewer.setCoilParam).toHaveBeenCalledWith('spiralRadius', 3);
-      expect(viewer.setCoilParam).toHaveBeenCalledWith('coilRadius', 8);
+      expect(viewer.setCoilParam).toHaveBeenCalledWith('radius', 3);
+      expect(viewer.setCoilParam).toHaveBeenCalledWith('angleStep', 8);
     });
   });
 
@@ -383,8 +385,8 @@ describe('CoilControlsPanel', () => {
       const slider = elements.sliders[0].querySelector('input') as HTMLInputElement;
       const valueSpan = elements.sliders[0].querySelector('.coil-value') as HTMLElement;
 
-      expect(slider.value).toBe('2.5');
-      expect(valueSpan.textContent).toBe('2.50');
+      expect(slider.value).toBe('6');
+      expect(valueSpan.textContent).toBe('6.00');
     });
 
     it('syncs cluster lines state', () => {

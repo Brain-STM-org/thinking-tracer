@@ -6,19 +6,19 @@
  */
 
 /**
- * Parameters controlling the coiled-coil spiral layout
+ * Parameters controlling the helical coil layout
  */
 export interface CoilLayoutConfig {
-  /** Radius of the tight inner spiral */
-  spiralRadius: number;
-  /** Angle step per cluster on the tight spiral (radians) */
-  spiralAngleStep: number;
-  /** Radius of the larger coil path that the spiral follows */
-  coilRadius: number;
-  /** Angle step for the outer coil rotation (radians) */
-  coilAngleStep: number;
-  /** Vertical distance per coil rotation unit */
-  coilVerticalStep: number;
+  /** Radius of the helix */
+  radius: number;
+  /** Angle step per cluster (radians) */
+  angleStep: number;
+  /** Vertical distance per unit of path progress */
+  verticalStep: number;
+  /** Axis tilt from vertical (radians) */
+  tiltAngle: number;
+  /** Radius increase per unit of path progress (cone effect) */
+  radiusGrowth: number;
 }
 
 /**
@@ -75,6 +75,8 @@ export interface ExpandedLayoutConfig {
   toolUseOffset: [number, number];
   /** Tool result position offset [x, z] from center */
   toolResultOffset: [number, number];
+  /** Angle of descent from user node (radians, 0 = straight down, positive = outward) */
+  descendAngle: number;
 }
 
 /**
@@ -127,11 +129,11 @@ export interface LayoutConfig {
  * Default coil layout parameters
  */
 export const DEFAULT_COIL: CoilLayoutConfig = {
-  spiralRadius: 2.5,
-  spiralAngleStep: Math.PI / 2.5,
-  coilRadius: 6,
-  coilAngleStep: Math.PI / 8,
-  coilVerticalStep: 1.5,
+  radius: 6,
+  angleStep: Math.PI / 8,
+  verticalStep: 1.5,
+  tiltAngle: Math.PI / 18,
+  radiusGrowth: 0.1,
 };
 
 /**
@@ -169,6 +171,7 @@ export const DEFAULT_EXPANDED: ExpandedLayoutConfig = {
   thinkingOffset: [1, 0.5],
   toolUseOffset: [0.8, -0.5],
   toolResultOffset: [1.2, -0.3],
+  descendAngle: 0,
 };
 
 /**

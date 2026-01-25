@@ -123,8 +123,9 @@ describe('getSpiralPosition', () => {
   });
 
   it('positions stay within expected radius', () => {
-    const params = DEFAULT_COIL_PARAMS;
-    const maxRadius = params.coilRadius + params.spiralRadius + 1;
+    // With cone growth and tilt, use generous bound
+    const params = { ...DEFAULT_COIL_PARAMS, tiltAngle: 0, radiusGrowth: 0 };
+    const maxRadius = params.radius + 1;
 
     for (let i = 0; i < 20; i++) {
       const pos = getSpiralPosition(i, params);
@@ -133,17 +134,17 @@ describe('getSpiralPosition', () => {
     }
   });
 
-  it('respects spiral radius parameter', () => {
-    const smallParams = { ...DEFAULT_COIL_PARAMS, spiralRadius: 1, coilRadius: 0 };
-    const largeParams = { ...DEFAULT_COIL_PARAMS, spiralRadius: 5, coilRadius: 0 };
+  it('respects radius parameter', () => {
+    const smallParams = { ...DEFAULT_COIL_PARAMS, radius: 2 };
+    const largeParams = { ...DEFAULT_COIL_PARAMS, radius: 10 };
 
     const smallPos = getSpiralPosition(1, smallParams);
     const largePos = getSpiralPosition(1, largeParams);
 
-    const smallRadius = Math.sqrt(smallPos.x ** 2 + smallPos.z ** 2 + smallPos.y ** 2);
-    const largeRadius = Math.sqrt(largePos.x ** 2 + largePos.z ** 2 + largePos.y ** 2);
+    const smallHoriz = Math.sqrt(smallPos.x ** 2 + smallPos.z ** 2);
+    const largeHoriz = Math.sqrt(largePos.x ** 2 + largePos.z ** 2);
 
-    expect(largeRadius).toBeGreaterThan(smallRadius);
+    expect(largeHoriz).toBeGreaterThan(smallHoriz);
   });
 });
 
@@ -258,11 +259,11 @@ describe('getExpandedBlockPositions', () => {
 
 describe('DEFAULT_COIL_PARAMS', () => {
   it('has all required properties', () => {
-    expect(DEFAULT_COIL_PARAMS).toHaveProperty('spiralRadius');
-    expect(DEFAULT_COIL_PARAMS).toHaveProperty('spiralAngleStep');
-    expect(DEFAULT_COIL_PARAMS).toHaveProperty('coilRadius');
-    expect(DEFAULT_COIL_PARAMS).toHaveProperty('coilAngleStep');
-    expect(DEFAULT_COIL_PARAMS).toHaveProperty('coilVerticalStep');
+    expect(DEFAULT_COIL_PARAMS).toHaveProperty('radius');
+    expect(DEFAULT_COIL_PARAMS).toHaveProperty('angleStep');
+    expect(DEFAULT_COIL_PARAMS).toHaveProperty('verticalStep');
+    expect(DEFAULT_COIL_PARAMS).toHaveProperty('tiltAngle');
+    expect(DEFAULT_COIL_PARAMS).toHaveProperty('radiusGrowth');
     expect(DEFAULT_COIL_PARAMS).toHaveProperty('focusIndex');
     expect(DEFAULT_COIL_PARAMS).toHaveProperty('minVerticalSpacing');
     expect(DEFAULT_COIL_PARAMS).toHaveProperty('maxVerticalSpacing');
@@ -270,8 +271,7 @@ describe('DEFAULT_COIL_PARAMS', () => {
   });
 
   it('has sensible default values', () => {
-    expect(DEFAULT_COIL_PARAMS.spiralRadius).toBeGreaterThan(0);
-    expect(DEFAULT_COIL_PARAMS.coilRadius).toBeGreaterThan(0);
+    expect(DEFAULT_COIL_PARAMS.radius).toBeGreaterThan(0);
     expect(DEFAULT_COIL_PARAMS.minVerticalSpacing).toBeLessThan(
       DEFAULT_COIL_PARAMS.maxVerticalSpacing
     );

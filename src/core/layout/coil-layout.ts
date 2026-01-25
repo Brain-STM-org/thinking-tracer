@@ -1,22 +1,20 @@
 /**
  * Coil Layout Calculator
  *
- * Pure math functions for calculating the "coiled coil" spiral layout.
- * The visualization creates a tight spiral that follows a larger helical path.
+ * Pure math functions for calculating the helical coil layout.
+ * Nodes sit directly on a single helical path.
  */
 
 /**
  * Layout parameters for the coil visualization
  */
 export interface CoilLayoutParams {
-  // Primary spiral (tight coil)
-  spiralRadius: number;
-  spiralAngleStep: number;
-
-  // Secondary coil (larger path the spiral follows)
-  coilRadius: number;
-  coilAngleStep: number;
-  coilVerticalStep: number;
+  // Helix parameters
+  radius: number;
+  angleStep: number;
+  verticalStep: number;
+  tiltAngle: number;       // axis tilt from vertical (radians)
+  radiusGrowth: number;    // radius increase per unit of path progress
 
   // Slinky effect (focus-based spacing)
   focusIndex: number;
@@ -29,11 +27,11 @@ export interface CoilLayoutParams {
  * Default layout parameters
  */
 export const DEFAULT_COIL_PARAMS: CoilLayoutParams = {
-  spiralRadius: 2.5,
-  spiralAngleStep: Math.PI / 2.5,
-  coilRadius: 6,
-  coilAngleStep: Math.PI / 8,
-  coilVerticalStep: 1.5,
+  radius: 6,
+  angleStep: Math.PI / 8,
+  verticalStep: 1.5,
+  tiltAngle: Math.PI / 18,   // 10 degrees
+  radiusGrowth: 0.1,
   focusIndex: 0,
   minVerticalSpacing: 0.2,
   maxVerticalSpacing: 1.5,
@@ -87,42 +85,33 @@ export function getPathProgress(
 }
 
 /**
- * Calculate spiral position for a cluster with slinky effect and secondary coiling.
- * Creates a "coiled coil" - a spiral that follows a larger helical path.
+ * Calculate position for a cluster on a single helix.
+ * The helix expands in radius as it descends (cone) and the axis
+ * is tilted from vertical by tiltAngle (lean).
  * Flows top-to-bottom to match conversation reading order.
  */
 export function getSpiralPosition(
   index: number,
   params: CoilLayoutParams
 ): Position3D {
-  // Calculate progress along the path (for secondary coil)
   const pathProgress = getPathProgress(index, params);
 
-  // Secondary coil (the larger path that the spiral center follows)
-  const coilAngle = pathProgress * params.coilAngleStep;
-  const coilCenterX = Math.cos(coilAngle) * params.coilRadius;
-  const coilCenterZ = Math.sin(coilAngle) * params.coilRadius;
-  // Negative Y so spiral flows downward (top-to-bottom like conversation)
-  const coilCenterY = -pathProgress * params.coilVerticalStep;
+  const angle = pathProgress * params.angleStep;
+  const currentRadius = params.radius + pathProgress * params.radiusGrowth;
 
-  // Primary spiral (tight coil around the secondary coil path)
-  const spiralAngle = index * params.spiralAngleStep;
+  // Position on upright helix
+  const lx = Math.cos(angle) * currentRadius;
+  const ly = -pathProgress * params.verticalStep;
+  const lz = Math.sin(angle) * currentRadius;
 
-  // Calculate the tangent direction of the coil path for proper orientation
-  const tangentAngle = coilAngle + Math.PI / 2;
-  const tangentX = Math.cos(tangentAngle);
-  const tangentZ = Math.sin(tangentAngle);
-
-  // Spiral offset perpendicular to the coil path
-  // Use the tangent and up vector to create the spiral plane
-  const spiralOffsetX = Math.cos(spiralAngle) * params.spiralRadius * tangentX;
-  const spiralOffsetZ = Math.cos(spiralAngle) * params.spiralRadius * tangentZ;
-  const spiralOffsetY = Math.sin(spiralAngle) * params.spiralRadius;
+  // Tilt the axis: rotate around Z by tiltAngle
+  const cosT = Math.cos(params.tiltAngle);
+  const sinT = Math.sin(params.tiltAngle);
 
   return {
-    x: coilCenterX + spiralOffsetX,
-    y: coilCenterY + spiralOffsetY,
-    z: coilCenterZ + spiralOffsetZ,
+    x: lx * cosT - ly * sinT,
+    y: lx * sinT + ly * cosT,
+    z: lz,
   };
 }
 

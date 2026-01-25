@@ -1521,3 +1521,109 @@ ok now we will work on correctness.  i have added a short file called f.jsonl  s
 ## 2026-01-25T03:20:14Z
 
 that works much better, thanks.  the right conversation panel does not remain attached to the window right edge upon resize
+
+---
+
+## 2026-01-25T03:38:48Z
+
+i think the double coil is too complicated looking and not helping, i do like the slinky effect.  please explore having only one set of coil parameters
+
+---
+
+## 2026-01-25T03:42:11Z
+
+Implement the following plan:
+
+# Plan: Simplify Double Coil to Single Coil
+
+## Summary
+
+Remove the "coiled coil" (spiral-around-a-helix) and replace with a single helix. Nodes sit directly on one helical path instead of spiraling around it. The slinky effect (focus-based vertical compression/expansion) is unchanged.
+
+## What Changes
+
+**Remove** the "primary spiral" parameters:
+- `spiralRadius` — tight spiral radius wrapping around the helix
+- `spiralAngleStep` — angle increment per cluster on the tight spiral
+
+**Rename** the "secondary coil" parameters to be the only coil:
+- `coilRadius` → `radius`
+- `coilAngleStep` → `angleStep`
+- `coilVerticalStep` → `verticalStep`
+
+**Keep unchanged**: slinky effect (`focusIndex`, `minVerticalSpacing`, `maxVerticalSpacing`, `focusRadius`)
+
+## Simplified Math
+
+Before (coiled coil):
+```
+coilCenter = (cos(coilAngle) * coilRadius, -progress * coilVerticalStep, sin(coilAngle) * coilRadius)
+spiralOffset = spiralRadius * (tangent-perpendicular offsets)
+position = coilCenter + spiralOffset
+```
+
+After (single helix):
+```
+angle = pathProgress * angleStep
+x = cos(angle) * radius
+y = -pathProgress * verticalStep
+z = sin(angle) * radius
+```
+
+## Files Modified
+
+### 1. `src/core/layout/coil-layout.ts`
+- `CoilLayoutParams`: remove `spiralRadius`, `spiralAngleStep`; rename `coilRadius` → `radius`, `coilAngleStep` → `angleStep`, `coilVerticalStep` → `verticalStep`
+- `DEFAULT_COIL_PARAMS`: update to match (keep radius=6, angleStep=π/8, verticalStep=1.5)
+- `getSpiralPosition()`: remove spiral offset math, return helix point directly
+
+### 2. `src/config/layout.ts`
+- `CoilLayoutConfig`: remove `spiralRadius`, `spiralAngleStep`; rename remaining to `radius`, `angleStep`, `verticalStep`
+- `DEFAULT_COIL`: update to match
+
+### 3. `src/core/Viewer.ts`
+- Remove instance vars `spiralRadius`, `spiralAngleStep`
+- Rename instance vars: `coilRadius` → `radius`, `coilAngleStep` → `angleStep`, `coilVerticalStep` → `verticalStep`
+- Update `getLayoutParams()`, `getCoilParams()`, `setCoilParam()`, `resetCoilParams()`
+
+### 4. `src/ui/panels/CoilControlsPanel.ts`
+- `CoilParams` interface: remove `spiralRadius`, `spiralAngleStep`; rename remaining
+
+### 5. `index.html`
+- Remove "Primary Spiral" section (2 sliders)
+- Rename "Secondary Coil" → "Coil"
+- Update `data-param` attributes: `coilRadius` → `radius`, `coilAngleStep` → `angleStep`, `coilVerticalStep` → `verticalStep`
+
+### 6. `src/core/layout/coil-layout.test.ts`
+- Remove tests referencing `spiralRadius`/`spiralAngleStep`
+- Update all `DEFAULT_COIL_PARAMS` references (property names changed)
+- Update radius boundary test (no longer `coilRadius + spiralRadius`, just `radius`)
+- Update "respects spiral radius parameter" test → "respects radius parameter"
+
+### 7. `src/ui/panels/CoilControlsPanel.test.ts`
+- Update mock `CoilParams` objects (remove spiral fields, rename coil fields)
+- Update slider params array: `['spiralRadius', 'coilRadius', 'focusRadius']` → `['radius', 'angleStep', 'focusRadius']`
+- Update assertions that reference `spiralRadius`
+
+## Verification
+
+1. `npm run build` — TypeScript compiles cleanly
+2. `npm run test:run` — All tests pass
+3. Load a trace file — single helix with slinky effect renders correctly
+4. Coil controls panel — 3 sliders (Radius, Angle, V-Step) + 3 slinky sliders work
+5. Reset button restores defaults
+
+
+If you need specific details from before exiting plan mode (like exact code snippets, error messages, or content you generated), read the full transcript at: /Users/evan/.claude/projects/-Users-evan-brainstm-thinking-trace-viewer/2bbe3e74-b13d-4f85-839d-a74a200d6bbf.jsonl
+
+---
+
+## 2026-01-25T03:48:57Z
+
+that works a lot better.  since some threads are long, have them come down at a slight angle (ten degrees out?) and also have the coil increase radius as it lowers so it's almost a cone.  let's see how that works
+
+---
+
+## 2026-01-25T04:04:32Z
+
+add a control to change the angle of the nodes as they descend from the user input node

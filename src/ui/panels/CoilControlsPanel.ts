@@ -12,11 +12,12 @@
  * Coil parameters interface (from Viewer)
  */
 export interface CoilParams {
-  spiralRadius: number;
-  spiralAngleStep: number;
-  coilRadius: number;
-  coilAngleStep: number;
-  coilVerticalStep: number;
+  radius: number;
+  angleStep: number;
+  verticalStep: number;
+  tiltAngle: number;
+  radiusGrowth: number;
+  descendAngle: number;
   focusRadius: number;
   minVerticalSpacing: number;
   maxVerticalSpacing: number;

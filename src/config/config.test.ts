@@ -49,11 +49,11 @@ import {
 
 describe('config/layout', () => {
   it('DEFAULT_COIL has valid values', () => {
-    expect(DEFAULT_COIL.spiralRadius).toBeGreaterThan(0);
-    expect(DEFAULT_COIL.spiralAngleStep).toBeGreaterThan(0);
-    expect(DEFAULT_COIL.coilRadius).toBeGreaterThan(0);
-    expect(DEFAULT_COIL.coilAngleStep).toBeGreaterThan(0);
-    expect(DEFAULT_COIL.coilVerticalStep).toBeGreaterThan(0);
+    expect(DEFAULT_COIL.radius).toBeGreaterThan(0);
+    expect(DEFAULT_COIL.angleStep).toBeGreaterThan(0);
+    expect(DEFAULT_COIL.verticalStep).toBeGreaterThan(0);
+    expect(DEFAULT_COIL.tiltAngle).toBeGreaterThanOrEqual(0);
+    expect(DEFAULT_COIL.radiusGrowth).toBeGreaterThanOrEqual(0);
   });
 
   it('DEFAULT_FOCUS has valid values', () => {
@@ -280,10 +280,10 @@ describe('config/index', () => {
 
     it('merges shallow overrides', () => {
       const config = createConfig({
-        layout: { ...DEFAULT_LAYOUT_CONFIG, coil: { ...DEFAULT_COIL, spiralRadius: 5 } },
+        layout: { ...DEFAULT_LAYOUT_CONFIG, coil: { ...DEFAULT_COIL, radius: 10 } },
       });
-      expect(config.layout.coil.spiralRadius).toBe(5);
-      expect(config.layout.coil.spiralAngleStep).toBe(DEFAULT_COIL.spiralAngleStep);
+      expect(config.layout.coil.radius).toBe(10);
+      expect(config.layout.coil.angleStep).toBe(DEFAULT_COIL.angleStep);
     });
   });
 

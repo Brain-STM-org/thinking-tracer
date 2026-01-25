@@ -130,16 +130,15 @@ export class Viewer {
   private lineMaterial: LineMaterial;
   private clusterLineMaterial: LineMaterial;
 
-  // Layout parameters - primary spiral (tight coil)
-  private spiralRadius = config.layout.coil.spiralRadius;
-  private spiralAngleStep = config.layout.coil.spiralAngleStep;
+  // Layout parameters - helix
+  private radius = config.layout.coil.radius;
+  private angleStep = config.layout.coil.angleStep;
+  private verticalStep = config.layout.coil.verticalStep;
+  private tiltAngle = config.layout.coil.tiltAngle;
+  private radiusGrowth = config.layout.coil.radiusGrowth;
   private readonly expandedSpacing = config.layout.expanded.turnSpacing;
   private readonly blockSpacing = config.layout.expanded.blockSpacing;
-
-  // Secondary coil parameters (the path the spiral follows)
-  private coilRadius = config.layout.coil.coilRadius;
-  private coilAngleStep = config.layout.coil.coilAngleStep;
-  private coilVerticalStep = config.layout.coil.coilVerticalStep;
+  private descendAngle = config.layout.expanded.descendAngle;
 
   // Slinky effect parameters
   private focusClusterIndex = 0;
@@ -809,11 +808,11 @@ export class Viewer {
    */
   private getLayoutParams(): CoilLayoutParams {
     return {
-      spiralRadius: this.spiralRadius,
-      spiralAngleStep: this.spiralAngleStep,
-      coilRadius: this.coilRadius,
-      coilAngleStep: this.coilAngleStep,
-      coilVerticalStep: this.coilVerticalStep,
+      radius: this.radius,
+      angleStep: this.angleStep,
+      verticalStep: this.verticalStep,
+      tiltAngle: this.tiltAngle,
+      radiusGrowth: this.radiusGrowth,
       focusIndex: this.focusClusterIndex,
       minVerticalSpacing: this.minVerticalSpacing,
       maxVerticalSpacing: this.maxVerticalSpacing,
@@ -857,11 +856,22 @@ export class Viewer {
         let offsetY = 0;
         const childNodes = this.nodes.filter(n => n.clusterIndex === cluster.index && n.type !== 'cluster');
 
+        // Radial direction from helix center for angled descent
+        const radLen = Math.sqrt(clusterPos.x * clusterPos.x + clusterPos.z * clusterPos.z);
+        const radX = radLen > 0 ? clusterPos.x / radLen : 1;
+        const radZ = radLen > 0 ? clusterPos.z / radLen : 0;
+        const cosD = Math.cos(this.descendAngle);
+        const sinD = Math.sin(this.descendAngle);
+
         for (const node of childNodes) {
           node.mesh.visible = true;
 
           const pos = clusterPos.clone();
-          pos.y += offsetY;
+          // Descend at an angle: vertical + radial outward component
+          const dist = -offsetY; // positive distance from cluster origin
+          pos.y -= dist * cosD;
+          pos.x += dist * sinD * radX;
+          pos.z += dist * sinD * radZ;
 
           // Offset different types using config
           const { thinkingOffset, toolUseOffset, toolResultOffset } = config.layout.expanded;
@@ -1537,21 +1547,23 @@ export class Viewer {
    * Get all coil parameters for UI binding
    */
   public getCoilParams(): {
-    spiralRadius: number;
-    spiralAngleStep: number;
-    coilRadius: number;
-    coilAngleStep: number;
-    coilVerticalStep: number;
+    radius: number;
+    angleStep: number;
+    verticalStep: number;
+    tiltAngle: number;
+    radiusGrowth: number;
+    descendAngle: number;
     focusRadius: number;
     minVerticalSpacing: number;
     maxVerticalSpacing: number;
   } {
     return {
-      spiralRadius: this.spiralRadius,
-      spiralAngleStep: this.spiralAngleStep,
-      coilRadius: this.coilRadius,
-      coilAngleStep: this.coilAngleStep,
-      coilVerticalStep: this.coilVerticalStep,
+      radius: this.radius,
+      angleStep: this.angleStep,
+      verticalStep: this.verticalStep,
+      tiltAngle: this.tiltAngle,
+      radiusGrowth: this.radiusGrowth,
+      descendAngle: this.descendAngle,
       focusRadius: this.focusRadius,
       minVerticalSpacing: this.minVerticalSpacing,
       maxVerticalSpacing: this.maxVerticalSpacing,
@@ -1563,20 +1575,23 @@ export class Viewer {
    */
   public setCoilParam(name: string, value: number): void {
     switch (name) {
-      case 'spiralRadius':
-        this.spiralRadius = value;
+      case 'radius':
+        this.radius = value;
         break;
-      case 'spiralAngleStep':
-        this.spiralAngleStep = value;
+      case 'angleStep':
+        this.angleStep = value;
         break;
-      case 'coilRadius':
-        this.coilRadius = value;
+      case 'verticalStep':
+        this.verticalStep = value;
         break;
-      case 'coilAngleStep':
-        this.coilAngleStep = value;
+      case 'tiltAngle':
+        this.tiltAngle = value;
         break;
-      case 'coilVerticalStep':
-        this.coilVerticalStep = value;
+      case 'radiusGrowth':
+        this.radiusGrowth = value;
+        break;
+      case 'descendAngle':
+        this.descendAngle = value;
         break;
       case 'focusRadius':
         this.focusRadius = value;
@@ -1598,11 +1613,12 @@ export class Viewer {
    */
   public resetCoilParams(): void {
     const { coil, focus } = config.layout;
-    this.spiralRadius = coil.spiralRadius;
-    this.spiralAngleStep = coil.spiralAngleStep;
-    this.coilRadius = coil.coilRadius;
-    this.coilAngleStep = coil.coilAngleStep;
-    this.coilVerticalStep = coil.coilVerticalStep;
+    this.radius = coil.radius;
+    this.angleStep = coil.angleStep;
+    this.verticalStep = coil.verticalStep;
+    this.tiltAngle = coil.tiltAngle;
+    this.radiusGrowth = coil.radiusGrowth;
+    this.descendAngle = config.layout.expanded.descendAngle;
     this.focusRadius = focus.focusRadius;
     this.minVerticalSpacing = focus.minVerticalSpacing;
     this.maxVerticalSpacing = focus.maxVerticalSpacing;
