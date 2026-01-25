@@ -120,6 +120,7 @@ export class Viewer {
   private highlightMaterial: THREE.MeshStandardMaterial;
   private sidechainMaterial: THREE.MeshStandardMaterial;
   private errorMaterial: THREE.MeshStandardMaterial;
+  private toolResultSuccessMaterial: THREE.MeshStandardMaterial;
 
   // Connection lines between nodes
   private connectionLines: Line2[] = [];
@@ -228,6 +229,12 @@ export class Viewer {
       roughness: 0.4,
       metalness: 0.2,
       emissive: 0x331111,
+    });
+
+    // Tool result success material: green (matching conversation panel)
+    this.toolResultSuccessMaterial = new THREE.MeshStandardMaterial({
+      color: nodeThemes.toolResultSuccess.color,
+      roughness: nodeThemes.toolResultSuccess.material.roughness,
     });
 
     // Line material for connections within expanded clusters
@@ -798,7 +805,13 @@ export class Viewer {
    */
   private createNode(type: NodeType, data: Turn | ContentBlock, turnIndex: number, clusterIndex?: number): VisualNode {
     const geometry = this.getGeometryForType(type);
-    const material = this.materials[type];
+
+    // Use success material for non-error tool results
+    let material = this.materials[type];
+    if (type === 'tool_result' && data && 'is_error' in data && !data.is_error) {
+      material = this.toolResultSuccessMaterial;
+    }
+
     const mesh = new THREE.Mesh(geometry, material);
 
     return { mesh, type, data, turnIndex, clusterIndex, originalMaterial: material };
@@ -876,9 +889,21 @@ export class Viewer {
         clusterNode.targetScale = 0.01;
         clusterNode.targetPosition = clusterPos.clone();
 
-        // Position child nodes
+        // Position child nodes in logical order:
+        // user first, then content blocks in original order, assistant text last
         let offsetY = 0;
-        const childNodes = this.nodes.filter(n => n.clusterIndex === cluster.index && n.type !== 'cluster');
+        const childNodes = this.nodes
+          .filter(n => n.clusterIndex === cluster.index && n.type !== 'cluster')
+          .sort((a, b) => {
+            // user always first
+            if (a.type === 'user') return -1;
+            if (b.type === 'user') return 1;
+            // assistant always last
+            if (a.type === 'assistant') return 1;
+            if (b.type === 'assistant') return -1;
+            // everything else keeps original order (stable sort)
+            return 0;
+          });
 
         // Radial direction from helix center for angled descent
         const radLen = Math.sqrt(clusterPos.x * clusterPos.x + clusterPos.z * clusterPos.z);

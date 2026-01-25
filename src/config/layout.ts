@@ -131,18 +131,18 @@ export interface LayoutConfig {
 export const DEFAULT_COIL: CoilLayoutConfig = {
   radius: 6,
   angleStep: Math.PI / 8,
-  verticalStep: 1.5,
+  verticalStep: 2.0,
   tiltAngle: Math.PI / 18,
-  radiusGrowth: 0.1,
+  radiusGrowth: 0.5,
 };
 
 /**
  * Default focus/slinky parameters
  */
 export const DEFAULT_FOCUS: FocusConfig = {
-  minVerticalSpacing: 0.2,
-  maxVerticalSpacing: 1.5,
-  focusRadius: 4,
+  minVerticalSpacing: 0.5,
+  maxVerticalSpacing: 2.5,
+  focusRadius: 5,
 };
 
 /**
@@ -171,7 +171,7 @@ export const DEFAULT_EXPANDED: ExpandedLayoutConfig = {
   thinkingOffset: [1, 0.5],
   toolUseOffset: [0.8, -0.5],
   toolResultOffset: [1.2, -0.3],
-  descendAngle: 0,
+  descendAngle: 0.6,
 };
 
 /**

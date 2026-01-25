@@ -709,3 +709,73 @@ describe('parseAssistantMessage', () => {
     expect(parseAssistantMessage({ role: 'user', content: [] })).toBeUndefined();
   });
 });
+
+describe('turn ordering', () => {
+  it('preserves JSONL line order in turns', () => {
+    // Create JSONL with specific ordering
+    const jsonl = [
+      '{"type":"user","uuid":"1","timestamp":"2026-01-01T00:00:00Z","message":{"content":"First"}}',
+      '{"type":"assistant","uuid":"2","timestamp":"2026-01-01T00:00:01Z","message":{"content":[{"type":"text","text":"Response 1"}]}}',
+      '{"type":"user","uuid":"3","timestamp":"2026-01-01T00:00:02Z","message":{"content":"Second"}}',
+      '{"type":"assistant","uuid":"4","timestamp":"2026-01-01T00:00:03Z","message":{"content":[{"type":"text","text":"Response 2"}]}}',
+      '{"type":"user","uuid":"5","timestamp":"2026-01-01T00:00:04Z","message":{"content":"Third"}}',
+      '{"type":"assistant","uuid":"6","timestamp":"2026-01-01T00:00:05Z","message":{"content":[{"type":"text","text":"Response 3"}]}}',
+    ].join('\n');
+
+    const result = claudeCodeParser.parse(jsonl);
+
+    expect(result.turns).toHaveLength(6);
+    // Verify turns are in file order (matching UUIDs)
+    expect(result.turns[0].id).toBe('1');
+    expect(result.turns[1].id).toBe('2');
+    expect(result.turns[2].id).toBe('3');
+    expect(result.turns[3].id).toBe('4');
+    expect(result.turns[4].id).toBe('5');
+    expect(result.turns[5].id).toBe('6');
+  });
+
+  it('filters non-user/assistant entries while preserving order', () => {
+    const jsonl = [
+      '{"type":"user","uuid":"1","message":{"content":"First"}}',
+      '{"type":"file-history-snapshot","uuid":"snap1"}',
+      '{"type":"assistant","uuid":"2","message":{"content":[{"type":"text","text":"Response"}]}}',
+      '{"type":"system","uuid":"sys1"}',
+      '{"type":"user","uuid":"3","message":{"content":"Second"}}',
+      '{"type":"progress","uuid":"prog1"}',
+      '{"type":"assistant","uuid":"4","message":{"content":[{"type":"text","text":"Response 2"}]}}',
+    ].join('\n');
+
+    const result = claudeCodeParser.parse(jsonl);
+
+    // Only user/assistant turns should be included
+    expect(result.turns).toHaveLength(4);
+    expect(result.turns[0].id).toBe('1');
+    expect(result.turns[0].role).toBe('user');
+    expect(result.turns[1].id).toBe('2');
+    expect(result.turns[1].role).toBe('assistant');
+    expect(result.turns[2].id).toBe('3');
+    expect(result.turns[2].role).toBe('user');
+    expect(result.turns[3].id).toBe('4');
+    expect(result.turns[3].role).toBe('assistant');
+  });
+
+  it('entries array preserves all entries in file order', () => {
+    const jsonl = [
+      '{"type":"user","uuid":"1","message":{"content":"First"}}',
+      '{"type":"file-history-snapshot","uuid":"snap"}',
+      '{"type":"assistant","uuid":"2","message":{"content":[{"type":"text","text":"Response"}]}}',
+      '{"type":"summary","uuid":"sum","summary":"Test summary"}',
+    ].join('\n');
+
+    const result = claudeCodeParser.parse(jsonl);
+
+    // entries should include all types in order
+    expect(result.entries).toHaveLength(4);
+    expect(result.entries![0].type).toBe('user');
+    expect(result.entries![0].uuid).toBe('1');
+    expect(result.entries![1].type).toBe('file-history-snapshot');
+    expect(result.entries![2].type).toBe('assistant');
+    expect(result.entries![2].uuid).toBe('2');
+    expect(result.entries![3].type).toBe('summary');
+  });
+});

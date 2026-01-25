@@ -1699,3 +1699,39 @@ that blue is too similar to Output's color.  change docs to a yellow.  also i ca
 ## 2026-01-25T13:04:52Z
 
 show the metadata in the bubble with an optional expansion to render it
+
+---
+
+## 2026-01-25T13:52:06Z
+
+let's update some view defaults... slinky min gap is now 0.5, max gap is 2.5, focus is 5.0.  for coil, expand is 0.6 (what are its units?, just tell me)   Vstep is 2.0, cone is 0.5
+
+---
+
+## 2026-01-25T16:35:01Z
+
+can you check the order of bubbles and nodes, i am worried they are not ordered correctly.  do you need some unit tests with respect to that?  i've included a smaller sample public/samples/vegan-mapo-tofu.jsonl
+
+---
+
+## 2026-01-25T17:06:54Z
+
+so for example in the 3D view, why does it go blue cube, green cube then purple thinking then several tool calls?  i also note the coloring is different for Tool result between 3D and conversation; that must be harmonized too
+
+---
+
+## 2026-01-25T17:12:47Z
+
+from the resulting visual, it looks like it is always a pattern of a lot of thinking, then a lot of tool calling then a lot of results.  is that true?
+
+---
+
+## 2026-01-25T17:17:18Z
+
+looking good, thank you.   i expanded the sample corpus, ensure tests still pass
+
+---
+
+## 2026-01-25T17:18:47Z
+
+please review what prominent open source libraries or technogies we are using for this project to make a thank you list

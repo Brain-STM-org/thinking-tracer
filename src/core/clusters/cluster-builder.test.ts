@@ -716,3 +716,104 @@ describe('findClustersWithWord', () => {
     expect(indices).toEqual([0, 1]);
   });
 });
+
+describe('cluster ordering', () => {
+  it('cluster.index matches array position in buildClusters', () => {
+    // Create a conversation with multiple exchanges
+    const conversation = createConversation([
+      createTurn('user', [textBlock('First')]),
+      createTurn('assistant', [textBlock('Response 1')]),
+      createTurn('user', [textBlock('Second')]),
+      createTurn('assistant', [textBlock('Response 2')]),
+      createTurn('user', [textBlock('Third')]),
+      createTurn('assistant', [textBlock('Response 3')]),
+      createTurn('user', [textBlock('Fourth')]),
+      createTurn('assistant', [textBlock('Response 4')]),
+      createTurn('user', [textBlock('Fifth')]),
+      createTurn('assistant', [textBlock('Response 5')]),
+    ]);
+
+    const clusters = buildClusters(conversation);
+
+    expect(clusters).toHaveLength(5);
+    // Verify each cluster.index matches its array position
+    clusters.forEach((cluster, arrayIndex) => {
+      expect(cluster.index).toBe(arrayIndex);
+    });
+  });
+
+  it('clusterIndex matches array position in extractSearchableContent', () => {
+    const conversation = createConversation([
+      createTurn('user', [textBlock('First')]),
+      createTurn('assistant', [textBlock('Response 1')]),
+      createTurn('user', [textBlock('Second')]),
+      createTurn('assistant', [textBlock('Response 2')]),
+      createTurn('user', [textBlock('Third')]),
+      createTurn('assistant', [textBlock('Response 3')]),
+    ]);
+
+    const clusters = buildClusters(conversation);
+    const searchable = extractSearchableContent(clusters);
+
+    expect(searchable).toHaveLength(3);
+    // Verify each clusterIndex matches its array position
+    searchable.forEach((content, arrayIndex) => {
+      expect(content.clusterIndex).toBe(arrayIndex);
+    });
+  });
+
+  it('preserves order with complex conversation pattern', () => {
+    // Test with merged turns, orphan assistant, and tool results
+    const conversation = createConversation([
+      createTurn('assistant', [textBlock('Greeting')]),  // orphan assistant -> cluster 0
+      createTurn('user', [textBlock('Part 1')]),
+      createTurn('user', [textBlock('Part 2')]),         // merged user turns
+      createTurn('assistant', [toolUseBlock('Read', { path: '/f.txt' })]),
+      createTurn('user', [toolResultBlock('file data')]),  // tool result - folds into assistant
+      createTurn('assistant', [textBlock('Done')]),        // -> cluster 1
+      createTurn('user', [textBlock('Next question')]),
+      createTurn('assistant', [textBlock('Next answer')]), // -> cluster 2
+    ]);
+
+    const clusters = buildClusters(conversation);
+    const searchable = extractSearchableContent(clusters);
+
+    expect(clusters).toHaveLength(3);
+    // Verify ordering preserved through all processing
+    clusters.forEach((cluster, i) => {
+      expect(cluster.index).toBe(i);
+    });
+    searchable.forEach((content, i) => {
+      expect(content.clusterIndex).toBe(i);
+    });
+
+    // Verify content is in expected order
+    expect(clusters[0].userTurn).toBeUndefined(); // orphan assistant
+    expect(clusters[0].assistantTurn?.content[0]).toEqual(textBlock('Greeting'));
+    expect(clusters[1].userTurn?.content).toHaveLength(2); // merged user
+    expect(clusters[2].userTurn?.content[0]).toEqual(textBlock('Next question'));
+  });
+
+  it('maintains ordering when accessing by index', () => {
+    const conversation = createConversation([
+      createTurn('user', [textBlock('A')]),
+      createTurn('assistant', [textBlock('1')]),
+      createTurn('user', [textBlock('B')]),
+      createTurn('assistant', [textBlock('2')]),
+      createTurn('user', [textBlock('C')]),
+      createTurn('assistant', [textBlock('3')]),
+    ]);
+
+    const clusters = buildClusters(conversation);
+    const searchable = extractSearchableContent(clusters);
+
+    // Access by index should give consistent results
+    for (let i = 0; i < clusters.length; i++) {
+      expect(clusters[i].index).toBe(i);
+      expect(searchable[i].clusterIndex).toBe(i);
+      // Content should match between cluster and searchable
+      const userText = (clusters[i].userTurn?.content[0] as { text: string })?.text;
+      expect(searchable[i].userText).toBe(userText);
+    }
+  });
+});

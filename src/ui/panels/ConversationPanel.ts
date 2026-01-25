@@ -88,7 +88,7 @@ export class ConversationPanel {
     for (let i = 0; i < searchableContent.length; i++) {
       const cluster = searchableContent[i];
 
-      html += `<div class="conv-turn" data-cluster-index="${i}">`;
+      html += `<div class="conv-turn" data-cluster-index="${cluster.clusterIndex}">`;
 
       // Badges row (sidechain, agent, stop reason, error)
       const badges: string[] = [];

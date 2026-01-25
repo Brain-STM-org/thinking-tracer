@@ -42,6 +42,7 @@ export interface NodeThemes {
   thinking: NodeTheme;
   toolUse: NodeTheme;
   toolResult: NodeTheme;
+  toolResultSuccess: NodeTheme;
   document: NodeTheme;
   cluster: NodeTheme;
 }
@@ -157,7 +158,11 @@ export const DEFAULT_NODE_THEMES: NodeThemes = {
     material: { roughness: 0.4 },
   },
   toolResult: {
-    color: 0xe74c3c, // Red
+    color: 0xe74c3c, // Red (error)
+    material: { roughness: 0.4 },
+  },
+  toolResultSuccess: {
+    color: 0x27ae60, // Green (success)
     material: { roughness: 0.4 },
   },
   document: {

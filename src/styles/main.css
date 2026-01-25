@@ -1939,6 +1939,7 @@ html, body {
 .legend-color.thinking { background: #9b59b6; }
 .legend-color.tool-use { background: #f39c12; }
 .legend-color.tool-result { background: #e74c3c; }
+.legend-color.tool-result-success { background: #27ae60; }
 .legend-color.document { background: #f1c40f; }
 
 .legend-section {
