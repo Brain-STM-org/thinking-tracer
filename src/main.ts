@@ -170,12 +170,15 @@ function restoreUIState(uiState: TraceUIState): void {
   }
 
   // Restore split ratio
-  if (uiState.splitRatio !== undefined && canvasPane && contentArea) {
+  if (uiState.splitRatio !== undefined && canvasPane && conversationPane && contentArea) {
     const contentWidth = contentArea.offsetWidth;
     if (contentWidth > 0) {
       const canvasWidth = uiState.splitRatio * contentWidth;
       canvasPane.style.flex = 'none';
       canvasPane.style.width = `${canvasWidth}px`;
+      // Let conversation pane fill remaining space
+      conversationPane.style.flex = '1';
+      conversationPane.style.width = '';
     }
   }
 

@@ -9,6 +9,7 @@ import {
   calculateClusterMetrics,
   clusterContainsWord,
   findClustersWithWord,
+  isToolResultOnly,
   type TurnCluster,
   type SearchableClusterContent,
 } from './cluster-builder';
@@ -173,6 +174,181 @@ describe('buildClusters', () => {
     const clusters = buildClusters(conversation);
 
     expect(clusters[0].expanded).toBe(false);
+  });
+
+  it('folds tool-result-only user turns into the assistant content', () => {
+    // Simulates: user prompt → assistant thinks + uses tool → tool result → assistant continues
+    const conversation = createConversation([
+      createTurn('user', [textBlock('Read my file')]),
+      createTurn('assistant', [thinkingBlock('Let me read it'), toolUseBlock('Read', { path: '/f.txt' })]),
+      createTurn('user', [toolResultBlock('file contents')]),           // tool result - should fold
+      createTurn('assistant', [textBlock('Here is your file content')]),
+    ]);
+
+    const clusters = buildClusters(conversation);
+
+    expect(clusters).toHaveLength(1);
+    expect(clusters[0].userTurn?.content).toHaveLength(1);
+    // Assistant content: thinking + tool_use + tool_result + text
+    expect(clusters[0].assistantTurn?.content).toHaveLength(4);
+    expect(clusters[0].assistantTurn?.content[0].type).toBe('thinking');
+    expect(clusters[0].assistantTurn?.content[1].type).toBe('tool_use');
+    expect(clusters[0].assistantTurn?.content[2].type).toBe('tool_result');
+    expect(clusters[0].assistantTurn?.content[3].type).toBe('text');
+  });
+
+  it('folds multiple tool-result rounds into the same cluster', () => {
+    // Simulates: user → assistant tool_use → result → assistant tool_use → result → done
+    const conversation = createConversation([
+      createTurn('user', [textBlock('Do two things')]),
+      createTurn('assistant', [toolUseBlock('Read', { path: '/a' })]),
+      createTurn('user', [toolResultBlock('content of a')]),           // round 1 result
+      createTurn('assistant', [toolUseBlock('Read', { path: '/b' })]),
+      createTurn('user', [toolResultBlock('content of b')]),           // round 2 result
+      createTurn('assistant', [textBlock('Done reading both')]),
+    ]);
+
+    const clusters = buildClusters(conversation);
+
+    expect(clusters).toHaveLength(1);
+    // tool_use + tool_result + tool_use + tool_result + text = 5 blocks in assistant
+    expect(clusters[0].assistantTurn?.content).toHaveLength(5);
+    expect(clusters[0].toolCount).toBe(2);
+  });
+
+  it('does not fold user turns that contain non-tool_result blocks', () => {
+    // A real user follow-up message should start a new cluster
+    const conversation = createConversation([
+      createTurn('user', [textBlock('First question')]),
+      createTurn('assistant', [toolUseBlock('Read', { path: '/f' })]),
+      createTurn('user', [toolResultBlock('result')]),                 // tool result - folds
+      createTurn('assistant', [textBlock('Got it')]),
+      createTurn('user', [textBlock('Second question')]),              // real user message - new cluster
+      createTurn('assistant', [textBlock('Second answer')]),
+    ]);
+
+    const clusters = buildClusters(conversation);
+
+    expect(clusters).toHaveLength(2);
+    expect(clusters[0].assistantTurn?.content).toHaveLength(3); // tool_use + tool_result + text
+    expect(clusters[1].userTurn?.content[0].type).toBe('text');
+  });
+
+  it('does not fold user turns with mixed content (text + tool_result)', () => {
+    const conversation = createConversation([
+      createTurn('user', [textBlock('Question')]),
+      createTurn('assistant', [toolUseBlock('Read', { path: '/f' })]),
+      createTurn('user', [textBlock('Also here is context'), toolResultBlock('result')]), // mixed - new cluster
+      createTurn('assistant', [textBlock('Noted')]),
+    ]);
+
+    const clusters = buildClusters(conversation);
+
+    expect(clusters).toHaveLength(2);
+  });
+
+  it('folds tool results for orphan assistant turns', () => {
+    // Assistant starts without user message, uses tools
+    const conversation = createConversation([
+      createTurn('assistant', [toolUseBlock('Glob', { pattern: '*' })]),
+      createTurn('user', [toolResultBlock('file1\nfile2')]),           // tool result - folds
+      createTurn('assistant', [textBlock('Found files')]),
+    ]);
+
+    const clusters = buildClusters(conversation);
+
+    expect(clusters).toHaveLength(1);
+    expect(clusters[0].userTurn).toBeUndefined();
+    expect(clusters[0].assistantTurn?.content).toHaveLength(3); // tool_use + tool_result + text
+  });
+
+  it('handles trailing tool-result-only user turn (no subsequent assistant)', () => {
+    const conversation = createConversation([
+      createTurn('user', [textBlock('Read file')]),
+      createTurn('assistant', [toolUseBlock('Read', { path: '/f' })]),
+      createTurn('user', [toolResultBlock('contents')]),               // trailing tool result
+    ]);
+
+    const clusters = buildClusters(conversation);
+
+    expect(clusters).toHaveLength(1);
+    expect(clusters[0].assistantTurn?.content).toHaveLength(2); // tool_use + tool_result
+  });
+
+  it('matches f.jsonl structure: one real user prompt with multi-step tool use', () => {
+    // Mirrors the actual f.jsonl structure:
+    // user text → assistant(thinking) → assistant(tool_use) →
+    // user(tool_result) → assistant(thinking) → assistant(text) →
+    // assistant(tool_use) → assistant(tool_use) → user(tool_result)
+    const conversation = createConversation([
+      createTurn('user', [textBlock('read AGENTS.md')]),
+      createTurn('assistant', [thinkingBlock('thinking 1')]),
+      createTurn('assistant', [toolUseBlock('Read', { file_path: 'AGENTS.md' })]),
+      createTurn('user', [toolResultBlock('# AGENTS content...')]),
+      createTurn('assistant', [thinkingBlock('thinking 2')]),
+      createTurn('assistant', [textBlock('Let me explore')]),
+      createTurn('assistant', [toolUseBlock('Glob', { pattern: '**/*' })]),
+      createTurn('assistant', [toolUseBlock('WebFetch', { url: 'https://...' })]),
+      createTurn('user', [toolResultBlock('file list...')]),
+    ]);
+
+    const clusters = buildClusters(conversation);
+
+    // Should be ONE cluster, not three
+    expect(clusters).toHaveLength(1);
+
+    const cluster = clusters[0];
+    expect(cluster.userTurn?.content).toHaveLength(1);
+    expect(cluster.userTurn?.content[0].type).toBe('text');
+
+    // All assistant + tool_result blocks merged:
+    // thinking + tool_use + tool_result + thinking + text + tool_use + tool_use + tool_result
+    expect(cluster.assistantTurn?.content).toHaveLength(8);
+    expect(cluster.assistantTurn?.content.map(b => b.type)).toEqual([
+      'thinking', 'tool_use', 'tool_result',
+      'thinking', 'text', 'tool_use', 'tool_use', 'tool_result',
+    ]);
+
+    expect(cluster.thinkingCount).toBe(2);
+    expect(cluster.toolCount).toBe(3);
+  });
+});
+
+describe('isToolResultOnly', () => {
+  it('returns true for user turn with only tool_result blocks', () => {
+    const turn = createTurn('user', [toolResultBlock('result')]);
+    expect(isToolResultOnly(turn)).toBe(true);
+  });
+
+  it('returns true for user turn with multiple tool_result blocks', () => {
+    const turn = createTurn('user', [
+      toolResultBlock('result 1'),
+      toolResultBlock('result 2'),
+    ]);
+    expect(isToolResultOnly(turn)).toBe(true);
+  });
+
+  it('returns false for user turn with text content', () => {
+    const turn = createTurn('user', [textBlock('Hello')]);
+    expect(isToolResultOnly(turn)).toBe(false);
+  });
+
+  it('returns false for user turn with mixed content', () => {
+    const turn = createTurn('user', [
+      textBlock('Context'),
+      toolResultBlock('result'),
+    ]);
+    expect(isToolResultOnly(turn)).toBe(false);
+  });
+
+  it('returns false for assistant turns', () => {
+    const turn = createTurn('assistant', [toolResultBlock('result')]);
+    expect(isToolResultOnly(turn)).toBe(false);
+  });
+
+  it('returns false for empty user turn', () => {
+    const turn = createTurn('user', []);
+    expect(isToolResultOnly(turn)).toBe(false);
   });
 });
 

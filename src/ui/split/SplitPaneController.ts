@@ -119,7 +119,9 @@ export class SplitPaneController {
     if (relativeX >= this.minPrimaryWidth && secondaryWidth >= this.minSecondaryWidth) {
       primaryPane.style.flex = 'none';
       primaryPane.style.width = `${relativeX}px`;
-      secondaryPane.style.width = `${secondaryWidth}px`;
+      // Let secondary flex to fill remaining space (stays attached to right edge on window resize)
+      secondaryPane.style.flex = '1';
+      secondaryPane.style.width = '';
     }
   }
 
@@ -167,11 +169,12 @@ export class SplitPaneController {
 
     const clampedRatio = Math.max(0.1, Math.min(0.9, ratio));
     const primaryWidth = clampedRatio * containerWidth;
-    const secondaryWidth = containerWidth - primaryWidth - this.gapWidth;
 
     primaryPane.style.flex = 'none';
     primaryPane.style.width = `${primaryWidth}px`;
-    secondaryPane.style.width = `${secondaryWidth}px`;
+    // Let secondary flex to fill remaining space (stays attached to right edge on window resize)
+    secondaryPane.style.flex = '1';
+    secondaryPane.style.width = '';
   }
 
   /**

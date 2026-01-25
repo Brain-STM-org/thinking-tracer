@@ -99,7 +99,8 @@ describe('SplitPaneController', () => {
       document.dispatchEvent(mousemove);
 
       expect(elements.primaryPane.style.width).toBe('600px');
-      expect(elements.secondaryPane.style.width).toBe('394px'); // 1000 - 600 - 6 (gap)
+      expect(elements.secondaryPane.style.flex).toBe('1 1 0%');
+      expect(elements.secondaryPane.style.width).toBe('');
     });
 
     it('respects min primary width constraint', () => {
@@ -246,7 +247,8 @@ describe('SplitPaneController', () => {
       controller.setSplitRatio(0.6);
 
       expect(elements.primaryPane.style.width).toBe('600px');
-      expect(elements.secondaryPane.style.width).toBe('394px');
+      expect(elements.secondaryPane.style.flex).toBe('1 1 0%');
+      expect(elements.secondaryPane.style.width).toBe('');
     });
 
     it('clamps ratio to valid range', () => {

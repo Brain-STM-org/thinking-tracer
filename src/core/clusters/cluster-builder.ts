@@ -8,6 +8,20 @@
 import type { Conversation, Turn, ContentBlock, SearchableCluster } from '../../data/types';
 
 /**
+ * Check if a turn contains only tool_result content blocks.
+ * Such turns are system-generated tool responses (Claude Code logs them as
+ * type "user"), not real user messages. They should be folded into the
+ * assistant's content rather than starting a new cluster.
+ */
+export function isToolResultOnly(turn: Turn): boolean {
+  return (
+    turn.role === 'user' &&
+    turn.content.length > 0 &&
+    turn.content.every((b) => b.type === 'tool_result')
+  );
+}
+
+/**
  * A cluster of turns (user + assistant pair)
  */
 export interface TurnCluster {
@@ -126,6 +140,21 @@ export function buildClusters(conversation: Conversation | null): TurnCluster[] 
           i++;
         }
 
+        // Continue absorbing tool-result rounds: tool_result-only user turns
+        // followed by more assistant turns are part of the same response.
+        // Claude Code logs tool results as type "user", but they're not
+        // real user messages — they're system-provided tool outputs.
+        while (i < turns.length && isToolResultOnly(turns[i])) {
+          mergedAssistantContent.push(...turns[i].content);
+          i++;
+
+          // Collect subsequent assistant turns
+          while (i < turns.length && turns[i].role === 'assistant') {
+            mergedAssistantContent.push(...turns[i].content);
+            i++;
+          }
+        }
+
         // Create merged assistant turn
         const mergedAssistantTurn: Turn = {
           ...firstAssistantTurn,
@@ -154,6 +183,17 @@ export function buildClusters(conversation: Conversation | null): TurnCluster[] 
       while (i < turns.length && turns[i].role === 'assistant') {
         mergedContent.push(...turns[i].content);
         i++;
+      }
+
+      // Absorb tool-result rounds (same as user+assistant case)
+      while (i < turns.length && isToolResultOnly(turns[i])) {
+        mergedContent.push(...turns[i].content);
+        i++;
+
+        while (i < turns.length && turns[i].role === 'assistant') {
+          mergedContent.push(...turns[i].content);
+          i++;
+        }
       }
 
       const mergedTurn: Turn = {
