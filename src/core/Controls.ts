@@ -1,11 +1,11 @@
 /**
  * Camera controls for scene navigation
  *
- * Implements orbit controls without external dependencies.
- * Can be replaced with three/addons OrbitControls if needed.
+ * Thin wrapper around Three.js OrbitControls with WASD keyboard panning.
  */
 
 import * as THREE from 'three';
+import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 
 export interface ControlsOptions {
   /** Camera to control */
@@ -23,191 +23,108 @@ export interface ControlsOptions {
 }
 
 export class Controls {
+  private orbit: OrbitControls;
   private camera: THREE.PerspectiveCamera;
-  private domElement: HTMLElement;
-  private enableDamping: boolean;
-  private dampingFactor: number;
-  private minDistance: number;
-  private maxDistance: number;
 
-  private target = new THREE.Vector3();
-  private spherical = new THREE.Spherical();
-  private sphericalDelta = new THREE.Spherical();
-  private panOffset = new THREE.Vector3();
-  private scale = 1;
+  // WASD state
+  private keysPressed = new Set<string>();
+  private shiftHeld = false;
+  private panSpeed = 0.5;
 
-  private rotateStart = new THREE.Vector2();
-  private panStart = new THREE.Vector2();
-  private isRotating = false;
-  private isPanning = false;
+  // Bound handlers for cleanup
+  private boundKeyDown: (e: KeyboardEvent) => void;
+  private boundKeyUp: (e: KeyboardEvent) => void;
 
   constructor(options: ControlsOptions) {
     this.camera = options.camera;
-    this.domElement = options.domElement;
-    this.enableDamping = options.enableDamping ?? true;
-    this.dampingFactor = options.dampingFactor ?? 0.05;
-    this.minDistance = options.minDistance ?? 1;
-    this.maxDistance = options.maxDistance ?? 100;
+    this.orbit = new OrbitControls(options.camera, options.domElement);
+    this.orbit.enableDamping = options.enableDamping ?? true;
+    this.orbit.dampingFactor = options.dampingFactor ?? 0.05;
+    this.orbit.minDistance = options.minDistance ?? 1;
+    this.orbit.maxDistance = options.maxDistance ?? 100;
 
-    // Calculate initial spherical from camera position
-    const offset = this.camera.position.clone().sub(this.target);
-    this.spherical.setFromVector3(offset);
+    // Screen-space panning (not world-plane) for intuitive movement
+    this.orbit.screenSpacePanning = true;
 
-    this.bindEvents();
+    this.boundKeyDown = this.onKeyDown.bind(this);
+    this.boundKeyUp = this.onKeyUp.bind(this);
+    window.addEventListener('keydown', this.boundKeyDown);
+    window.addEventListener('keyup', this.boundKeyUp);
   }
 
-  private bindEvents(): void {
-    this.domElement.addEventListener('mousedown', this.onMouseDown);
-    this.domElement.addEventListener('wheel', this.onWheel, { passive: false });
-    this.domElement.addEventListener('contextmenu', (e) => e.preventDefault());
+  private onKeyDown(event: KeyboardEvent): void {
+    if (event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement) {
+      return;
+    }
+    if (event.key === 'Shift') this.shiftHeld = true;
+    const key = event.key.toLowerCase();
+    if (key === 'w' || key === 'a' || key === 's' || key === 'd') {
+      this.keysPressed.add(key);
+    }
   }
 
-  private onMouseDown = (event: MouseEvent): void => {
-    event.preventDefault();
-
-    if (event.button === 0 && event.shiftKey) {
-      // Shift+left click - pan (trackpad-friendly)
-      this.isPanning = true;
-      this.panStart.set(event.clientX, event.clientY);
-    } else if (event.button === 0) {
-      // Left click - rotate
-      this.isRotating = true;
-      this.rotateStart.set(event.clientX, event.clientY);
-    } else if (event.button === 2) {
-      // Right click - pan
-      this.isPanning = true;
-      this.panStart.set(event.clientX, event.clientY);
-    }
-
-    document.addEventListener('mousemove', this.onMouseMove);
-    document.addEventListener('mouseup', this.onMouseUp);
-  };
-
-  private onMouseMove = (event: MouseEvent): void => {
-    if (this.isRotating) {
-      const deltaX = event.clientX - this.rotateStart.x;
-      const deltaY = event.clientY - this.rotateStart.y;
-
-      const element = this.domElement;
-      this.sphericalDelta.theta -= (2 * Math.PI * deltaX) / element.clientWidth;
-      this.sphericalDelta.phi -= (2 * Math.PI * deltaY) / element.clientHeight;
-
-      this.rotateStart.set(event.clientX, event.clientY);
-    }
-
-    if (this.isPanning) {
-      const deltaX = event.clientX - this.panStart.x;
-      const deltaY = event.clientY - this.panStart.y;
-
-      // Ensure camera matrix is current
-      this.camera.updateMatrixWorld();
-
-      // Get distance from camera to target for scaling
-      const distance = this.camera.position.distanceTo(this.target);
-
-      // Scale pan speed based on distance and FOV
-      const fovRad = (this.camera.fov * Math.PI) / 180;
-      const panScale = (2 * distance * Math.tan(fovRad / 2)) / this.domElement.clientHeight;
-
-      // Get camera's right and up vectors from world matrix
-      const right = new THREE.Vector3();
-      const up = new THREE.Vector3();
-      right.setFromMatrixColumn(this.camera.matrixWorld, 0);
-      up.setFromMatrixColumn(this.camera.matrixWorld, 1);
-
-      // Apply pan directly to target (no damping)
-      this.target.addScaledVector(right, -deltaX * panScale);
-      this.target.addScaledVector(up, deltaY * panScale);
-
-      this.panStart.set(event.clientX, event.clientY);
-    }
-  };
-
-  private onMouseUp = (): void => {
-    this.isRotating = false;
-    this.isPanning = false;
-    document.removeEventListener('mousemove', this.onMouseMove);
-    document.removeEventListener('mouseup', this.onMouseUp);
-  };
-
-  private onWheel = (event: WheelEvent): void => {
-    event.preventDefault();
-
-    if (event.deltaY < 0) {
-      this.scale /= 0.95;
-    } else if (event.deltaY > 0) {
-      this.scale *= 0.95;
-    }
-  };
+  private onKeyUp(event: KeyboardEvent): void {
+    if (event.key === 'Shift') this.shiftHeld = false;
+    this.keysPressed.delete(event.key.toLowerCase());
+  }
 
   /**
    * Update the controls - call this in your render loop
    */
   public update(): void {
-    const offset = new THREE.Vector3();
+    // Apply WASD pan: move camera + target together in screen space
+    if (this.keysPressed.size > 0) {
+      this.camera.updateMatrixWorld();
 
-    // Apply pan
-    this.target.add(this.panOffset);
+      const right = new THREE.Vector3().setFromMatrixColumn(this.camera.matrixWorld, 0);
+      const up = new THREE.Vector3().setFromMatrixColumn(this.camera.matrixWorld, 1);
+      // Forward = negative Z column of camera world matrix
+      const forward = new THREE.Vector3().setFromMatrixColumn(this.camera.matrixWorld, 2).negate();
 
-    // Get current position in spherical coordinates
-    offset.copy(this.camera.position).sub(this.target);
-    this.spherical.setFromVector3(offset);
+      // Scale speed by distance so movement feels consistent at any zoom
+      const distance = this.camera.position.distanceTo(this.orbit.target);
+      const speed = this.panSpeed * distance * 0.01;
 
-    // Apply rotation delta
-    if (this.enableDamping) {
-      this.spherical.theta += this.sphericalDelta.theta * this.dampingFactor;
-      this.spherical.phi += this.sphericalDelta.phi * this.dampingFactor;
-    } else {
-      this.spherical.theta += this.sphericalDelta.theta;
-      this.spherical.phi += this.sphericalDelta.phi;
+      const delta = new THREE.Vector3();
+      if (this.keysPressed.has('a')) delta.addScaledVector(right, -speed);
+      if (this.keysPressed.has('d')) delta.addScaledVector(right, speed);
+      if (this.shiftHeld) {
+        // Shift+W/S: move forward/backward along look direction
+        if (this.keysPressed.has('w')) delta.addScaledVector(forward, speed);
+        if (this.keysPressed.has('s')) delta.addScaledVector(forward, -speed);
+      } else {
+        // W/S: pan up/down in screen space
+        if (this.keysPressed.has('w')) delta.addScaledVector(up, speed);
+        if (this.keysPressed.has('s')) delta.addScaledVector(up, -speed);
+      }
+
+      this.orbit.target.add(delta);
+      this.camera.position.add(delta);
     }
 
-    // Clamp phi to prevent flipping
-    this.spherical.phi = Math.max(0.01, Math.min(Math.PI - 0.01, this.spherical.phi));
-
-    // Apply zoom
-    this.spherical.radius *= this.scale;
-    this.spherical.radius = Math.max(this.minDistance, Math.min(this.maxDistance, this.spherical.radius));
-
-    // Convert back to cartesian
-    offset.setFromSpherical(this.spherical);
-    this.camera.position.copy(this.target).add(offset);
-    this.camera.lookAt(this.target);
-
-    // Decay deltas
-    if (this.enableDamping) {
-      this.sphericalDelta.theta *= 1 - this.dampingFactor;
-      this.sphericalDelta.phi *= 1 - this.dampingFactor;
-      this.panOffset.multiplyScalar(1 - this.dampingFactor);
-    } else {
-      this.sphericalDelta.set(0, 0, 0);
-      this.panOffset.set(0, 0, 0);
-    }
-
-    this.scale = 1;
+    this.orbit.update();
   }
 
   /**
    * Set the target point to look at
    */
   public setTarget(x: number, y: number, z: number): void {
-    this.target.set(x, y, z);
+    this.orbit.target.set(x, y, z);
   }
 
   /**
    * Get the current target point
    */
   public getTarget(): THREE.Vector3 {
-    return this.target.clone();
+    return this.orbit.target.clone();
   }
 
   /**
    * Dispose of event listeners
    */
   public dispose(): void {
-    this.domElement.removeEventListener('mousedown', this.onMouseDown);
-    this.domElement.removeEventListener('wheel', this.onWheel);
-    document.removeEventListener('mousemove', this.onMouseMove);
-    document.removeEventListener('mouseup', this.onMouseUp);
+    window.removeEventListener('keydown', this.boundKeyDown);
+    window.removeEventListener('keyup', this.boundKeyUp);
+    this.orbit.dispose();
   }
 }

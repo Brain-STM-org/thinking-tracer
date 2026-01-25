@@ -1627,3 +1627,33 @@ that works a lot better.  since some threads are long, have them come down at a 
 ## 2026-01-25T04:04:32Z
 
 add a control to change the angle of the nodes as they descend from the user input node
+
+---
+
+## 2026-01-25T04:21:14Z
+
+review how the 3D scene controls work.  are you using something you rolled your own or are you using threeJS tooling?
+
+---
+
+## 2026-01-25T04:25:36Z
+
+i feel like the screen space pan is broken a bit.  let's try to use threejs machinery.
+
+---
+
+## 2026-01-25T04:29:42Z
+
+works better, thanks.  ensure the legend matches the updated controls
+
+---
+
+## 2026-01-25T04:36:32Z
+
+let's add wasd style movement
+
+---
+
+## 2026-01-25T04:42:59Z
+
+allow a shift-modifier with w/s to move forward/backward
