@@ -1681,3 +1681,21 @@ is "images" correct, can it be other content than images like PDF or movie?
 ## 2026-01-25T12:21:27Z
 
 call them Documents and add handlers for the various media types (is is based on mime type or something?)
+
+---
+
+## 2026-01-25T12:34:46Z
+
+When i click the "docs" button in the conversation view, it doesn't seem to have a toggle color.  give it a color. 
+
+---
+
+## 2026-01-25T12:37:16Z
+
+that blue is too similar to Output's color.  change docs to a yellow.  also i can't seem to expand the "image" bubble in the conversation view
+
+---
+
+## 2026-01-25T13:04:52Z
+
+show the metadata in the bubble with an optional expansion to render it

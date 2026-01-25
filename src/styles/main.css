@@ -598,6 +598,7 @@ html, body {
 .conv-filter[data-filter="output"].active { background: #50c878; border-color: #50c878; }
 .conv-filter[data-filter="thinking"].active { background: #9b59b6; border-color: #9b59b6; }
 .conv-filter[data-filter="tools"].active { background: #f39c12; border-color: #f39c12; }
+.conv-filter[data-filter="documents"].active { background: #f1c40f; border-color: #f1c40f; color: #1a1a2e; }
 
 #conversation-content {
   flex: 1;
@@ -825,7 +826,7 @@ html, body {
 .conv-tool.tool-use { --bubble-bg: #2a2a3a; --bubble-color: #f39c12; --bubble-btn-bg: rgba(243, 156, 18, 0.2); }
 .conv-tool.tool-result { --bubble-bg: #2a2a3a; --bubble-color: #e74c3c; --bubble-btn-bg: rgba(231, 76, 60, 0.2); }
 .conv-tool.tool-result.success { --bubble-color: #27ae60; --bubble-btn-bg: rgba(39, 174, 96, 0.2); }
-.conv-document { --bubble-bg: #2a3a4a; --bubble-color: #3498db; --bubble-btn-bg: rgba(52, 152, 219, 0.2); }
+.conv-document { --bubble-bg: #3a3a2a; --bubble-color: #f1c40f; --bubble-btn-bg: rgba(241, 196, 15, 0.2); }
 
 .conv-assistant {
   margin-left: 0;
@@ -997,25 +998,41 @@ html, body {
 
 /* Document blocks (images, PDFs, etc.) */
 .conv-document {
-  background: #2a3a4a;
+  background: #3a3a2a;
   border-radius: 6px;
   margin-bottom: 10px;
-  border-left: 3px solid #3498db;
+  border-left: 3px solid #f1c40f;
   overflow: hidden;
 }
 
 .conv-document-header {
   padding: 8px 12px;
+  cursor: pointer;
   display: flex;
   align-items: center;
   gap: 8px;
-  color: #3498db;
+  color: #f1c40f;
   font-size: 12px;
   font-weight: 500;
 }
 
 .conv-document-header .arrow {
   font-size: 10px;
+  transition: transform 0.2s ease;
+}
+
+.conv-document.expanded .conv-document-header .arrow {
+  transform: rotate(90deg);
+}
+
+.conv-document-content {
+  display: none;
+  padding: 12px;
+  background: rgba(0, 0, 0, 0.2);
+}
+
+.conv-document.expanded .conv-document-content {
+  display: block;
 }
 
 /* ============================================
@@ -1922,7 +1939,7 @@ html, body {
 .legend-color.thinking { background: #9b59b6; }
 .legend-color.tool-use { background: #f39c12; }
 .legend-color.tool-result { background: #e74c3c; }
-.legend-color.document { background: #3498db; }
+.legend-color.document { background: #f1c40f; }
 
 .legend-section {
   margin-bottom: 12px;

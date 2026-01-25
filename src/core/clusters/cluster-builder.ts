@@ -266,6 +266,8 @@ export function extractSearchableContent(clusters: TurnCluster[]): SearchableClu
           mediaType: img.source.media_type || 'image/unknown',
           sourceType: img.source.type === 'url' ? 'url' : 'base64',
           size: img.source.data?.length,
+          url: img.source.url,
+          data: img.source.data,
         };
       } else if (block.type === 'document') {
         const doc = block as DocumentBlock;
@@ -274,6 +276,9 @@ export function extractSearchableContent(clusters: TurnCluster[]): SearchableClu
           sourceType: doc.source.type === 'url' ? 'url' : doc.source.type === 'file' ? 'file' : 'base64',
           size: doc.source.data?.length,
           title: doc.title,
+          url: doc.source.url,
+          data: doc.source.data,
+          fileId: doc.source.file_id,
         };
       }
       return null;

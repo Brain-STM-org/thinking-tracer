@@ -155,16 +155,44 @@ export class ConversationPanel {
         const sourceLabel = doc.sourceType === 'url' ? 'URL' : doc.sourceType === 'file' ? 'File' : 'Base64';
         // Determine display name based on media type
         let docLabel = 'Document';
-        if (doc.mediaType.startsWith('image/')) {
+        const isImage = doc.mediaType.startsWith('image/');
+        const isPdf = doc.mediaType === 'application/pdf';
+        if (isImage) {
           docLabel = 'Image';
-        } else if (doc.mediaType === 'application/pdf') {
+        } else if (isPdf) {
           docLabel = 'PDF';
         } else if (doc.mediaType.startsWith('text/')) {
           docLabel = 'Text File';
         }
         const titleStr = doc.title ? ` "${escapeHtml(doc.title)}"` : '';
+
+        // Build content for expansion
+        let contentHtml = '';
+        if (doc.data && isImage) {
+          // Render image from base64
+          contentHtml = `<img src="data:${doc.mediaType};base64,${doc.data}" alt="${docLabel}" style="max-width: 100%; max-height: 400px; border-radius: 4px;">`;
+        } else if (doc.url && isImage) {
+          // Render image from URL
+          contentHtml = `<img src="${escapeHtml(doc.url)}" alt="${docLabel}" style="max-width: 100%; max-height: 400px; border-radius: 4px;">`;
+        } else if (doc.url) {
+          // Show link for other URL-based documents
+          contentHtml = `<a href="${escapeHtml(doc.url)}" target="_blank" rel="noopener" style="color: #f1c40f;">Open ${docLabel}</a>`;
+        } else if (doc.fileId) {
+          // File API reference
+          contentHtml = `<span style="color: #888;">File ID: ${escapeHtml(doc.fileId)}</span>`;
+        } else if (doc.data && isPdf) {
+          // PDF - show as embedded or download link
+          contentHtml = `<a href="data:${doc.mediaType};base64,${doc.data}" download="document.pdf" style="color: #f1c40f;">Download PDF</a>`;
+        } else if (doc.data) {
+          // Other base64 data - show download link
+          contentHtml = `<span style="color: #888;">Base64 data (${(doc.size || 0) / 1024} KB)</span>`;
+        } else {
+          contentHtml = `<span style="color: #888;">No preview available</span>`;
+        }
+
         html += `<div class="conv-document" data-document-index="${t}">
-<div class="conv-document-header"><span class="arrow">▶</span><span>${docLabel}</span><span style="color: #666; font-weight: normal;">${escapeHtml(doc.mediaType)}${titleStr} · ${sourceLabel}${sizeStr}</span></div>
+<div class="conv-document-header"><span class="arrow">▶</span><span>${docLabel}</span><span style="color: #888; font-weight: normal; margin-left: 8px;">${escapeHtml(doc.mediaType)}${titleStr} · ${sourceLabel}${sizeStr}</span></div>
+<div class="conv-document-content">${contentHtml}</div>
 </div>`;
       }
 
@@ -371,7 +399,7 @@ export class ConversationPanel {
    * Setup collapsible section headers
    */
   private setupCollapsibleSections(): void {
-    this.container.querySelectorAll('.conv-thinking-header, .conv-tool-header, .conv-user-header, .conv-text-header').forEach((header) => {
+    this.container.querySelectorAll('.conv-thinking-header, .conv-tool-header, .conv-user-header, .conv-text-header, .conv-document-header').forEach((header) => {
       header.addEventListener('click', (e) => {
         e.stopPropagation();
         const parent = header.parentElement;

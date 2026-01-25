@@ -211,6 +211,12 @@ export interface DocumentMeta {
   size?: number;
   /** Document title if provided */
   title?: string;
+  /** URL if sourceType is 'url' */
+  url?: string;
+  /** Base64 data if sourceType is 'base64' */
+  data?: string;
+  /** File ID if sourceType is 'file' (Files API) */
+  fileId?: string;
 }
 
 /**

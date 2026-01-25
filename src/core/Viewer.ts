@@ -1296,7 +1296,7 @@ export class Viewer {
     thinkingBlocks: string[];
     toolUses: Array<{ name: string; input: string }>;
     toolResults: Array<{ content: string; isError: boolean }>;
-    documents: Array<{ mediaType: string; sourceType: 'url' | 'base64' | 'file'; size?: number; title?: string }>;
+    documents: Array<{ mediaType: string; sourceType: 'url' | 'base64' | 'file'; size?: number; title?: string; url?: string; data?: string; fileId?: string }>;
   }> {
     return extractSearchableContent(this.clusters);
   }

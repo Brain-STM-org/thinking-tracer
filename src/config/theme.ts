@@ -161,7 +161,7 @@ export const DEFAULT_NODE_THEMES: NodeThemes = {
     material: { roughness: 0.4 },
   },
   document: {
-    color: 0x3498db, // Light blue
+    color: 0xf1c40f, // Yellow
     material: { roughness: 0.3, metalness: 0.2 },
   },
   cluster: {
