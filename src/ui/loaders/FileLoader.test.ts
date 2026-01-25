@@ -92,7 +92,7 @@ describe('FileLoader', () => {
 
     it('handles empty string', async () => {
       const hash = await hashContent('');
-      expect(hash).toBe('0'.repeat(64) + '-0');
+      expect(hash).toBe('0'.repeat(16) + '-0');
     });
 
     it('handles long content', async () => {

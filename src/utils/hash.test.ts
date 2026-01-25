@@ -21,8 +21,7 @@ describe('hashContent', () => {
 
   it('handles empty string', async () => {
     const hash = await hashContent('');
-    // Empty string returns 64 zeros (SHA-256 hex length) with -0 suffix
-    expect(hash).toBe('0'.repeat(64) + '-0');
+    expect(hash).toBe('0'.repeat(16) + '-0');
   });
 
   it('includes content length in hash', async () => {

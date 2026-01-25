@@ -1087,3 +1087,11 @@ ok, i'm going to keep it as is.  i'll let you know how deployment goes
 ## 2026-01-24T23:43:32Z
 
 oh i forgot about favions!  i added a suite of favicons to etc/images, please review and update to use them.
+
+---
+
+## 2026-01-24T23:57:49Z
+
+live i am seeing this error, but i wasn't seeing it local.  i also note that https isn't working right now, but that's not our fault [Error] Failed to load conversation: – TypeError: undefined is not an object (evaluating 'crypto.subtle.digest')
+TypeError: undefined is not an object (evaluating 'crypto.subtle.digest')
+    Ch (index-BLNn-7cn.js:4528:15699)
