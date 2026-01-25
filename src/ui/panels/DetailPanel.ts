@@ -185,7 +185,11 @@ export class DetailPanel {
       index: number;
       thinkingCount: number;
       toolCount: number;
-      userTurn?: { content: Array<{ type: string; text?: string }> };
+      isSidechain?: boolean;
+      agentId?: string;
+      hasError?: boolean;
+      stopReason?: string;
+      userTurn?: { content: Array<{ type: string; text?: string }>; thinkingMetadata?: { level?: string; disabled?: boolean; triggers?: string[] } };
       assistantTurn?: {
         content: Array<{
           type: string;
@@ -195,6 +199,8 @@ export class DetailPanel {
           content?: string;
           is_error?: boolean;
         }>;
+        error?: string;
+        stopReason?: string;
       };
     };
 
@@ -223,6 +229,50 @@ export class DetailPanel {
         </button>
       </div>
     </div>`;
+
+    // Metadata: error, sidechain, agent, stop reason, thinking
+    if (cluster.hasError) {
+      const errorText = cluster.assistantTurn?.error || 'Error occurred';
+      content += `<div class="detail-section">
+        <div class="detail-section-label">Error</div>
+        <div class="detail-section-content" style="color: #e74c3c;">${escapeHtml(errorText)}</div>
+      </div>`;
+    }
+
+    if (cluster.isSidechain) {
+      content += `<div class="detail-section">
+        <div class="detail-section-label">Sidechain</div>
+        <div class="detail-section-content">This turn is from a sub-agent</div>
+      </div>`;
+    }
+
+    if (cluster.agentId) {
+      content += `<div class="detail-section">
+        <div class="detail-section-label">Agent</div>
+        <div class="detail-section-content">${escapeHtml(cluster.agentId)}</div>
+      </div>`;
+    }
+
+    if (cluster.stopReason && cluster.stopReason !== 'end_turn') {
+      content += `<div class="detail-section">
+        <div class="detail-section-label">Stop Reason</div>
+        <div class="detail-section-content">${escapeHtml(cluster.stopReason)}</div>
+      </div>`;
+    }
+
+    if (cluster.userTurn?.thinkingMetadata) {
+      const tm = cluster.userTurn.thinkingMetadata;
+      const parts: string[] = [];
+      if (tm.level) parts.push(`Level: ${tm.level}`);
+      if (tm.disabled) parts.push('Disabled');
+      if (tm.triggers?.length) parts.push(`Triggers: ${tm.triggers.join(', ')}`);
+      if (parts.length > 0) {
+        content += `<div class="detail-section">
+          <div class="detail-section-label">Thinking Config</div>
+          <div class="detail-section-content">${escapeHtml(parts.join(' | '))}</div>
+        </div>`;
+      }
+    }
 
     // User message preview
     if (cluster.userTurn) {

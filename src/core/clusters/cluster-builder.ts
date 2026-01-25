@@ -19,6 +19,14 @@ export interface TurnCluster {
   expanded: boolean;
   thinkingCount: number;
   toolCount: number;
+  /** Whether this cluster is from a sidechain (sub-agent) */
+  isSidechain?: boolean;
+  /** Agent ID if from a sub-agent */
+  agentId?: string;
+  /** Whether this cluster has an error */
+  hasError?: boolean;
+  /** Stop reason from the assistant turn */
+  stopReason?: string;
 }
 
 /**
@@ -38,6 +46,30 @@ export interface ClusterMetrics {
   thinkingCount: number;
   toolCount: number;
   contentLength: number;
+}
+
+/**
+ * Populate enriched fields on a cluster from its turns
+ */
+function enrichCluster(cluster: TurnCluster): void {
+  // Sidechain: true if any turn is a sidechain
+  if (cluster.userTurn?.isSidechain || cluster.assistantTurn?.isSidechain) {
+    cluster.isSidechain = true;
+  }
+
+  // Agent ID: prefer assistant, fallback to user
+  const agentId = cluster.assistantTurn?.agentId ?? cluster.userTurn?.agentId;
+  if (agentId) cluster.agentId = agentId;
+
+  // Error: check assistant turn
+  if (cluster.assistantTurn?.error || cluster.assistantTurn?.isApiErrorMessage) {
+    cluster.hasError = true;
+  }
+
+  // Stop reason from assistant turn
+  if (cluster.assistantTurn?.stopReason) {
+    cluster.stopReason = cluster.assistantTurn.stopReason;
+  }
 }
 
 /**
@@ -110,6 +142,7 @@ export function buildClusters(conversation: Conversation | null): TurnCluster[] 
         }
       }
 
+      enrichCluster(cluster);
       clusters.push(cluster);
       clusterIndex++;
     } else if (turn.role === 'assistant') {
@@ -142,6 +175,7 @@ export function buildClusters(conversation: Conversation | null): TurnCluster[] 
         if (block.type === 'tool_use') cluster.toolCount++;
       }
 
+      enrichCluster(cluster);
       clusters.push(cluster);
       clusterIndex++;
     } else {
@@ -200,6 +234,11 @@ export function extractSearchableContent(clusters: TurnCluster[]): SearchableClu
       thinkingBlocks,
       toolUses,
       toolResults,
+      isSidechain: cluster.isSidechain,
+      agentId: cluster.agentId,
+      hasError: cluster.hasError,
+      stopReason: cluster.stopReason,
+      error: cluster.assistantTurn?.error,
     };
   });
 }

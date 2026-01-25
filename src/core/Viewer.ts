@@ -118,6 +118,8 @@ export class Viewer {
   // Materials for different node types
   private materials: Record<NodeType, THREE.MeshStandardMaterial>;
   private highlightMaterial: THREE.MeshStandardMaterial;
+  private sidechainMaterial: THREE.MeshStandardMaterial;
+  private errorMaterial: THREE.MeshStandardMaterial;
 
   // Connection lines between nodes
   private connectionLines: Line2[] = [];
@@ -205,6 +207,23 @@ export class Viewer {
       color: highlight.color,
       roughness: highlight.material.roughness,
       emissive: highlight.material.emissive,
+    });
+
+    // Sidechain material: muted, slightly transparent
+    this.sidechainMaterial = new THREE.MeshStandardMaterial({
+      color: nodeThemes.cluster.color,
+      roughness: 0.6,
+      metalness: 0.1,
+      transparent: true,
+      opacity: 0.5,
+    });
+
+    // Error material: red-tinted
+    this.errorMaterial = new THREE.MeshStandardMaterial({
+      color: 0xcc4444,
+      roughness: 0.4,
+      metalness: 0.2,
+      emissive: 0x331111,
     });
 
     // Line material for connections within expanded clusters
@@ -728,7 +747,17 @@ export class Viewer {
     const size = clusterBase + sizeBonus;
 
     const geometry = new THREE.SphereGeometry(size, clusterSegments, clusterSegments);
-    const material = this.materials.cluster;
+
+    // Select material based on cluster properties
+    let material: THREE.MeshStandardMaterial;
+    if (cluster.hasError) {
+      material = this.errorMaterial;
+    } else if (cluster.isSidechain) {
+      material = this.sidechainMaterial;
+    } else {
+      material = this.materials.cluster;
+    }
+
     const mesh = new THREE.Mesh(geometry, material);
 
     return {
@@ -1491,6 +1520,8 @@ export class Viewer {
     this.clearNodes();
     Object.values(this.materials).forEach((m) => m.dispose());
     this.highlightMaterial.dispose();
+    this.sidechainMaterial.dispose();
+    this.errorMaterial.dispose();
     this.lineMaterial.dispose();
     this.clusterLineMaterial.dispose();
     if (this.clusterLineGeometry) {

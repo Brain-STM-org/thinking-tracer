@@ -28,6 +28,8 @@ export interface ThinkingBlock extends ContentBlockBase {
   thinking: string;
   /** Whether thinking content was redacted */
   redacted?: boolean;
+  /** Signature for thinking block verification */
+  signature?: string;
 }
 
 /** Tool use block */
@@ -81,6 +83,30 @@ export interface Turn {
   usage?: TokenUsage;
   /** Parent turn ID for branching conversations */
   parentId?: string;
+  /** Whether this turn is part of a sidechain (sub-agent) */
+  isSidechain?: boolean;
+  /** Agent ID if from a sub-agent */
+  agentId?: string;
+  /** Error message if this turn encountered an error */
+  error?: string;
+  /** Whether this is an API error message */
+  isApiErrorMessage?: boolean;
+  /** Stop reason from the API response */
+  stopReason?: string;
+  /** Request ID from the API */
+  requestId?: string;
+  /** Thinking metadata for this turn */
+  thinkingMetadata?: ThinkingMetadata;
+  /** Permission mode active during this turn */
+  permissionMode?: string;
+  /** Original entry type from JSONL */
+  entryType?: EntryType;
+}
+
+/** Cache creation token details */
+export interface CacheCreation {
+  ephemeral_5m_input_tokens?: number;
+  ephemeral_1h_input_tokens?: number;
 }
 
 /** Token usage information */
@@ -90,6 +116,19 @@ export interface TokenUsage {
   thinking_tokens?: number;
   cache_read_input_tokens?: number;
   cache_creation_input_tokens?: number;
+  /** Detailed cache creation breakdown */
+  cache_creation?: CacheCreation;
+  /** Tokens used by server-side tool execution */
+  server_tool_use?: number;
+  /** Service tier used for the request */
+  service_tier?: string;
+}
+
+/** Thinking configuration metadata */
+export interface ThinkingMetadata {
+  level?: string;
+  disabled?: boolean;
+  triggers?: string[];
 }
 
 /** Metadata about the conversation */
@@ -116,12 +155,24 @@ export interface ConversationMeta {
   duration_ms?: number;
   /** Total token usage */
   total_usage?: TokenUsage;
+  /** Conversation slug */
+  slug?: string;
+  /** Summary entries extracted from the conversation */
+  summaries?: string[];
+  /** Number of system entries in the conversation */
+  systemMessageCount?: number;
+  /** Whether any entries had errors */
+  hasErrors?: boolean;
+  /** Unique agent IDs found in the conversation */
+  agentIds?: string[];
 }
 
 /** Complete conversation trace */
 export interface Conversation {
   meta: ConversationMeta;
   turns: Turn[];
+  /** Raw entries from JSONL (all entry types, not just user/assistant) */
+  entries?: Entry[];
 }
 
 /** Parser interface for different agent formats */
@@ -143,4 +194,91 @@ export interface SearchableCluster {
   thinkingBlocks: string[];
   toolUses: Array<{ name: string; input: string }>;
   toolResults: Array<{ content: string; isError: boolean }>;
+  /** Whether this cluster is from a sidechain */
+  isSidechain?: boolean;
+  /** Agent ID if from a sub-agent */
+  agentId?: string;
+  /** Whether this cluster has an error */
+  hasError?: boolean;
+  /** Stop reason from the assistant turn */
+  stopReason?: string;
+  /** Error message text */
+  error?: string;
+}
+
+// ============================================
+// Entry types (full JSONL line representation)
+// ============================================
+
+/** All known entry types from Claude Code JSONL */
+export type EntryType =
+  | 'user'
+  | 'assistant'
+  | 'system'
+  | 'progress'
+  | 'file-history-snapshot'
+  | 'summary'
+  | 'queue-operation';
+
+/** Parsed user message within an entry */
+export interface ParsedUserMessage {
+  role: 'user';
+  content: ContentBlock[] | string;
+}
+
+/** Parsed assistant message within an entry */
+export interface ParsedAssistantMessage {
+  role: 'assistant';
+  model?: string;
+  content: ContentBlock[];
+  stopReason?: string;
+  usage?: TokenUsage;
+}
+
+/** Full JSONL line representation (~30 fields, matching Go struct) */
+export interface Entry {
+  // Identity
+  type: EntryType;
+  uuid?: string;
+  parentUuid?: string;
+  sessionId?: string;
+
+  // Timing
+  timestamp?: string;
+
+  // Environment
+  version?: string;
+  cwd?: string;
+  gitBranch?: string;
+
+  // Message content (parsed from raw message field)
+  parsedUserMessage?: ParsedUserMessage;
+  parsedAssistantMessage?: ParsedAssistantMessage;
+
+  // Agent/sidechain
+  isSidechain?: boolean;
+  agentId?: string;
+
+  // Error handling
+  error?: string;
+  isApiErrorMessage?: boolean;
+
+  // API response metadata
+  stopReason?: string;
+  requestId?: string;
+
+  // Thinking configuration
+  thinkingMetadata?: ThinkingMetadata;
+
+  // Permission
+  permissionMode?: string;
+
+  // Summary (for type='summary')
+  summary?: string;
+
+  // Progress (for type='progress')
+  progressStatus?: string;
+
+  // Raw message for anything not parsed above
+  rawMessage?: Record<string, unknown>;
 }

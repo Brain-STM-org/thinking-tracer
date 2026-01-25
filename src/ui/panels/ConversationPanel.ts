@@ -88,6 +88,23 @@ export class ConversationPanel {
 
       html += `<div class="conv-turn" data-cluster-index="${i}">`;
 
+      // Badges row (sidechain, agent, stop reason, error)
+      const badges: string[] = [];
+      if (cluster.isSidechain) badges.push('<span class="conv-badge sidechain">sidechain</span>');
+      if (cluster.agentId) badges.push(`<span class="conv-badge agent">${escapeHtml(cluster.agentId)}</span>`);
+      if (cluster.stopReason && cluster.stopReason !== 'end_turn') {
+        badges.push(`<span class="conv-badge stop-reason">${escapeHtml(cluster.stopReason)}</span>`);
+      }
+      if (badges.length > 0) {
+        html += `<div class="conv-badges">${badges.join('')}</div>`;
+      }
+
+      // Error banner
+      if (cluster.hasError) {
+        const errorText = cluster.error ? escapeHtml(cluster.error) : 'Error occurred';
+        html += `<div class="conv-error-banner">${errorText}</div>`;
+      }
+
       // User message
       if (cluster.userText) {
         const len = cluster.userText.length;

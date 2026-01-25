@@ -1095,3 +1095,411 @@ oh i forgot about favions!  i added a suite of favicons to etc/images, please re
 live i am seeing this error, but i wasn't seeing it local.  i also note that https isn't working right now, but that's not our fault [Error] Failed to load conversation: – TypeError: undefined is not an object (evaluating 'crypto.subtle.digest')
 TypeError: undefined is not an object (evaluating 'crypto.subtle.digest')
     Ch (index-BLNn-7cn.js:4528:15699)
+
+---
+
+## 2026-01-25T02:09:03Z
+
+i've pasted the claude code session structure expressed in Golang structs.  adopt those structs as typescript and implement a quality parsing library module.  update 3D tree generation and conversation pane output accordingly
+
+---
+
+## 2026-01-25T02:13:34Z
+
+package claude
+
+import (
+    "encoding/json"
+)
+
+// EntryType identifies the type of trace entry.
+type EntryType string
+
+const (
+    EntryTypeUser                EntryType = "user"
+    EntryTypeAssistant           EntryType = "assistant"
+    EntryTypeSystem              EntryType = "system"
+    EntryTypeProgress            EntryType = "progress"
+    EntryTypeFileHistorySnapshot EntryType = "file-history-snapshot"
+    EntryTypeSummary             EntryType = "summary"
+    EntryTypeQueueOperation      EntryType = "queue-operation"
+)
+
+// Entry represents a single line in a Claude Code JSONL trace file.
+// Fields are a superset across all entry types; unused fields are zero-valued.
+type Entry struct {
+    // Common fields (present on most entry types)
+    Type        EntryType       `json:"type"`
+    UUID        string          `json:"uuid,omitempty"`
+    ParentUUID  *string         `json:"parentUuid,omitempty"`
+    Timestamp   string          `json:"timestamp,omitempty"`
+    SessionID   string          `json:"sessionId,omitempty"`
+    Version     string          `json:"version,omitempty"`
+    GitBranch   string          `json:"gitBranch,omitempty"`
+    CWD         string          `json:"cwd,omitempty"`
+    Slug        string          `json:"slug,omitempty"`
+    UserType    string          `json:"userType,omitempty"`
+    IsSidechain bool            `json:"isSidechain,omitempty"`
+    AgentID     string          `json:"agentId,omitempty"`
+    Message     json.RawMessage `json:"message,omitempty"`
+
+    // User entry fields
+    ThinkingMetadata          *ThinkingMetadata `json:"thinkingMetadata,omitempty"`
+    Todos                     []any             `json:"todos,omitempty"`
+    PermissionMode            string            `json:"permissionMode,omitempty"`
+    ToolUseResult             json.RawMessage   `json:"toolUseResult,omitempty"` // string | []any | object
+    SourceToolAssistantUUID   string            `json:"sourceToolAssistantUUID,omitempty"`
+    ImagePasteIDs             []string          `json:"imagePasteIds,omitempty"`
+    IsMeta                    bool              `json:"isMeta,omitempty"`
+    IsVisibleInTranscriptOnly bool              `json:"isVisibleInTranscriptOnly,omitempty"`
+    IsCompactSummary          bool              `json:"isCompactSummary,omitempty"`
+
+    // Assistant entry fields
+    RequestID         string `json:"requestId,omitempty"`
+    Error             string `json:"error,omitempty"`
+    IsApiErrorMessage bool   `json:"isApiErrorMessage,omitempty"`
+
+    // System entry fields
+    Subtype           string          `json:"subtype,omitempty"`
+    DurationMs        int             `json:"durationMs,omitempty"`
+    Level             string          `json:"level,omitempty"`
+    LogicalParentUUID string          `json:"logicalParentUuid,omitempty"`
+    CompactMetadata   json.RawMessage `json:"compactMetadata,omitempty"`
+    Content           string          `json:"content,omitempty"` // system & queue-operation
+
+    // Progress entry fields
+    Data            json.RawMessage `json:"data,omitempty"`
+    ToolUseID       string          `json:"toolUseID,omitempty"`
+    ParentToolUseID string          `json:"parentToolUseID,omitempty"`
+
+    // File history snapshot fields
+    MessageID        string          `json:"messageId,omitempty"`
+    Snapshot         json.RawMessage `json:"snapshot,omitempty"`
+    IsSnapshotUpdate bool            `json:"isSnapshotUpdate,omitempty"`
+
+    // Summary entry fields
+    Summary  string `json:"summary,omitempty"`
+    LeafUUID string `json:"leafUuid,omitempty"`
+
+    // Queue operation fields
+    Operation string `json:"operation,omitempty"`
+
+    // Parsed messages (populated by Parser, not from JSON)
+    UserMessage      *UserMessage      `json:"-"`
+    AssistantMessage *AssistantMessage `json:"-"`
+}
+
+// ThinkingMetadata contains metadata about thinking mode.
+type ThinkingMetadata struct {
+    Level    string   `json:"level,omitempty"`
+    Disabled bool     `json:"disabled,omitempty"`
+    Triggers []string `json:"triggers,omitempty"`
+}
+
+// UserMessage represents the message field for user entries.
+type UserMessage struct {
+    Role    string      `json:"role"`
+    Content UserContent `json:"content"`
+}
+
+// UserContent handles the polymorphic content field in user messages.
+// It can be either a plain string or an array of ContentBlock.
+type UserContent struct {
+    Text   string         // Set when content is a string
+    Blocks []ContentBlock // Set when content is an array
+}
+
+func (c *UserContent) UnmarshalJSON(data []byte) error {
+    // Try string first
+    var s string
+    if err := json.Unmarshal(data, &s); err == nil {
+        c.Text = s
+        return nil
+    }
+
+    // Try array of content blocks
+    var blocks []ContentBlock
+    if err := json.Unmarshal(data, &blocks); err == nil {
+        c.Blocks = blocks
+        return nil
+    }
+
+    // Ignore unrecognized content types
+    return nil
+}
+
+func (c UserContent) MarshalJSON() ([]byte, error) {
+    if c.Text != "" {
+        return json.Marshal(c.Text)
+    }
+    return json.Marshal(c.Blocks)
+}
+
+// GetText extracts all text content from the user content.
+func (c *UserContent) GetText() string {
+    if c.Text != "" {
+        return c.Text
+    }
+
+    hasOnlyToolResults := len(c.Blocks) > 0
+    var text string
+    for _, b := range c.Blocks {
+        if b.Type == "tool_result" {
+            continue
+        }
+        hasOnlyToolResults = false
+        if b.Type == "text" && b.Text != "" {
+            if text != "" {
+                text += "\n"
+            }
+            text += b.Text
+        }
+    }
+    if hasOnlyToolResults {
+        return ""
+    }
+    return text
+}
+
+// AssistantMessage represents the message field for assistant entries.
+type AssistantMessage struct {
+    Role              string         `json:"role"`
+    Model             string         `json:"model,omitempty"`
+    ID                string         `json:"id,omitempty"`
+    Type              string         `json:"type,omitempty"`
+    Content           []ContentBlock `json:"content,omitempty"`
+    StopReason        *string        `json:"stop_reason,omitempty"`
+    StopSequence      *string        `json:"stop_sequence,omitempty"`
+    Usage             *Usage         `json:"usage,omitempty"`
+    Container         any            `json:"container,omitempty"`
+    ContextManagement any            `json:"context_management,omitempty"`
+}
+
+// Usage represents token usage in an assistant message.
+type Usage struct {
+    InputTokens              int            `json:"input_tokens,omitempty"`
+    OutputTokens             int            `json:"output_tokens,omitempty"`
+    CacheCreationInputTokens int            `json:"cache_creation_input_tokens,omitempty"`
+    CacheReadInputTokens     int            `json:"cache_read_input_tokens,omitempty"`
+    CacheCreation            *CacheCreation `json:"cache_creation,omitempty"`
+    ServerToolUse            any            `json:"server_tool_use,omitempty"`
+    ServiceTier              string         `json:"service_tier,omitempty"`
+}
+
+// CacheCreation contains cache creation token details.
+type CacheCreation struct {
+    Ephemeral5mInputTokens int `json:"ephemeral_5m_input_tokens,omitempty"`
+    Ephemeral1hInputTokens int `json:"ephemeral_1h_input_tokens,omitempty"`
+}
+
+// ContentBlock represents a content block within a message.
+// Different block types populate different fields.
+type ContentBlock struct {
+    Type string `json:"type"`
+
+    // text block
+    Text string `json:"text,omitempty"`
+
+    // thinking block
+    Thinking  string `json:"thinking,omitempty"`
+    Signature string `json:"signature,omitempty"`
+
+    // tool_use block
+    ID    string `json:"id,omitempty"`
+    Name  string `json:"name,omitempty"`
+    Input any    `json:"input,omitempty"`
+
+    // tool_result block
+    ToolUseID   string          `json:"tool_use_id,omitempty"`
+    ToolContent json.RawMessage `json:"content,omitempty"` // string or []ContentBlock
+    IsError     bool            `json:"is_error,omitempty"`
+
+    // image / document block
+    Source *MediaSource `json:"source,omitempty"`
+}
+
+// MediaSource represents the source of an image or document content block.
+type MediaSource struct {
+    Type      string `json:"type,omitempty"`
+    MediaType string `json:"media_type,omitempty"`
+    Data      string `json:"data,omitempty"`
+}
+
+// Prompt represents an extracted user prompt.
+type Prompt struct {
+    Text      string
+    Timestamp string
+    UUID      string
+}
+
+// GetPromptText extracts user prompt text from an entry.
+// Returns empty string for non-user entries or tool results.
+func (e *Entry) GetPromptText() string {
+    if e.Type != EntryTypeUser || e.UserMessage == nil {
+        return ""
+    }
+    return e.UserMessage.Content.GetText()
+}
+
+// GetThinkingBlocks returns all thinking blocks from an assistant entry.
+func (e *Entry) GetThinkingBlocks() []string {
+    if e.Type != EntryTypeAssistant || e.AssistantMessage == nil {
+        return nil
+    }
+    var thinking []string
+    for _, b := range e.AssistantMessage.Content {
+        if b.Type == "thinking" && b.Thinking != "" {
+            thinking = append(thinking, b.Thinking)
+        }
+    }
+    return thinking
+}
+
+// GetToolCalls returns all tool use blocks from an assistant entry.
+func (e *Entry) GetToolCalls() []ContentBlock {
+    if e.Type != EntryTypeAssistant || e.AssistantMessage == nil {
+        return nil
+    }
+    var tools []ContentBlock
+    for _, b := range e.AssistantMessage.Content {
+        if b.Type == "tool_use" {
+            tools = append(tools, b)
+        }
+    }
+    return tools
+}
+
+---
+
+## 2026-01-25T02:20:57Z
+
+Implement the following plan:
+
+# Plan: Adopt Go Structs as TypeScript, Build Quality Parsing Library
+
+## Summary
+
+Convert the Claude Code Go structs to idiomatic TypeScript, rewrite the parser to extract all entry fields, and propagate richer data through 3D visualization and conversation rendering.
+
+## Design Decisions
+
+1. **Keep discriminated union ContentBlock** - More idiomatic TypeScript than Go's flat struct
+2. **Keep Turn abstraction** - Enriched with new optional fields, not replaced by Entry
+3. **Add `entries: Entry[]` to Conversation** - Raw entries alongside derived turns for advanced features
+4. **System/progress/summary entries** - Stored in entries[], NOT converted to turns. Summarized in ConversationMeta
+5. **All changes additive** - New fields are optional. Zero breaking changes to existing pipeline
+
+## Phase 1: Types (`src/data/types.ts`)
+
+Add new types, enrich existing ones:
+
+**New types:**
+- `EntryType` - union of 7 entry types: `'user' | 'assistant' | 'system' | 'progress' | 'file-history-snapshot' | 'summary' | 'queue-operation'`
+- `Entry` - Full JSONL line representation (~30 fields, matching Go struct)
+- `ThinkingMetadata` - `{level?, disabled?, triggers?}`
+- `CacheCreation` - `{ephemeral_5m_input_tokens?, ephemeral_1h_input_tokens?}`
+- `ParsedUserMessage` - `{role, content: ContentBlock[] | string}`
+- `ParsedAssistantMessage` - `{role, model?, content: ContentBlock[], stopReason?, usage?, ...}`
+
+**Enriched existing types:**
+- `ThinkingBlock` - add `signature?: string`
+- `TokenUsage` - add `cache_creation?: CacheCreation`, `server_tool_use?`, `service_tier?`
+- `Turn` - add `isSidechain?`, `agentId?`, `error?`, `isApiErrorMessage?`, `stopReason?`, `requestId?`, `thinkingMetadata?`, `permissionMode?`, `entryType?`
+- `ConversationMeta` - add `slug?`, `summaries?`, `systemMessageCount?`, `hasErrors?`, `agentIds?`
+- `Conversation` - add `entries?: Entry[]`
+
+## Phase 2: Parser Rewrite (`src/data/parsers/claude-code.ts`)
+
+Restructure into distinct functions:
+
+1. **`parseJsonl(text)`** → `Record<string, unknown>[]` (unchanged)
+2. **`parseEntry(raw)`** → `Entry` - NEW. Maps all ~30 fields from raw JSON. Parses `message` into `parsedUserMessage` or `parsedAssistantMessage` based on entry type
+3. **`parseUserMessage(message)`** → `ParsedUserMessage | undefined` - NEW. Handles polymorphic content (string vs ContentBlock[])
+4. **`parseAssistantMessage(message)`** → `ParsedAssistantMessage | undefined` - NEW. Extracts model, content[], stopReason, usage with CacheCreation
+5. **`parseContentBlock(raw)`** → `ContentBlock | null` - Enhanced: add `signature` on thinking blocks
+6. **`entryToTurn(entry)`** → `Turn | null` - Replaces `parseLine()`. Only user/assistant → Turn. Populates all new Turn fields from Entry
+7. **`extractMeta(entries)`** → `ConversationMeta` - NEW. Extracts richer metadata: summaries from summary entries, systemMessageCount, hasErrors, agentIds[]
+8. **`computeTotalUsage(turns)`** → `TokenUsage` - Extracted. Includes CacheCreation fields
+
+**Parser output flow:**
+```
+JSONL string → parseJsonl() → raw objects[]
+  → map(parseEntry) → Entry[] (with parsed messages)
+  → filter(user|assistant).map(entryToTurn) → Turn[]
+  → extractMeta(entries) → ConversationMeta
+  → { meta, turns, entries } → Conversation
+```
+
+## Phase 3: Cluster Builder (`src/core/clusters/cluster-builder.ts`)
+
+**Enrich `TurnCluster`** - add:
+- `isSidechain?: boolean` - from user/assistant turns
+- `agentId?: string` - from turns
+- `hasError?: boolean` - from assistant turn error
+- `stopReason?: string` - from assistant turn
+
+**Enrich `SearchableCluster`** (in types.ts) - add:
+- `isSidechain?`, `agentId?`, `hasError?`, `stopReason?`, `error?`
+
+**Update `buildClusters()`** - populate new fields after creating each cluster
+
+**Update `extractSearchableContent()`** - propagate new fields from TurnCluster
+
+## Phase 4: 3D Viewer (`src/core/Viewer.ts`)
+
+- Sidechain clusters: render with slightly transparent, muted material
+- Error clusters: render with red-tinted material
+- Check `cluster.isSidechain` and `cluster.hasError` in `createClusterNode()` to select material
+
+## Phase 5: Conversation Panel (`src/ui/panels/ConversationPanel.ts`)
+
+Add visual indicators per cluster:
+- **Error banner** - red banner when `cluster.hasError` with error text
+- **Sidechain badge** - indicator when `cluster.isSidechain`
+- **Agent badge** - show `cluster.agentId` when present
+- **Stop reason** - show non-standard stop reasons (not `'end_turn'`)
+
+## Phase 6: Detail Panel (`src/ui/panels/DetailPanel.ts`)
+
+Add metadata sections:
+- Error details, stop reason, sidechain status, agent ID, thinking metadata
+
+## Phase 7: Tests
+
+Update `src/data/parsers/claude-code.test.ts`:
+- All 7 entry types parsed into entries[], only user/assistant into turns[]
+- Assistant fields: error, stopReason, isApiErrorMessage
+- User fields: thinkingMetadata, permissionMode, isSidechain, agentId
+- Summary entries → meta.summaries
+- System entries → meta.systemMessageCount
+- Error detection → meta.hasErrors
+- Agent collection → meta.agentIds
+- New ContentBlock fields (signature on thinking)
+- All existing tests must continue passing
+
+Add CSS for new UI elements in `src/styles/main.css`.
+
+## Files Modified
+
+| File | Change |
+|------|--------|
+| `src/data/types.ts` | New types + enriched existing types |
+| `src/data/parsers/claude-code.ts` | Parser rewrite |
+| `src/data/parsers/claude-code.test.ts` | New + updated tests |
+| `src/core/clusters/cluster-builder.ts` | Enriched TurnCluster, propagate fields |
+| `src/core/clusters/cluster-builder.test.ts` | Update for new fields |
+| `src/core/Viewer.ts` | Sidechain/error materials |
+| `src/ui/panels/ConversationPanel.ts` | Error/sidechain/agent badges |
+| `src/ui/panels/DetailPanel.ts` | New metadata sections |
+| `src/styles/main.css` | Styles for new badges/banners |
+
+## Verification
+
+1. `npm run build` - TypeScript compiles cleanly
+2. `npm run test:run` - All existing + new tests pass
+3. Load sample trace - verify 3D renders correctly
+4. Check conversation panel shows enriched data where available
+5. Check detail panel shows new metadata fields
+
+
+If you need specific details from before exiting plan mode (like exact code snippets, error messages, or content you generated), read the full transcript at: /Users/evan/.claude/projects/-Users-evan-brainstm-thinking-trace-viewer/f8e63d17-d382-42b7-9ce1-58f8cdb889c2.jsonl
