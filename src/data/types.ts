@@ -223,13 +223,28 @@ export interface DocumentMeta {
  * Searchable content extracted from a cluster/turn
  * Used for search, export, and display purposes
  */
+/** Thinking block with optional timing */
+export interface ThinkingBlockData {
+  text: string;
+  /** Duration in milliseconds (if timing data available) */
+  durationMs?: number;
+}
+
+/** Tool result with optional timing */
+export interface ToolResultData {
+  content: string;
+  isError: boolean;
+  /** Duration in milliseconds from tool_use to tool_result (if timing data available) */
+  durationMs?: number;
+}
+
 export interface SearchableCluster {
   clusterIndex: number;
   userText: string;
   assistantText: string;
-  thinkingBlocks: string[];
-  toolUses: Array<{ name: string; input: string }>;
-  toolResults: Array<{ content: string; isError: boolean }>;
+  thinkingBlocks: ThinkingBlockData[];
+  toolUses: Array<{ name: string; input: string; id?: string }>;
+  toolResults: ToolResultData[];
   /** Document/media attachments (images, PDFs, etc.) - metadata only */
   documents: DocumentMeta[];
   /** Whether this cluster is from a sidechain */

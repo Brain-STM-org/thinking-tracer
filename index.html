@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="referrer" content="strict-origin-when-cross-origin" />
     <!-- CSP: restrict sources; unsafe-inline needed for Vite HMR in dev, production build can be stricter -->
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self' ws: wss:; worker-src 'self' blob:;" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; connect-src 'self' ws: wss: https:; worker-src 'self' blob:;" />
     <title>Thinking Tracer</title>
     <link rel="icon" type="image/png" sizes="48x48" href="favicon-48x48.png">
     <link rel="icon" type="image/png" sizes="32x32" href="favicon-32x32.png">
@@ -14,6 +14,9 @@
     <link rel="apple-touch-icon" href="favicon-apple-touch.png">
   </head>
   <body>
+    <!-- Toast notifications -->
+    <div id="toast-container" class="toast-container"></div>
+
     <!-- Chart tooltip (shared) -->
     <div id="chart-tooltip">
       <span class="tooltip-turn">Turn 1</span>: <span class="tooltip-value">0</span>
@@ -366,6 +369,15 @@
           </div>
         </div>
         <input type="file" id="file-input" accept=".json,.jsonl,.json.gz,.jsonl.gz,.json.zst,.jsonl.zst,.json.zstd,.jsonl.zstd">
+
+        <!-- URL loading section -->
+        <div class="url-load-section">
+          <div class="url-load-row">
+            <input type="text" id="url-input" placeholder="Enter URL to .jsonl file..." autocomplete="off">
+            <button id="url-load-btn">Load URL</button>
+          </div>
+          <div class="url-load-hint">Supports GitHub URLs and CORS-enabled URLs</div>
+        </div>
 
         <div id="recent-traces" class="hidden">
           <div class="recent-header">

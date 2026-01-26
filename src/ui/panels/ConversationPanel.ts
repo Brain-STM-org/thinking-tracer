@@ -6,6 +6,22 @@ import { escapeHtml, renderMarkdown } from '../../export';
 import type { ViewerInterface } from '../types';
 
 /**
+ * Format a duration in milliseconds to a human-readable string
+ */
+function formatDuration(ms: number): string {
+  if (ms < 1000) {
+    return `${ms}ms`;
+  } else if (ms < 60000) {
+    const secs = ms / 1000;
+    return `${secs.toFixed(1)}s`;
+  } else {
+    const mins = Math.floor(ms / 60000);
+    const secs = ((ms % 60000) / 1000).toFixed(0);
+    return `${mins}m ${secs}s`;
+  }
+}
+
+/**
  * DOM elements required by ConversationPanel
  */
 export interface ConversationPanelElements {
@@ -123,9 +139,11 @@ export class ConversationPanel {
       // Thinking blocks (default collapsed)
       for (let t = 0; t < cluster.thinkingBlocks.length; t++) {
         const thinking = cluster.thinkingBlocks[t];
+        const thinkingText = thinking.text;
+        const durationStr = thinking.durationMs ? ` · ${formatDuration(thinking.durationMs)}` : '';
         html += `<div class="conv-thinking" data-thinking-index="${t}">
-<div class="conv-thinking-header"><span class="arrow">▶</span><span>Thinking</span><span style="color: #666; font-weight: normal;">(${thinking.length.toLocaleString()} chars)</span></div>
-<div class="conv-thinking-content"><div class="conv-content-wrap markdown-content">${renderMarkdown(thinking)}<button class="conv-expand-btn">More</button></div></div>
+<div class="conv-thinking-header"><span class="arrow">▶</span><span>Thinking</span><span style="color: #666; font-weight: normal;">(${thinkingText.length.toLocaleString()} chars${durationStr})</span></div>
+<div class="conv-thinking-content"><div class="conv-content-wrap markdown-content">${renderMarkdown(thinkingText)}<button class="conv-expand-btn">More</button></div></div>
 </div>`;
       }
 
@@ -141,8 +159,9 @@ export class ConversationPanel {
         if (t < cluster.toolResults.length) {
           const toolResult = cluster.toolResults[t];
           const isError = toolResult.isError;
+          const durationStr = toolResult.durationMs ? `<span style="color: #666; font-weight: normal; margin-left: 8px;">${formatDuration(toolResult.durationMs)}</span>` : '';
           html += `<div class="conv-tool tool-result ${isError ? '' : 'success'}" data-result-index="${t}">
-<div class="conv-tool-header"><span class="arrow">▶</span><span>${isError ? '✗ Error' : '✓ Result'}</span></div>
+<div class="conv-tool-header"><span class="arrow">▶</span><span>${isError ? '✗ Error' : '✓ Result'}</span>${durationStr}</div>
 <div class="conv-tool-content"><div class="conv-content-wrap">${escapeHtml(toolResult.content)}<button class="conv-expand-btn">More</button></div></div>
 </div>`;
         }
@@ -194,6 +213,27 @@ export class ConversationPanel {
 <div class="conv-document-header"><span class="arrow">▶</span><span>${docLabel}</span><span style="color: #888; font-weight: normal; margin-left: 8px;">${escapeHtml(doc.mediaType)}${titleStr} · ${sourceLabel}${sizeStr}</span></div>
 <div class="conv-document-content">${contentHtml}</div>
 </div>`;
+      }
+
+      // Summary line with total thinking and tool time
+      const totalThinkingMs = cluster.thinkingBlocks.reduce((sum, t) => sum + (t.durationMs || 0), 0);
+      const totalToolMs = cluster.toolResults.reduce((sum, r) => sum + (r.durationMs || 0), 0);
+      const totalChars = cluster.thinkingBlocks.reduce((sum, t) => sum + t.text.length, 0);
+      if (cluster.thinkingBlocks.length > 0 || cluster.toolResults.length > 0) {
+        const parts: string[] = [];
+        if (cluster.thinkingBlocks.length > 0) {
+          const thinkingStr = totalThinkingMs > 0
+            ? `${cluster.thinkingBlocks.length} thinking (${totalChars.toLocaleString()} chars · ${formatDuration(totalThinkingMs)})`
+            : `${cluster.thinkingBlocks.length} thinking (${totalChars.toLocaleString()} chars)`;
+          parts.push(thinkingStr);
+        }
+        if (cluster.toolResults.length > 0) {
+          const toolStr = totalToolMs > 0
+            ? `${cluster.toolResults.length} tools (${formatDuration(totalToolMs)})`
+            : `${cluster.toolResults.length} tools`;
+          parts.push(toolStr);
+        }
+        html += `<div class="conv-summary" style="color: #888; font-size: 11px; margin-bottom: 8px; padding-left: 4px;">${parts.join(' · ')}</div>`;
       }
 
       // Assistant text output

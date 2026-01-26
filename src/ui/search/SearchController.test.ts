@@ -44,7 +44,7 @@ function createMockViewer(): SearchableViewer {
         clusterIndex: 1,
         userText: 'Search test',
         assistantText: 'Found it',
-        thinkingBlocks: ['thinking about search'],
+        thinkingBlocks: [{ text: 'thinking about search' }],
         toolUses: [],
         toolResults: [],
         documents: [],

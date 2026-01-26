@@ -7,6 +7,8 @@ export {
   RecentTracesManager,
   type RecentTracesManagerOptions,
   type RecentTraceSelectCallback,
+  type ExampleTraceSelectCallback,
   type RecentTrace,
   type TraceUIState,
+  type ExampleTrace,
 } from './RecentTracesManager';

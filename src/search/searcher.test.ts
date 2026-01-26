@@ -163,7 +163,7 @@ describe('performSearch', () => {
       clusterIndex: 0,
       userText: 'How do I use TypeScript?',
       assistantText: 'TypeScript is a typed superset of JavaScript.',
-      thinkingBlocks: ['Let me think about TypeScript...'],
+      thinkingBlocks: [{ text: 'Let me think about TypeScript...' }],
       toolUses: [{ name: 'read_file', input: '{"path": "tsconfig.json"}' }],
       toolResults: [{ content: '{"compilerOptions": {}}', isError: false }],
       documents: [],

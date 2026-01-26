@@ -8,7 +8,7 @@ import { LineGeometry } from 'three/examples/jsm/lines/LineGeometry.js';
 import { LineMaterial } from 'three/examples/jsm/lines/LineMaterial.js';
 import { Scene, type SceneOptions } from './Scene';
 import { Controls } from './Controls';
-import type { Conversation, Turn, ContentBlock } from '../data/types';
+import type { Conversation, Turn, ContentBlock, SearchableCluster } from '../data/types';
 import { claudeCodeParser } from '../data/parsers/claude-code';
 import {
   buildClusters as buildClustersFromConversation,
@@ -1314,16 +1314,8 @@ export class Viewer {
   /**
    * Get searchable content for all clusters using the cluster-builder module
    */
-  public getSearchableContent(): Array<{
-    clusterIndex: number;
-    userText: string;
-    assistantText: string;
-    thinkingBlocks: string[];
-    toolUses: Array<{ name: string; input: string }>;
-    toolResults: Array<{ content: string; isError: boolean }>;
-    documents: Array<{ mediaType: string; sourceType: 'url' | 'base64' | 'file'; size?: number; title?: string; url?: string; data?: string; fileId?: string }>;
-  }> {
-    return extractSearchableContent(this.clusters);
+  public getSearchableContent(): SearchableCluster[] {
+    return extractSearchableContent(this.clusters, this.conversation?.entries);
   }
 
   /**

@@ -189,14 +189,7 @@ export class FileLoader {
       this.trySampleBtn.classList.add('loading');
       if (btnText) btnText.textContent = 'Loading...';
 
-      const response = await fetch('samples/sample-trace.jsonl.zstd');
-      if (!response.ok) {
-        throw new Error(`Failed to fetch sample: ${response.status}`);
-      }
-
-      const buffer = await response.arrayBuffer();
-      const content = decompressZstdBuffer(buffer);
-      await this.onLoad(content, 'sample-trace.jsonl', false, 'Thinking Tracer');
+      await this.loadFromUrl('samples/sample-trace.jsonl.zstd', 'sample-trace.jsonl.zstd');
     } catch (error) {
       console.error('Failed to load sample:', error);
       this.onError(error instanceof Error ? error : new Error(String(error)));
@@ -310,7 +303,7 @@ export class FileLoader {
   /**
    * Load a file from a URL
    */
-  public async loadFromUrl(url: string, filename: string): Promise<void> {
+  public async loadFromUrl(url: string, filename: string, customName?: string): Promise<void> {
     const response = await fetch(url);
     if (!response.ok) {
       throw new Error(`Failed to fetch: ${response.status}`);
@@ -330,7 +323,7 @@ export class FileLoader {
       content = await response.text();
     }
 
-    await this.onLoad(content, filename);
+    await this.onLoad(content, filename, false, customName);
   }
 
   /**

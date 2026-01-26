@@ -17,9 +17,54 @@ import {
 import { escapeHtml } from '../../export';
 
 /**
+ * Example trace definition (hardcoded, not stored)
+ */
+export interface ExampleTrace {
+  id: string;
+  name: string;
+  description: string;
+  url: string;
+  filename: string;
+  turnCount: number;
+  clusterCount: number;
+  size: number;
+}
+
+/**
+ * Built-in example traces
+ */
+const EXAMPLE_TRACES: ExampleTrace[] = [
+  {
+    id: 'example-thinking-tracer',
+    name: 'Thinking Tracer',
+    description: 'See how this app was built with Claude',
+    url: 'samples/sample-trace.jsonl.zstd',
+    filename: 'sample-trace.jsonl.zstd',
+    turnCount: 3653,
+    clusterCount: 120,
+    size: 1531184,
+  },
+  {
+    id: 'example-vegan-mapo-tofu',
+    name: 'Vegan Mapo Tofu',
+    description: 'Recipe development conversation',
+    url: 'samples/vegan-mapo-tofu.jsonl',
+    filename: 'vegan-mapo-tofu.jsonl',
+    turnCount: 149,
+    clusterCount: 5,
+    size: 480012,
+  },
+];
+
+/**
  * Callback for when a recent trace is selected
  */
 export type RecentTraceSelectCallback = (trace: RecentTrace) => Promise<void>;
+
+/**
+ * Callback for when an example trace is selected
+ */
+export type ExampleTraceSelectCallback = (example: ExampleTrace) => Promise<void>;
 
 /**
  * Options for RecentTracesManager
@@ -33,6 +78,8 @@ export interface RecentTracesManagerOptions {
   clearBtn: HTMLElement | null;
   /** Callback when a trace is selected */
   onSelect: RecentTraceSelectCallback;
+  /** Callback when an example trace is selected */
+  onSelectExample?: ExampleTraceSelectCallback;
 }
 
 /**
@@ -43,6 +90,7 @@ export class RecentTracesManager {
   private listElement: HTMLElement | null;
   private clearBtn: HTMLElement | null;
   private onSelect: RecentTraceSelectCallback;
+  private onSelectExample: ExampleTraceSelectCallback | null;
   private traces: RecentTrace[] = [];
   private disposed = false;
 
@@ -54,6 +102,7 @@ export class RecentTracesManager {
     this.listElement = options.listElement;
     this.clearBtn = options.clearBtn;
     this.onSelect = options.onSelect;
+    this.onSelectExample = options.onSelectExample || null;
 
     // Bind handlers
     this.boundHandleClearClick = this.handleClearClick.bind(this);
@@ -94,16 +143,15 @@ export class RecentTracesManager {
     try {
       this.traces = await getRecentTraces();
 
-      if (this.traces.length === 0) {
-        this.container.classList.add('hidden');
-        return;
-      }
-
+      // Always show container - we have examples even if no user traces
       this.container.classList.remove('hidden');
       this.render();
     } catch (err) {
       console.warn('Failed to load recent traces:', err);
-      this.container.classList.add('hidden');
+      // Still show examples on error
+      this.traces = [];
+      this.container.classList.remove('hidden');
+      this.render();
     }
   }
 
@@ -113,8 +161,47 @@ export class RecentTracesManager {
   private render(): void {
     if (!this.listElement) return;
 
-    this.listElement.innerHTML = this.traces.map((trace) => this.renderItem(trace)).join('');
+    let html = '';
+
+    // Render user traces if any
+    if (this.traces.length > 0) {
+      html += this.traces.map((trace) => this.renderItem(trace)).join('');
+    }
+
+    // Render example traces section
+    html += this.renderExamples();
+
+    this.listElement.innerHTML = html;
     this.attachEventListeners();
+  }
+
+  /**
+   * Render example traces section
+   */
+  private renderExamples(): string {
+    let html = '<div class="example-traces-section">';
+    html += '<div class="example-traces-header">Example Traces</div>';
+    html += EXAMPLE_TRACES.map((example) => this.renderExampleItem(example)).join('');
+    html += '</div>';
+    return html;
+  }
+
+  /**
+   * Render a single example trace item
+   */
+  private renderExampleItem(example: ExampleTrace): string {
+    return `
+      <div class="recent-item example-item" data-example-id="${example.id}">
+        <div class="recent-item-icon">📘</div>
+        <div class="recent-item-info">
+          <div class="recent-item-title example">${escapeHtml(example.name)}</div>
+          <div class="recent-item-path">${escapeHtml(example.description)}</div>
+          <div class="recent-item-meta">
+            ${example.turnCount} turns · ${example.clusterCount} clusters · ${formatSize(example.size)}
+          </div>
+        </div>
+      </div>
+    `;
   }
 
   /**
@@ -150,8 +237,10 @@ export class RecentTracesManager {
   private attachEventListeners(): void {
     if (!this.listElement) return;
 
-    this.listElement.querySelectorAll('.recent-item').forEach((item, index) => {
+    // Attach listeners to user traces
+    this.listElement.querySelectorAll('.recent-item:not(.example-item)').forEach((item, index) => {
       const trace = this.traces[index];
+      if (!trace) return;
 
       item.addEventListener('click', (e) => {
         // Don't trigger if clicking delete button
@@ -163,6 +252,19 @@ export class RecentTracesManager {
       deleteBtn?.addEventListener('click', async (e) => {
         e.stopPropagation();
         await this.deleteTrace(trace.id);
+      });
+    });
+
+    // Attach listeners to example traces
+    this.listElement.querySelectorAll('.example-item').forEach((item) => {
+      const exampleId = (item as HTMLElement).dataset.exampleId;
+      const example = EXAMPLE_TRACES.find(e => e.id === exampleId);
+      if (!example) return;
+
+      item.addEventListener('click', () => {
+        if (this.onSelectExample) {
+          this.onSelectExample(example);
+        }
       });
     });
   }

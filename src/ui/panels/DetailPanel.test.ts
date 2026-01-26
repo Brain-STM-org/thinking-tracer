@@ -29,7 +29,7 @@ function createMockCluster(overrides: Partial<SearchableCluster> = {}): Searchab
     clusterIndex: 0,
     userText: 'User message',
     assistantText: 'Assistant response',
-    thinkingBlocks: ['Some thinking'],
+    thinkingBlocks: [{ text: 'Some thinking' }],
     toolUses: [{ name: 'Read', input: '{"file_path": "/test.txt"}' }],
     toolResults: [{ content: 'File contents', isError: false }],
     documents: [],
@@ -107,7 +107,7 @@ describe('buildTurnText', () => {
 
   it('handles multiple thinking blocks', () => {
     const cluster = createMockCluster({
-      thinkingBlocks: ['First thought', 'Second thought'],
+      thinkingBlocks: [{ text: 'First thought' }, { text: 'Second thought' }],
     });
     const text = buildTurnText(cluster, 1);
 

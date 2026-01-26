@@ -275,7 +275,7 @@ export function performSearch(
     // Search thinking blocks
     if (filters.has('thinking')) {
       for (const thinking of cluster.thinkingBlocks) {
-        const match = findMatch(thinking, query, useRegex, contextBefore, contextAfter);
+        const match = findMatch(thinking.text, query, useRegex, contextBefore, contextAfter);
         if (match.found) {
           results.push({
             type: 'thinking',

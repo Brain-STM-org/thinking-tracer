@@ -91,7 +91,7 @@ export function getWordFrequencies(
     }
 
     if (source === 'all' || source === 'thinking') {
-      textsToAnalyze.push(...cluster.thinkingBlocks);
+      textsToAnalyze.push(...cluster.thinkingBlocks.map(t => t.text));
     }
 
     // Extract and merge word counts

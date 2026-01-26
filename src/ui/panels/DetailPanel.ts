@@ -32,7 +32,7 @@ export function buildTurnText(cluster: SearchableCluster, turnNumber: number): s
 
   if (cluster.thinkingBlocks.length > 0) {
     for (const thinking of cluster.thinkingBlocks) {
-      text += `THINKING:\n${thinking}\n\n`;
+      text += `THINKING:\n${thinking.text}\n\n`;
     }
   }
 

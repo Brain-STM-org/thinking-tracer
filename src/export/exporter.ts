@@ -170,8 +170,8 @@ export function exportAsHtml(clusters: SearchableCluster[], title: string): stri
     // Thinking blocks
     for (const thinking of cluster.thinkingBlocks) {
       html += `      <details class="thinking">
-        <summary class="thinking-header">Thinking (${thinking.length.toLocaleString()} chars)</summary>
-        <div class="thinking-content">${renderMarkdown(thinking)}</div>
+        <summary class="thinking-header">Thinking (${thinking.text.length.toLocaleString()} chars)</summary>
+        <div class="thinking-content">${renderMarkdown(thinking.text)}</div>
       </details>\n`;
     }
 
@@ -247,7 +247,7 @@ export function exportAsMarkdown(clusters: SearchableCluster[], title: string): 
 
     // Thinking blocks
     for (const thinking of cluster.thinkingBlocks) {
-      md += `<details>\n<summary>Thinking (${thinking.length.toLocaleString()} chars)</summary>\n\n\`\`\`\n${thinking}\n\`\`\`\n\n</details>\n\n`;
+      md += `<details>\n<summary>Thinking (${thinking.text.length.toLocaleString()} chars)</summary>\n\n\`\`\`\n${thinking.text}\n\`\`\`\n\n</details>\n\n`;
     }
 
     // Tool calls and results

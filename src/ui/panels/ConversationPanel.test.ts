@@ -30,7 +30,7 @@ function createMockClusters(): SearchableCluster[] {
       clusterIndex: 0,
       userText: 'Hello, how are you?',
       assistantText: 'I am doing well, thank you!',
-      thinkingBlocks: ['Thinking about greeting...'],
+      thinkingBlocks: [{ text: 'Thinking about greeting...' }],
       toolUses: [{ name: 'Read', input: '{"file": "test.txt"}' }],
       toolResults: [{ content: 'File contents here', isError: false }],
       documents: [],

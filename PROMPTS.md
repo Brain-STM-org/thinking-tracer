@@ -1735,3 +1735,69 @@ looking good, thank you.   i expanded the sample corpus, ensure tests still pass
 ## 2026-01-25T17:18:47Z
 
 please review what prominent open source libraries or technogies we are using for this project to make a thank you list
+
+---
+
+## 2026-01-25T17:24:22Z
+
+not now, i was curious.   i would like to add the ability to load a JSONL from a URL, so add an interface for that  to the main page.  we attempt to load the URL first from that page, then proceed to the next.
+
+---
+
+## 2026-01-25T17:34:12Z
+
+update the "See How This Was Built Sample" to use the identical load-from URL mechanism.  can you remind me what URL it uses?   Also, for new users, we can pre-populate the Recent Traces with the Thinking Tracer Example and the Vegan Mapo Tofu example (including their current statistics hard-coded (meaning don't read it each time).  I think eventually we will have the top example be a subset of the full trace and i'll put the full trace as a link at the bottom, but we'll do that later.
+
+---
+
+## 2026-01-25T18:02:48Z
+
+in the conversation view, in addition to the character count, include a time for thinking and tool result
+
+---
+
+## 2026-01-25T18:34:11Z
+
+can you show thinking time for each thoght and total time in the output summary?
+
+---
+
+## 2026-01-25T22:38:19Z
+
+since URLs are long, you can make the textbox for it wider be 30%.  When I try to load from https://github.com/Brain-STM-org/thinking-tracer/blob/main/public/samples/sample-trace.jsonl.zstd I get "Failed to Load from URL: Load failed".  I see an error: [Error] Origin http://localhost:3000 is not allowed by Access-Control-Allow-Origin. Status code: 200  [Error] Fetch API cannot load https://github.com/Brain-STM-org/thinking-tracer/blob/main/public/samples/sample-trace.jsonl.zstd due to access control checks.
+
+---
+
+## 2026-01-25T22:43:13Z
+
+that fixed it.  when i put gibberish (not a URL) into the URL bar, i get this error: Failed to load file: Failed to parse file: SyntaxError: JSON Parse error: Unrecognized token '<
+
+---
+
+## 2026-01-25T22:44:51Z
+
+is that an alert dialog?  can we do our own dialog that is nicer styled?
+
+---
+
+## 2026-01-25T22:48:38Z
+
+you can place that alert 25% down from the top
+
+---
+
+## 2026-01-25T22:50:17Z
+
+allow escape to close that
+
+---
+
+## 2026-01-25T23:06:48Z
+
+For the URL-based samples, can we set their session Title in the app window to be the same as it is on the intro page?
+
+---
+
+## 2026-01-25T23:12:59Z
+
+when i click on the example traces, i get invalid URL error

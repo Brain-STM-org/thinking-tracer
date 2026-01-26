@@ -105,7 +105,7 @@ describe('RecentTracesManager', () => {
       manager.dispose();
     });
 
-    it('hides container when no traces', async () => {
+    it('shows container with examples when no user traces', async () => {
       vi.mocked(getRecentTraces).mockResolvedValueOnce([]);
 
       const manager = new RecentTracesManager({
@@ -117,7 +117,11 @@ describe('RecentTracesManager', () => {
 
       await manager.refresh();
 
-      expect(container.classList.contains('hidden')).toBe(true);
+      // Container should be visible because we always show example traces
+      expect(container.classList.contains('hidden')).toBe(false);
+      // Should render example traces section
+      expect(listElement.innerHTML).toContain('example-traces-section');
+      expect(listElement.innerHTML).toContain('Example Traces');
       manager.dispose();
     });
 
@@ -155,7 +159,7 @@ describe('RecentTracesManager', () => {
       manager.dispose();
     });
 
-    it('handles errors gracefully', async () => {
+    it('handles errors gracefully and shows examples', async () => {
       vi.mocked(getRecentTraces).mockRejectedValueOnce(new Error('Storage error'));
 
       const manager = new RecentTracesManager({
@@ -167,7 +171,9 @@ describe('RecentTracesManager', () => {
 
       await manager.refresh();
 
-      expect(container.classList.contains('hidden')).toBe(true);
+      // Container should still be visible with example traces even on error
+      expect(container.classList.contains('hidden')).toBe(false);
+      expect(listElement.innerHTML).toContain('example-traces-section');
       manager.dispose();
     });
 

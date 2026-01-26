@@ -419,8 +419,8 @@ describe('extractSearchableContent', () => {
     const content = extractSearchableContent(clusters);
 
     expect(content[0].thinkingBlocks).toHaveLength(2);
-    expect(content[0].thinkingBlocks[0]).toBe('First thought');
-    expect(content[0].thinkingBlocks[1]).toBe('Second thought');
+    expect(content[0].thinkingBlocks[0].text).toBe('First thought');
+    expect(content[0].thinkingBlocks[1].text).toBe('Second thought');
   });
 
   it('extracts tool uses correctly', () => {
@@ -632,7 +632,7 @@ describe('clusterContainsWord', () => {
     clusterIndex: 0,
     userText: '',
     assistantText: '',
-    thinkingBlocks: [],
+    thinkingBlocks: [].map(t => ({ text: t })),
     toolUses: [],
     toolResults: [],
     documents: [],
@@ -650,7 +650,7 @@ describe('clusterContainsWord', () => {
   });
 
   it('finds word in thinking blocks', () => {
-    const searchable = { ...baseSearchable, thinkingBlocks: ['Let me analyze this'] };
+    const searchable = { ...baseSearchable, thinkingBlocks: ['Let me analyze this'].map(t => ({ text: t })) };
     expect(clusterContainsWord(searchable, 'analyze')).toBe(true);
   });
 
@@ -685,7 +685,7 @@ describe('clusterContainsWord', () => {
 describe('findClustersWithWord', () => {
   it('returns empty array when no matches', () => {
     const content: SearchableClusterContent[] = [
-      { clusterIndex: 0, userText: 'Hello', assistantText: '', thinkingBlocks: [], toolUses: [], toolResults: [], documents: [] },
+      { clusterIndex: 0, userText: 'Hello', assistantText: '', thinkingBlocks: [].map(t => ({ text: t })), toolUses: [], toolResults: [], documents: [] },
     ];
 
     const indices = findClustersWithWord(content, 'goodbye');
@@ -695,9 +695,9 @@ describe('findClustersWithWord', () => {
 
   it('returns indices of matching clusters', () => {
     const content: SearchableClusterContent[] = [
-      { clusterIndex: 0, userText: 'Hello', assistantText: '', thinkingBlocks: [], toolUses: [], toolResults: [], documents: [] },
-      { clusterIndex: 1, userText: 'World', assistantText: '', thinkingBlocks: [], toolUses: [], toolResults: [], documents: [] },
-      { clusterIndex: 2, userText: 'Hello again', assistantText: '', thinkingBlocks: [], toolUses: [], toolResults: [], documents: [] },
+      { clusterIndex: 0, userText: 'Hello', assistantText: '', thinkingBlocks: [].map(t => ({ text: t })), toolUses: [], toolResults: [], documents: [] },
+      { clusterIndex: 1, userText: 'World', assistantText: '', thinkingBlocks: [].map(t => ({ text: t })), toolUses: [], toolResults: [], documents: [] },
+      { clusterIndex: 2, userText: 'Hello again', assistantText: '', thinkingBlocks: [].map(t => ({ text: t })), toolUses: [], toolResults: [], documents: [] },
     ];
 
     const indices = findClustersWithWord(content, 'hello');
@@ -707,8 +707,8 @@ describe('findClustersWithWord', () => {
 
   it('returns all indices when all match', () => {
     const content: SearchableClusterContent[] = [
-      { clusterIndex: 0, userText: 'test', assistantText: '', thinkingBlocks: [], toolUses: [], toolResults: [], documents: [] },
-      { clusterIndex: 1, userText: 'test', assistantText: '', thinkingBlocks: [], toolUses: [], toolResults: [], documents: [] },
+      { clusterIndex: 0, userText: 'test', assistantText: '', thinkingBlocks: [].map(t => ({ text: t })), toolUses: [], toolResults: [], documents: [] },
+      { clusterIndex: 1, userText: 'test', assistantText: '', thinkingBlocks: [].map(t => ({ text: t })), toolUses: [], toolResults: [], documents: [] },
     ];
 
     const indices = findClustersWithWord(content, 'test');

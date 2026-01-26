@@ -36,8 +36,10 @@ export type {
   FileLoadCallback,
   RecentTracesManagerOptions,
   RecentTraceSelectCallback,
+  ExampleTraceSelectCallback,
   RecentTrace,
   TraceUIState,
+  ExampleTrace,
 } from './loaders';
 
 // Search

@@ -5,7 +5,7 @@
  * A cluster groups a user message with its corresponding assistant response.
  */
 
-import type { Conversation, Turn, ContentBlock, SearchableCluster, ImageBlock, DocumentBlock, DocumentMeta } from '../../data/types';
+import type { Conversation, Turn, ContentBlock, SearchableCluster, ImageBlock, DocumentBlock, DocumentMeta, Entry, ThinkingBlockData, ToolResultData } from '../../data/types';
 
 /**
  * Check if a turn contains only tool_result content blocks.
@@ -238,9 +238,95 @@ export function buildClusters(conversation: Conversation | null): TurnCluster[] 
 }
 
 /**
- * Extract searchable content from clusters
+ * Thinking block timing info extracted from entries
  */
-export function extractSearchableContent(clusters: TurnCluster[]): SearchableClusterContent[] {
+interface ThinkingTiming {
+  text: string;
+  durationMs?: number;
+}
+
+/**
+ * Build timing maps from entries for duration calculations
+ */
+function buildTimingMaps(entries: Entry[] | undefined): {
+  toolUseTimestamps: Map<string, number>;
+  toolResultTimestamps: Map<string, number>;
+  thinkingTimings: ThinkingTiming[];
+} {
+  const toolUseTimestamps = new Map<string, number>();
+  const toolResultTimestamps = new Map<string, number>();
+  const thinkingTimings: ThinkingTiming[] = [];
+
+  if (!entries) return { toolUseTimestamps, toolResultTimestamps, thinkingTimings };
+
+  // First pass: collect all entry timestamps
+  const entryTimestamps: number[] = [];
+  for (const entry of entries) {
+    if (entry.timestamp) {
+      const ts = new Date(entry.timestamp).getTime();
+      if (!isNaN(ts)) entryTimestamps.push(ts);
+    }
+  }
+
+  let entryIndex = 0;
+  for (const entry of entries) {
+    if (!entry.timestamp) continue;
+    const entryTime = new Date(entry.timestamp).getTime();
+    if (isNaN(entryTime)) {
+      continue;
+    }
+
+    // Find next entry timestamp for duration calculation
+    const nextEntryTime = entryIndex + 1 < entryTimestamps.length
+      ? entryTimestamps[entryIndex + 1]
+      : undefined;
+    entryIndex++;
+
+    // Extract tool_use ids and thinking blocks from assistant entries
+    if (entry.type === 'assistant' && entry.parsedAssistantMessage?.content) {
+      for (const block of entry.parsedAssistantMessage.content) {
+        if (block.type === 'tool_use' && 'id' in block) {
+          toolUseTimestamps.set(block.id as string, entryTime);
+        }
+        if (block.type === 'thinking' && 'thinking' in block) {
+          // Calculate duration as time until next entry
+          const durationMs = nextEntryTime !== undefined ? nextEntryTime - entryTime : undefined;
+          thinkingTimings.push({
+            text: block.thinking as string,
+            durationMs: durationMs !== undefined && durationMs > 0 ? durationMs : undefined,
+          });
+        }
+      }
+    }
+
+    // Extract tool_result tool_use_ids from user entries
+    if (entry.type === 'user' && entry.parsedUserMessage?.content) {
+      const content = entry.parsedUserMessage.content;
+      if (Array.isArray(content)) {
+        for (const block of content) {
+          if (block.type === 'tool_result' && 'tool_use_id' in block) {
+            toolResultTimestamps.set(block.tool_use_id as string, entryTime);
+          }
+        }
+      }
+    }
+  }
+
+  return { toolUseTimestamps, toolResultTimestamps, thinkingTimings };
+}
+
+/**
+ * Extract searchable content from clusters
+ * @param clusters The clusters to extract content from
+ * @param entries Optional entries array for timing calculation
+ */
+export function extractSearchableContent(clusters: TurnCluster[], entries?: Entry[]): SearchableClusterContent[] {
+  // Build timing maps for tool and thinking duration calculation
+  const { toolUseTimestamps, toolResultTimestamps, thinkingTimings } = buildTimingMaps(entries);
+
+  // Track which thinking timing we're on (they're extracted in order from entries)
+  let thinkingTimingIndex = 0;
+
   return clusters.map((cluster) => {
     // Extract user text
     let userText = '';
@@ -253,9 +339,9 @@ export function extractSearchableContent(clusters: TurnCluster[]): SearchableClu
 
     // Extract assistant text, thinking blocks, tool info, and documents
     let assistantText = '';
-    const thinkingBlocks: string[] = [];
-    const toolUses: Array<{ name: string; input: string }> = [];
-    const toolResults: Array<{ content: string; isError: boolean }> = [];
+    const thinkingBlocks: ThinkingBlockData[] = [];
+    const toolUses: Array<{ name: string; input: string; id?: string }> = [];
+    const toolResults: ToolResultData[] = [];
     const documents: DocumentMeta[] = [];
 
     // Helper to extract document metadata from image or document blocks
@@ -297,16 +383,41 @@ export function extractSearchableContent(clusters: TurnCluster[]): SearchableClu
         if (block.type === 'text' && 'text' in block) {
           assistantText += (assistantText ? '\n' : '') + block.text;
         } else if (block.type === 'thinking' && 'thinking' in block) {
-          thinkingBlocks.push(block.thinking as string);
+          const thinkingText = block.thinking as string;
+          // Try to find matching timing data
+          let durationMs: number | undefined;
+          if (thinkingTimingIndex < thinkingTimings.length) {
+            const timing = thinkingTimings[thinkingTimingIndex];
+            // Match by text to ensure correct pairing
+            if (timing.text === thinkingText) {
+              durationMs = timing.durationMs;
+              thinkingTimingIndex++;
+            }
+          }
+          thinkingBlocks.push({ text: thinkingText, durationMs });
         } else if (block.type === 'tool_use' && 'name' in block) {
           toolUses.push({
             name: block.name as string,
             input: JSON.stringify((block as { input?: unknown }).input || {}, null, 2),
+            id: (block as { id?: string }).id,
           });
         } else if (block.type === 'tool_result' && 'content' in block) {
+          const toolUseId = (block as { tool_use_id?: string }).tool_use_id;
+          let durationMs: number | undefined;
+
+          // Calculate duration from tool_use to tool_result
+          if (toolUseId) {
+            const useTime = toolUseTimestamps.get(toolUseId);
+            const resultTime = toolResultTimestamps.get(toolUseId);
+            if (useTime !== undefined && resultTime !== undefined && resultTime > useTime) {
+              durationMs = resultTime - useTime;
+            }
+          }
+
           toolResults.push({
             content: String(block.content),
             isError: Boolean((block as { is_error?: boolean }).is_error),
+            durationMs,
           });
         } else {
           const meta = extractDocMeta(block);
@@ -411,7 +522,7 @@ export function clusterContainsWord(
 
   // Check thinking blocks
   for (const thinking of searchable.thinkingBlocks) {
-    if (thinking.toLowerCase().includes(lowerWord)) {
+    if (thinking.text.toLowerCase().includes(lowerWord)) {
       return true;
     }
   }

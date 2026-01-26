@@ -23,6 +23,60 @@ import {
 } from './ui';
 import type { Selection, RecentTrace, TraceUIState } from './ui';
 
+// Toast notification system
+type ToastType = 'error' | 'success' | 'info';
+
+function showToast(message: string, type: ToastType = 'info', title?: string, duration = 5000): void {
+  const container = document.getElementById('toast-container');
+  if (!container) return;
+
+  const icons: Record<ToastType, string> = {
+    error: '⚠',
+    success: '✓',
+    info: 'ℹ',
+  };
+
+  const toast = document.createElement('div');
+  toast.className = `toast toast-${type}`;
+  toast.innerHTML = `
+    <span class="toast-icon">${icons[type]}</span>
+    <div class="toast-content">
+      ${title ? `<div class="toast-title">${escapeHtml(title)}</div>` : ''}
+      <div class="toast-message">${escapeHtml(message)}</div>
+    </div>
+    <button class="toast-close">&times;</button>
+  `;
+
+  // Dismiss handler
+  let dismissed = false;
+  const dismiss = () => {
+    if (dismissed) return;
+    dismissed = true;
+    document.removeEventListener('keydown', escapeHandler);
+    toast.classList.add('toast-out');
+    setTimeout(() => toast.remove(), 200);
+  };
+
+  // Close button handler
+  const closeBtn = toast.querySelector('.toast-close');
+  closeBtn?.addEventListener('click', dismiss);
+
+  // Escape key handler
+  const escapeHandler = (e: KeyboardEvent) => {
+    if (e.key === 'Escape') {
+      dismiss();
+    }
+  };
+  document.addEventListener('keydown', escapeHandler);
+
+  // Auto-dismiss
+  if (duration > 0) {
+    setTimeout(dismiss, duration);
+  }
+
+  container.appendChild(toast);
+}
+
 // Get DOM elements
 const container = document.getElementById('canvas-container');
 const dropOverlay = document.getElementById('drop-overlay');
@@ -80,6 +134,8 @@ const clusterLineWidth = document.getElementById('cluster-line-width') as HTMLIn
 const clusterLineWidthValue = document.getElementById('cluster-line-width-value');
 const clusterLineOpacity = document.getElementById('cluster-line-opacity') as HTMLInputElement | null;
 const clusterLineOpacityValue = document.getElementById('cluster-line-opacity-value');
+const urlInput = document.getElementById('url-input') as HTMLInputElement | null;
+const urlLoadBtn = document.getElementById('url-load-btn');
 
 // Track expanded state
 let allExpanded = false;
@@ -357,7 +413,7 @@ async function loadFile(content: string, filename: string, skipSave = false, cus
     }, 50);
   } catch (error) {
     console.error('Failed to load conversation:', error);
-    alert(`Failed to load file: ${error instanceof Error ? error.message : error}`);
+    showToast(error instanceof Error ? error.message : String(error), 'error', 'Failed to load file');
   }
 }
 
@@ -401,7 +457,7 @@ fileLoader = new FileLoader({
   dropOverlay: dropOverlay,
   onLoad: loadFile,
   onError: (error) => {
-    alert(error.message);
+    showToast(error.message, 'error', 'Error');
   },
 });
 
@@ -411,7 +467,120 @@ recentTracesManager = new RecentTracesManager({
   listElement: recentListEl,
   clearBtn: recentClearBtn,
   onSelect: loadRecentTrace,
+  onSelectExample: async (example) => {
+    await loadFromUrl(example.url, example.name);
+  },
 });
+
+// ============================================
+// URL Loading
+// ============================================
+
+/**
+ * Load a trace from a URL
+ */
+/**
+ * Convert GitHub blob URLs to raw.githubusercontent.com URLs
+ * e.g., https://github.com/user/repo/blob/main/path/file.jsonl
+ *    -> https://raw.githubusercontent.com/user/repo/main/path/file.jsonl
+ */
+function convertGitHubUrl(url: string): string {
+  const githubBlobPattern = /^https?:\/\/github\.com\/([^/]+)\/([^/]+)\/blob\/(.+)$/;
+  const match = url.match(githubBlobPattern);
+  if (match) {
+    const [, owner, repo, pathWithBranch] = match;
+    return `https://raw.githubusercontent.com/${owner}/${repo}/${pathWithBranch}`;
+  }
+  return url;
+}
+
+async function loadFromUrl(url: string, customName?: string): Promise<boolean> {
+  const trimmedUrl = url.trim();
+  if (!trimmedUrl) return false;
+
+  // Validate URL format - must be http(s):// or a path (contains / or ends with .jsonl etc)
+  const isAbsoluteUrl = /^https?:\/\//i.test(trimmedUrl);
+  const isPath = /[/.]/.test(trimmedUrl); // Contains slash or dot (like samples/file.jsonl)
+  if (!isAbsoluteUrl && !isPath) {
+    showToast('Please enter a valid URL (e.g., https://example.com/trace.jsonl)', 'error', 'Invalid URL');
+    return false;
+  }
+
+  // Update UI to show loading
+  if (urlLoadBtn) {
+    urlLoadBtn.textContent = 'Loading...';
+    urlLoadBtn.classList.add('loading');
+  }
+
+  try {
+    // Convert GitHub blob URLs to raw URLs (avoids CORS issues)
+    const resolvedUrl = convertGitHubUrl(trimmedUrl);
+
+    // Extract filename from URL
+    const urlObj = new URL(resolvedUrl, window.location.href);
+    const pathname = urlObj.pathname;
+    const filename = pathname.split('/').pop() || 'trace.jsonl';
+
+    await fileLoader?.loadFromUrl(resolvedUrl, filename, customName);
+    return true;
+  } catch (error) {
+    console.error('Failed to load from URL:', error);
+    const message = error instanceof Error ? error.message : String(error);
+    // Provide friendlier error messages for common cases
+    if (message.includes('JSON Parse error') || message.includes('SyntaxError')) {
+      showToast('The URL did not return a valid JSONL file', 'error', 'Failed to load');
+    } else if (message.includes('Failed to fetch') || message.includes('NetworkError')) {
+      showToast('Could not fetch the URL (check if it exists and allows cross-origin requests)', 'error', 'Failed to load');
+    } else {
+      showToast(message, 'error', 'Failed to load');
+    }
+    return false;
+  } finally {
+    if (urlLoadBtn) {
+      urlLoadBtn.textContent = 'Load URL';
+      urlLoadBtn.classList.remove('loading');
+    }
+  }
+}
+
+// URL load button click handler
+urlLoadBtn?.addEventListener('click', () => {
+  const url = urlInput?.value.trim();
+  if (url) {
+    loadFromUrl(url);
+  }
+});
+
+// Enter key in URL input
+urlInput?.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') {
+    const url = urlInput.value.trim();
+    if (url) {
+      loadFromUrl(url);
+    }
+  }
+});
+
+// Check for ?url= query parameter on startup
+(async function checkUrlParam() {
+  const params = new URLSearchParams(window.location.search);
+  const urlParam = params.get('url');
+
+  if (urlParam) {
+    // Pre-fill the input field
+    if (urlInput) {
+      urlInput.value = urlParam;
+    }
+
+    // Attempt to load from URL
+    const success = await loadFromUrl(urlParam);
+
+    if (!success) {
+      // If failed, show the landing page (it's already visible by default)
+      console.log('URL load failed, showing file selector');
+    }
+  }
+})();
 
 /**
  * Show the file selector overlay
