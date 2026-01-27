@@ -6,20 +6,10 @@
  */
 
 import type { Conversation, Turn, ContentBlock, SearchableCluster, ImageBlock, DocumentBlock, DocumentMeta, Entry, ThinkingBlockData, ToolResultData } from '../../data/types';
+import { strategyRegistry, type ClusterStrategy } from './strategies';
 
-/**
- * Check if a turn contains only tool_result content blocks.
- * Such turns are system-generated tool responses (Claude Code logs them as
- * type "user"), not real user messages. They should be folded into the
- * assistant's content rather than starting a new cluster.
- */
-export function isToolResultOnly(turn: Turn): boolean {
-  return (
-    turn.role === 'user' &&
-    turn.content.length > 0 &&
-    turn.content.every((b) => b.type === 'tool_result')
-  );
-}
+// Re-export isToolResultOnly from strategy for backward compatibility
+export { isToolResultOnly } from './strategies/claude-code';
 
 /**
  * A cluster of turns (user + assistant pair)
@@ -91,9 +81,15 @@ function enrichCluster(cluster: TurnCluster): void {
 /**
  * Build clusters from conversation turns.
  * Merges consecutive user turns and consecutive assistant turns into single clusters.
+ *
+ * @param conversation The conversation to build clusters from
+ * @param strategy Optional cluster building strategy (defaults to source-appropriate strategy)
  */
-export function buildClusters(conversation: Conversation | null): TurnCluster[] {
+export function buildClusters(conversation: Conversation | null, strategy?: ClusterStrategy): TurnCluster[] {
   if (!conversation) return [];
+
+  // Use provided strategy, or get strategy based on source, or use default
+  const clusterStrategy = strategy ?? strategyRegistry.get(conversation.meta.source);
 
   const clusters: TurnCluster[] = [];
   const { turns } = conversation;
@@ -143,11 +139,9 @@ export function buildClusters(conversation: Conversation | null): TurnCluster[] 
           i++;
         }
 
-        // Continue absorbing tool-result rounds: tool_result-only user turns
-        // followed by more assistant turns are part of the same response.
-        // Claude Code logs tool results as type "user", but they're not
-        // real user messages — they're system-provided tool outputs.
-        while (i < turns.length && isToolResultOnly(turns[i])) {
+        // Continue absorbing turns that the strategy says should be merged
+        // (e.g., tool_result-only user turns in Claude Code)
+        while (i < turns.length && clusterStrategy.shouldAbsorbIntoPrevious(turns[i])) {
           mergedAssistantContent.push(...turns[i].content);
           i++;
 
@@ -193,8 +187,8 @@ export function buildClusters(conversation: Conversation | null): TurnCluster[] 
         i++;
       }
 
-      // Absorb tool-result rounds (same as user+assistant case)
-      while (i < turns.length && isToolResultOnly(turns[i])) {
+      // Absorb turns per strategy (same as user+assistant case)
+      while (i < turns.length && clusterStrategy.shouldAbsorbIntoPrevious(turns[i])) {
         mergedContent.push(...turns[i].content);
         i++;
 
@@ -237,92 +231,21 @@ export function buildClusters(conversation: Conversation | null): TurnCluster[] 
   return clusters;
 }
 
-/**
- * Thinking block timing info extracted from entries
- */
-interface ThinkingTiming {
-  text: string;
-  durationMs?: number;
-}
-
-/**
- * Build timing maps from entries for duration calculations
- */
-function buildTimingMaps(entries: Entry[] | undefined): {
-  toolUseTimestamps: Map<string, number>;
-  toolResultTimestamps: Map<string, number>;
-  thinkingTimings: ThinkingTiming[];
-} {
-  const toolUseTimestamps = new Map<string, number>();
-  const toolResultTimestamps = new Map<string, number>();
-  const thinkingTimings: ThinkingTiming[] = [];
-
-  if (!entries) return { toolUseTimestamps, toolResultTimestamps, thinkingTimings };
-
-  // First pass: collect all entry timestamps
-  const entryTimestamps: number[] = [];
-  for (const entry of entries) {
-    if (entry.timestamp) {
-      const ts = new Date(entry.timestamp).getTime();
-      if (!isNaN(ts)) entryTimestamps.push(ts);
-    }
-  }
-
-  let entryIndex = 0;
-  for (const entry of entries) {
-    if (!entry.timestamp) continue;
-    const entryTime = new Date(entry.timestamp).getTime();
-    if (isNaN(entryTime)) {
-      continue;
-    }
-
-    // Find next entry timestamp for duration calculation
-    const nextEntryTime = entryIndex + 1 < entryTimestamps.length
-      ? entryTimestamps[entryIndex + 1]
-      : undefined;
-    entryIndex++;
-
-    // Extract tool_use ids and thinking blocks from assistant entries
-    if (entry.type === 'assistant' && entry.parsedAssistantMessage?.content) {
-      for (const block of entry.parsedAssistantMessage.content) {
-        if (block.type === 'tool_use' && 'id' in block) {
-          toolUseTimestamps.set(block.id as string, entryTime);
-        }
-        if (block.type === 'thinking' && 'thinking' in block) {
-          // Calculate duration as time until next entry
-          const durationMs = nextEntryTime !== undefined ? nextEntryTime - entryTime : undefined;
-          thinkingTimings.push({
-            text: block.thinking as string,
-            durationMs: durationMs !== undefined && durationMs > 0 ? durationMs : undefined,
-          });
-        }
-      }
-    }
-
-    // Extract tool_result tool_use_ids from user entries
-    if (entry.type === 'user' && entry.parsedUserMessage?.content) {
-      const content = entry.parsedUserMessage.content;
-      if (Array.isArray(content)) {
-        for (const block of content) {
-          if (block.type === 'tool_result' && 'tool_use_id' in block) {
-            toolResultTimestamps.set(block.tool_use_id as string, entryTime);
-          }
-        }
-      }
-    }
-  }
-
-  return { toolUseTimestamps, toolResultTimestamps, thinkingTimings };
-}
+// Timing extraction is now handled by cluster strategies
+// The default (Claude Code) strategy is used when no source-specific strategy is available
 
 /**
  * Extract searchable content from clusters
  * @param clusters The clusters to extract content from
  * @param entries Optional entries array for timing calculation
+ * @param sourceId Optional source ID for strategy selection
  */
-export function extractSearchableContent(clusters: TurnCluster[], entries?: Entry[]): SearchableClusterContent[] {
+export function extractSearchableContent(clusters: TurnCluster[], entries?: Entry[], sourceId?: string): SearchableClusterContent[] {
+  // Get the appropriate strategy for timing extraction
+  const strategy = strategyRegistry.get(sourceId);
+
   // Build timing maps for tool and thinking duration calculation
-  const { toolUseTimestamps, toolResultTimestamps, thinkingTimings } = buildTimingMaps(entries);
+  const { toolUseTimestamps, toolResultTimestamps, thinkingTimings } = strategy.extractTimingData(entries);
 
   // Track which thinking timing we're on (they're extracted in order from entries)
   let thinkingTimingIndex = 0;

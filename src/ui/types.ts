@@ -51,6 +51,7 @@ export interface ConversationData {
     cwd?: string;
     git_branch?: string;
     duration_ms?: number;
+    source?: string;
   };
   turns: unknown[];
 }

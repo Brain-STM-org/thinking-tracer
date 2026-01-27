@@ -8,6 +8,7 @@ export {
   calculateClusterMetrics,
   clusterContainsWord,
   findClustersWithWord,
+  isToolResultOnly,
 } from './cluster-builder';
 
 export type {
@@ -15,3 +16,7 @@ export type {
   SearchableClusterContent,
   ClusterMetrics,
 } from './cluster-builder';
+
+// Export strategy types and registry
+export { strategyRegistry, claudeCodeStrategy } from './strategies';
+export type { ClusterStrategy, ClusterTimingData } from './strategies';

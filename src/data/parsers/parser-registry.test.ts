@@ -2,9 +2,9 @@
  * Tests for Parser Registry
  */
 
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { parserRegistry, claudeCodeParser } from './index';
-import type { TraceParser, Conversation } from '../types';
+import type { TraceParser } from '../types';
 
 describe('ParserRegistry', () => {
   describe('built-in parsers', () => {
@@ -71,7 +71,7 @@ describe('ParserRegistry', () => {
     it('can register a custom parser', () => {
       const mockParser: TraceParser = {
         canParse: (data) => typeof data === 'string' && data.startsWith('MOCK:'),
-        parse: (data) => ({
+        parse: () => ({
           meta: { source: 'mock-source' },
           turns: [],
         }),

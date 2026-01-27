@@ -23,6 +23,8 @@ export interface ExportDataProvider {
   getSearchableContent(): SearchableCluster[];
   /** Get conversation title */
   getConversationTitle(): string | undefined;
+  /** Get source ID (e.g., 'claude-code') */
+  getSourceId(): string | undefined;
 }
 
 /**
@@ -131,13 +133,14 @@ export class ExportController {
   private exportAs(format: string): void {
     const clusters = this.dataProvider.getSearchableContent();
     const title = this.dataProvider.getConversationTitle() || 'Conversation Export';
+    const sourceId = this.dataProvider.getSourceId();
     const safeFilename = getSafeFilename(title);
 
     if (format === 'html') {
-      const html = exportAsHtml(clusters, title);
+      const html = exportAsHtml(clusters, title, sourceId);
       downloadFile(html, `${safeFilename}.html`, 'text/html');
     } else if (format === 'markdown') {
-      const md = exportAsMarkdown(clusters, title);
+      const md = exportAsMarkdown(clusters, title, sourceId);
       downloadFile(md, `${safeFilename}.md`, 'text/markdown');
     }
   }

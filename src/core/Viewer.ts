@@ -1317,7 +1317,7 @@ export class Viewer {
    * Get searchable content for all clusters using the cluster-builder module
    */
   public getSearchableContent(): SearchableCluster[] {
-    return extractSearchableContent(this.clusters, this.conversation?.entries);
+    return extractSearchableContent(this.clusters, this.conversation?.entries, this.conversation?.meta.source);
   }
 
   /**

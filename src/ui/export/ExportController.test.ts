@@ -64,6 +64,7 @@ function createMockDataProvider(): ExportDataProvider {
       },
     ]),
     getConversationTitle: vi.fn(() => 'Test Conversation'),
+    getSourceId: vi.fn(() => 'claude-code'),
   };
 }
 
@@ -190,6 +191,7 @@ describe('ExportController', () => {
       const providerWithNoTitle: ExportDataProvider = {
         getSearchableContent: vi.fn(() => []),
         getConversationTitle: vi.fn(() => undefined),
+        getSourceId: vi.fn(() => undefined),
       };
       controller = new ExportController({ elements, dataProvider: providerWithNoTitle });
 

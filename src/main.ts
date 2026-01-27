@@ -963,6 +963,7 @@ if (exportBtn && exportDropdown) {
     dataProvider: {
       getSearchableContent: () => viewer.getSearchableContent(),
       getConversationTitle: () => viewer.getConversation()?.meta?.title,
+      getSourceId: () => viewer.getConversation()?.meta?.source,
     },
   });
 }

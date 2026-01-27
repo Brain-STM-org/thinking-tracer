@@ -4,6 +4,7 @@
 
 import { marked } from 'marked';
 import DOMPurify from 'dompurify';
+import { getUIText } from '../config';
 import type { SearchableCluster } from '../data/types';
 
 // Re-export for consumers that import from here
@@ -121,8 +122,11 @@ const HTML_EXPORT_STYLES = `
 
 /**
  * Generate HTML export of the conversation
+ * @param clusters The clusters to export
+ * @param title The title for the export
+ * @param sourceId Optional source ID for source-aware labels
  */
-export function exportAsHtml(clusters: SearchableCluster[], title: string): string {
+export function exportAsHtml(clusters: SearchableCluster[], title: string, sourceId?: string): string {
   let html = `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -141,7 +145,7 @@ export function exportAsHtml(clusters: SearchableCluster[], title: string): stri
 
     // Badges row (sidechain, agent, stop reason)
     const badges: string[] = [];
-    if (cluster.isSidechain) badges.push('<span class="badge badge-sidechain">sidechain</span>');
+    if (cluster.isSidechain) badges.push(`<span class="badge badge-sidechain">${escapeHtml(getUIText(sourceId, 'sidechainBadge'))}</span>`);
     if (cluster.agentId) badges.push(`<span class="badge badge-agent">${escapeHtml(cluster.agentId)}</span>`);
     if (cluster.stopReason && cluster.stopReason !== 'end_turn') {
       badges.push(`<span class="badge badge-stop-reason">${escapeHtml(cluster.stopReason)}</span>`);
@@ -211,8 +215,11 @@ export function exportAsHtml(clusters: SearchableCluster[], title: string): stri
 
 /**
  * Generate Markdown export of the conversation
+ * @param clusters The clusters to export
+ * @param title The title for the export
+ * @param sourceId Optional source ID for source-aware labels
  */
-export function exportAsMarkdown(clusters: SearchableCluster[], title: string): string {
+export function exportAsMarkdown(clusters: SearchableCluster[], title: string, sourceId?: string): string {
   let md = `# ${title}\n\n`;
 
   for (let i = 0; i < clusters.length; i++) {
@@ -222,7 +229,7 @@ export function exportAsMarkdown(clusters: SearchableCluster[], title: string): 
 
     // Badges (sidechain, agent, stop reason)
     const badges: string[] = [];
-    if (cluster.isSidechain) badges.push('`sidechain`');
+    if (cluster.isSidechain) badges.push(`\`${getUIText(sourceId, 'sidechainBadge')}\``);
     if (cluster.agentId) badges.push(`\`agent: ${cluster.agentId}\``);
     if (cluster.stopReason && cluster.stopReason !== 'end_turn') {
       badges.push(`\`stop: ${cluster.stopReason}\``);

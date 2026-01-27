@@ -11,6 +11,7 @@ export * from './theme';
 export * from './timing';
 export * from './ui';
 export * from './sources';
+export * from './ui-text';
 
 import {
   type LayoutConfig,

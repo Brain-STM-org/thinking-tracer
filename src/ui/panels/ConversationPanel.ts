@@ -3,6 +3,7 @@
  */
 
 import { escapeHtml, renderMarkdown } from '../../export';
+import { getUIText } from '../../config';
 import type { ViewerInterface } from '../types';
 
 /**
@@ -98,6 +99,7 @@ export class ConversationPanel {
 
     const clusterCount = this.viewer.getClusterCount();
     const searchableContent = this.viewer.getSearchableContent();
+    const sourceId = conversation.meta.source;
 
     let html = '';
 
@@ -108,7 +110,7 @@ export class ConversationPanel {
 
       // Badges row (sidechain, agent, stop reason, error)
       const badges: string[] = [];
-      if (cluster.isSidechain) badges.push('<span class="conv-badge sidechain">sidechain</span>');
+      if (cluster.isSidechain) badges.push(`<span class="conv-badge sidechain">${escapeHtml(getUIText(sourceId, 'sidechainBadge'))}</span>`);
       if (cluster.agentId) badges.push(`<span class="conv-badge agent">${escapeHtml(cluster.agentId)}</span>`);
       if (cluster.stopReason && cluster.stopReason !== 'end_turn') {
         badges.push(`<span class="conv-badge stop-reason">${escapeHtml(cluster.stopReason)}</span>`);

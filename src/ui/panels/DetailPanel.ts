@@ -3,6 +3,7 @@
  */
 
 import { escapeHtml } from '../../export';
+import { getUIText } from '../../config';
 import type { ViewerInterface, Selection, SearchableCluster } from '../types';
 
 /**
@@ -240,9 +241,10 @@ export class DetailPanel {
     }
 
     if (cluster.isSidechain) {
+      const sourceId = this.viewer.getConversation()?.meta.source;
       content += `<div class="detail-section">
-        <div class="detail-section-label">Sidechain</div>
-        <div class="detail-section-content">This turn is from a sub-agent</div>
+        <div class="detail-section-label">${escapeHtml(getUIText(sourceId, 'sidechainLabel'))}</div>
+        <div class="detail-section-content">${escapeHtml(getUIText(sourceId, 'sidechainDescription'))}</div>
       </div>`;
     }
 
