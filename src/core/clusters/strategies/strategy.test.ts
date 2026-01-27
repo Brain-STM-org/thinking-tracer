@@ -34,6 +34,7 @@ describe('claudeCodeStrategy', () => {
   describe('shouldAbsorbIntoPrevious', () => {
     it('returns true for tool-result-only user turns', () => {
       const turn: Turn = {
+        id: 'turn-1',
         role: 'user',
         content: [
           { type: 'tool_result', tool_use_id: 'test-id', content: 'Result' },
@@ -44,6 +45,7 @@ describe('claudeCodeStrategy', () => {
 
     it('returns true for multiple tool-result user turns', () => {
       const turn: Turn = {
+        id: 'turn-1',
         role: 'user',
         content: [
           { type: 'tool_result', tool_use_id: 'id1', content: 'Result 1' },
@@ -55,6 +57,7 @@ describe('claudeCodeStrategy', () => {
 
     it('returns false for user turns with text content', () => {
       const turn: Turn = {
+        id: 'turn-1',
         role: 'user',
         content: [
           { type: 'text', text: 'Hello' },
@@ -65,6 +68,7 @@ describe('claudeCodeStrategy', () => {
 
     it('returns false for mixed user turns', () => {
       const turn: Turn = {
+        id: 'turn-1',
         role: 'user',
         content: [
           { type: 'text', text: 'Check this' },
@@ -76,6 +80,7 @@ describe('claudeCodeStrategy', () => {
 
     it('returns false for assistant turns', () => {
       const turn: Turn = {
+        id: 'turn-1',
         role: 'assistant',
         content: [
           { type: 'text', text: 'Hello' },
@@ -86,6 +91,7 @@ describe('claudeCodeStrategy', () => {
 
     it('returns false for empty user turns', () => {
       const turn: Turn = {
+        id: 'turn-1',
         role: 'user',
         content: [],
       };

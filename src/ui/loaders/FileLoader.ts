@@ -302,10 +302,22 @@ export class FileLoader {
 
   /**
    * Load a file from a URL
+   * @param url The URL to fetch from
+   * @param filename The filename (used for compression detection)
+   * @param customName Optional custom display name
+   * @param authToken Optional auth token for local server requests
    */
-  public async loadFromUrl(url: string, filename: string, customName?: string): Promise<void> {
-    const response = await fetch(url);
+  public async loadFromUrl(url: string, filename: string, customName?: string, authToken?: string): Promise<void> {
+    const headers: HeadersInit = {};
+    if (authToken) {
+      headers['Authorization'] = `Bearer ${authToken}`;
+    }
+
+    const response = await fetch(url, { headers });
     if (!response.ok) {
+      if (response.status === 401 || response.status === 403) {
+        throw new Error('Authentication failed - invalid or missing token');
+      }
       throw new Error(`Failed to fetch: ${response.status}`);
     }
 

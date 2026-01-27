@@ -494,15 +494,34 @@ function convertGitHubUrl(url: string): string {
   return url;
 }
 
-async function loadFromUrl(url: string, customName?: string): Promise<boolean> {
+/**
+ * Check if a URL points to localhost (for local server loading)
+ */
+function isLocalhostUrl(url: string): boolean {
+  try {
+    const urlObj = new URL(url, window.location.href);
+    return urlObj.hostname === 'localhost' || urlObj.hostname === '127.0.0.1';
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Load a file from URL with optional retry logic for local servers
+ */
+async function loadFromUrl(url: string, customName?: string, options?: { retries?: number; retryDelay?: number; silent?: boolean; authToken?: string }): Promise<boolean> {
   const trimmedUrl = url.trim();
   if (!trimmedUrl) return false;
+
+  const { retries = 0, retryDelay = 500, silent = false, authToken } = options || {};
 
   // Validate URL format - must be http(s):// or a path (contains / or ends with .jsonl etc)
   const isAbsoluteUrl = /^https?:\/\//i.test(trimmedUrl);
   const isPath = /[/.]/.test(trimmedUrl); // Contains slash or dot (like samples/file.jsonl)
   if (!isAbsoluteUrl && !isPath) {
-    showToast('Please enter a valid URL (e.g., https://example.com/trace.jsonl)', 'error', 'Invalid URL');
+    if (!silent) {
+      showToast('Please enter a valid URL (e.g., https://example.com/trace.jsonl)', 'error', 'Invalid URL');
+    }
     return false;
   }
 
@@ -512,35 +531,57 @@ async function loadFromUrl(url: string, customName?: string): Promise<boolean> {
     urlLoadBtn.classList.add('loading');
   }
 
-  try {
-    // Convert GitHub blob URLs to raw URLs (avoids CORS issues)
-    const resolvedUrl = convertGitHubUrl(trimmedUrl);
+  const isLocalhost = isLocalhostUrl(trimmedUrl);
+  let lastError: Error | null = null;
 
-    // Extract filename from URL
-    const urlObj = new URL(resolvedUrl, window.location.href);
-    const pathname = urlObj.pathname;
-    const filename = pathname.split('/').pop() || 'trace.jsonl';
+  // Retry loop for local server (it might not be ready yet when browser opens)
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    try {
+      // Convert GitHub blob URLs to raw URLs (avoids CORS issues)
+      const resolvedUrl = convertGitHubUrl(trimmedUrl);
 
-    await fileLoader?.loadFromUrl(resolvedUrl, filename, customName);
-    return true;
-  } catch (error) {
-    console.error('Failed to load from URL:', error);
-    const message = error instanceof Error ? error.message : String(error);
+      // Extract filename from URL
+      const urlObj = new URL(resolvedUrl, window.location.href);
+      const pathname = urlObj.pathname;
+      const filename = pathname.split('/').pop() || 'trace.jsonl';
+
+      await fileLoader?.loadFromUrl(resolvedUrl, filename, customName, authToken);
+      return true;
+    } catch (error) {
+      lastError = error instanceof Error ? error : new Error(String(error));
+
+      // If we have retries left and this is localhost, wait and retry
+      if (attempt < retries && isLocalhost) {
+        await new Promise(resolve => setTimeout(resolve, retryDelay));
+        continue;
+      }
+    }
+  }
+
+  // All retries failed
+  if (!silent && lastError) {
+    console.error('Failed to load from URL:', lastError);
+    const message = lastError.message;
     // Provide friendlier error messages for common cases
     if (message.includes('JSON Parse error') || message.includes('SyntaxError')) {
       showToast('The URL did not return a valid JSONL file', 'error', 'Failed to load');
     } else if (message.includes('Failed to fetch') || message.includes('NetworkError')) {
-      showToast('Could not fetch the URL (check if it exists and allows cross-origin requests)', 'error', 'Failed to load');
+      if (isLocalhost) {
+        showToast('Could not connect to local server. Make sure the CLI is still running.', 'error', 'Connection failed');
+      } else {
+        showToast('Could not fetch the URL (check if it exists and allows cross-origin requests)', 'error', 'Failed to load');
+      }
     } else {
       showToast(message, 'error', 'Failed to load');
     }
-    return false;
-  } finally {
-    if (urlLoadBtn) {
-      urlLoadBtn.textContent = 'Load URL';
-      urlLoadBtn.classList.remove('loading');
-    }
   }
+
+  if (urlLoadBtn) {
+    urlLoadBtn.textContent = 'Load URL';
+    urlLoadBtn.classList.remove('loading');
+  }
+
+  return false;
 }
 
 // URL load button click handler
@@ -565,18 +606,49 @@ urlInput?.addEventListener('keydown', (e) => {
 (async function checkUrlParam() {
   const params = new URLSearchParams(window.location.search);
   const urlParam = params.get('url');
+  const titleParam = params.get('title');
+  const tokenParam = params.get('token');
 
   if (urlParam) {
-    // Pre-fill the input field
+    const isLocalhost = isLocalhostUrl(urlParam);
+
+    // Pre-fill the input field (but not the token for security)
     if (urlInput) {
       urlInput.value = urlParam;
     }
 
-    // Attempt to load from URL
-    const success = await loadFromUrl(urlParam);
+    // For localhost URLs, show a loading message and use retry logic
+    // (the local server might not be ready when the browser opens)
+    if (isLocalhost && dropOverlay) {
+      const dropText = dropOverlay.querySelector('.drop-text');
+      const dropSubtext = dropOverlay.querySelector('.drop-subtext');
+      if (dropText) dropText.textContent = 'Loading from local server...';
+      if (dropSubtext) dropSubtext.textContent = 'Connecting to CLI';
+    }
 
-    if (!success) {
-      // If failed, show the landing page (it's already visible by default)
+    // Attempt to load from URL (with retries for localhost)
+    const success = await loadFromUrl(
+      urlParam,
+      titleParam || undefined,
+      {
+        retries: isLocalhost ? 10 : 0,
+        retryDelay: 300,
+        authToken: tokenParam || undefined,
+      }
+    );
+
+    if (success) {
+      // Clean up URL bar (remove query params for cleaner look and security - remove token)
+      const cleanUrl = window.location.pathname + window.location.hash;
+      window.history.replaceState({}, '', cleanUrl);
+    } else {
+      // If failed, restore the landing page text
+      if (isLocalhost && dropOverlay) {
+        const dropText = dropOverlay.querySelector('.drop-text');
+        const dropSubtext = dropOverlay.querySelector('.drop-subtext');
+        if (dropText) dropText.textContent = 'Drop a conversation file';
+        if (dropSubtext) dropSubtext.textContent = 'Supports .jsonl trace files from AI coding assistants';
+      }
       console.log('URL load failed, showing file selector');
     }
   }

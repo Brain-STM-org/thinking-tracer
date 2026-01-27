@@ -1837,3 +1837,39 @@ conduct phase 1
 ## 2026-01-27T18:37:36Z
 
 conduct phase 2 and 3
+
+---
+
+## 2026-01-27T19:50:05Z
+
+i am working on a command line program that runs on a users machine and i want them to easily open a file from their terminal onto this site.  whats a good approach for that?
+
+---
+
+## 2026-01-27T19:52:08Z
+
+i think the files are mostly too big.  the idea to launch a local webserver seems useful, will users be ok with that workflow?
+
+---
+
+## 2026-01-27T19:58:04Z
+
+implement option A 
+
+---
+
+## 2026-01-27T20:13:53Z
+
+will the payload be safe? do we need to encrypt that or its in the TLS channel?
+
+---
+
+## 2026-01-27T20:17:23Z
+
+i like both of those.  allow the CORS header to be configurable though, but defaulting for now to https://brain-stm-org.github.io/thinking-tracer/
+
+---
+
+## 2026-01-27T20:23:07Z
+
+create documentation for this feature in an ADVANCED.md documentation file (for humans)
