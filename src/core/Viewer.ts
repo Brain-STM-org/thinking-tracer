@@ -9,7 +9,7 @@ import { LineMaterial } from 'three/examples/jsm/lines/LineMaterial.js';
 import { Scene, type SceneOptions } from './Scene';
 import { Controls } from './Controls';
 import type { Conversation, Turn, ContentBlock, SearchableCluster } from '../data/types';
-import { claudeCodeParser } from '../data/parsers/claude-code';
+import { parserRegistry } from '../data/parsers';
 import {
   buildClusters as buildClustersFromConversation,
   extractSearchableContent,
@@ -639,9 +639,10 @@ export class Viewer {
    * Load a conversation from JSON/JSONL string
    */
   public loadJSON(content: string): void {
-    // First try as JSONL (Claude Code format)
-    if (claudeCodeParser.canParse(content)) {
-      this.conversation = claudeCodeParser.parse(content);
+    // Try parser registry first (handles JSONL and other formats)
+    if (parserRegistry.canParse(content)) {
+      const result = parserRegistry.detectAndParse(content);
+      this.conversation = result.conversation;
       this.buildVisualization();
       this.updateStats();
       return;
@@ -660,9 +661,10 @@ export class Viewer {
    * Load a conversation from parsed data
    */
   public loadData(data: unknown): void {
-    // Try to parse with Claude Code parser
-    if (claudeCodeParser.canParse(data)) {
-      this.conversation = claudeCodeParser.parse(data);
+    // Try parser registry
+    if (parserRegistry.canParse(data)) {
+      const result = parserRegistry.detectAndParse(data);
+      this.conversation = result.conversation;
     } else {
       throw new Error('Unsupported conversation format');
     }

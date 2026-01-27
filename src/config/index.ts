@@ -10,6 +10,7 @@ export * from './layout';
 export * from './theme';
 export * from './timing';
 export * from './ui';
+export * from './sources';
 
 import {
   type LayoutConfig,

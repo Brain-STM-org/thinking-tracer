@@ -1801,3 +1801,33 @@ For the URL-based samples, can we set their session Title in the app window to b
 ## 2026-01-25T23:12:59Z
 
 when i click on the example traces, i get invalid URL error
+
+---
+
+## 2026-01-27T16:31:33Z
+
+ok get ready for a new concern... we will soon add supoprt for Kimi Code traces.  but generally we will be getting traces from various "ecosystems".  we won't add Kimi yet, but review the existing application and consider what parts this concern crossses.  create a report about it.
+
+---
+
+## 2026-01-27T16:46:54Z
+
+write that report out to a markdown file in the reports folder, including a section with a plan
+
+---
+
+## 2026-01-27T18:19:06Z
+
+i like that.   before we dive in, is ecosystem the right word?
+
+---
+
+## 2026-01-27T18:29:44Z
+
+update the report to reflect the name 'source'
+
+---
+
+## 2026-01-27T18:33:04Z
+
+conduct phase 1
