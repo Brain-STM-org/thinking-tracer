@@ -1873,3 +1873,15 @@ i like both of those.  allow the CORS header to be configurable though, but defa
 ## 2026-01-27T20:23:07Z
 
 create documentation for this feature in an ADVANCED.md documentation file (for humans)
+
+---
+
+## 2026-01-27T20:29:01Z
+
+i want this to work with an international audience, even right away there could be chinese users of kimi and this.  explore the proper way to create various translations, detect between them, and present.  find the most appropriate library to support this.  we will keep the translations in the repo and english will be just another translation.  let's start with chinese and spanish.
+
+---
+
+## 2026-01-27T20:36:06Z
+
+please proceed

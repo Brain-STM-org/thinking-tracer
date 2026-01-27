@@ -4,6 +4,7 @@
 
 import './styles/main.css';
 
+import { initI18n, t, onLocaleChange, changeLocale, getCurrentLocale, SUPPORTED_LOCALES, LOCALE_NAMES, type SupportedLocale } from './i18n';
 import { Viewer } from './core/Viewer';
 import { hashContent } from './utils/hash';
 import { escapeHtml } from './export';
@@ -22,6 +23,12 @@ import {
   SplitPaneController,
 } from './ui';
 import type { Selection, RecentTrace, TraceUIState } from './ui';
+
+// Initialize i18n before app starts
+initI18n().then(() => {
+  // Update any static text that was rendered before i18n was ready
+  updateStaticText();
+});
 
 // Toast notification system
 type ToastType = 'error' | 'success' | 'info';
@@ -76,6 +83,265 @@ function showToast(message: string, type: ToastType = 'info', title?: string, du
 
   container.appendChild(toast);
 }
+
+/**
+ * Update all static text in the UI with translations
+ */
+function updateStaticText(): void {
+  // Landing page
+  const dropTitle = document.querySelector('.drop-title');
+  const dropIntro = document.querySelector('.drop-intro');
+  const dropText = document.querySelector('.drop-text');
+  const dropSubtext = document.querySelector('.drop-subtext');
+  const fileSelectBtn = document.getElementById('file-select-btn');
+  const urlLoadBtn = document.getElementById('url-load-btn');
+  const urlInput = document.getElementById('url-input') as HTMLInputElement | null;
+  const samplePreviewBtn = document.querySelector('.sample-preview-btn');
+
+  if (dropTitle) dropTitle.textContent = t('landing.dropTitle');
+  if (dropIntro) dropIntro.textContent = t('landing.dropIntro');
+  if (dropText) dropText.textContent = t('landing.dropText');
+  if (dropSubtext) dropSubtext.textContent = t('landing.dropSubtext');
+  if (fileSelectBtn) fileSelectBtn.textContent = t('landing.selectFile');
+  if (urlLoadBtn && !urlLoadBtn.classList.contains('loading')) {
+    urlLoadBtn.textContent = t('landing.loadUrl');
+  }
+  if (urlInput) urlInput.placeholder = t('landing.urlPlaceholder');
+  if (samplePreviewBtn) samplePreviewBtn.textContent = t('landing.seeHowBuilt');
+
+  // Recent traces
+  const recentHeader = document.querySelector('.recent-header h3');
+  const recentClearBtn = document.getElementById('recent-clear-btn');
+  if (recentHeader) recentHeader.textContent = t('landing.recentTraces');
+  if (recentClearBtn) recentClearBtn.textContent = t('sidebar.copy').replace('Copy', 'Clear All'); // Use generic clear
+
+  // Toolbar
+  const toolbarBack = document.getElementById('toolbar-back');
+  const sidebarToggle = document.getElementById('sidebar-toggle');
+  const exportBtn = document.getElementById('export-btn');
+  if (toolbarBack) toolbarBack.title = t('toolbar.back');
+  if (sidebarToggle) sidebarToggle.title = t('toolbar.toggleSidebar');
+  if (exportBtn) exportBtn.textContent = t('toolbar.export').replace('Conversation', '').trim();
+
+  // View mode buttons
+  document.querySelectorAll('.view-mode-btn').forEach((btn) => {
+    const mode = (btn as HTMLElement).dataset.mode;
+    if (mode === '3d') btn.setAttribute('title', t('toolbar.view3d'));
+    else if (mode === 'split') btn.setAttribute('title', t('toolbar.viewSplit'));
+    else if (mode === 'conversation') btn.setAttribute('title', t('toolbar.viewConversation'));
+  });
+
+  // Export menu
+  document.querySelectorAll('.export-menu button').forEach((btn) => {
+    const format = (btn as HTMLElement).dataset.format;
+    if (format === 'html') btn.textContent = t('toolbar.exportHtml');
+    else if (format === 'markdown') btn.textContent = t('toolbar.exportMarkdown');
+  });
+
+  // Search
+  const searchInput = document.getElementById('search-input') as HTMLInputElement | null;
+  const searchRegexToggle = document.getElementById('search-regex-toggle');
+  const searchPrevBtn = document.getElementById('search-prev');
+  const searchNextBtn = document.getElementById('search-next');
+  const searchClearBtn = document.getElementById('search-clear');
+  if (searchInput) searchInput.placeholder = t('search.placeholder');
+  if (searchRegexToggle) searchRegexToggle.title = t('search.regexToggle');
+  if (searchPrevBtn) {
+    searchPrevBtn.innerHTML = t('search.prevShort');
+    searchPrevBtn.title = t('search.prev');
+  }
+  if (searchNextBtn) {
+    searchNextBtn.innerHTML = t('search.nextShort');
+    searchNextBtn.title = t('search.next');
+  }
+  if (searchClearBtn) {
+    searchClearBtn.textContent = t('search.clearShort');
+    searchClearBtn.title = t('search.clear');
+  }
+
+  // Search filters
+  document.querySelectorAll('.search-filter').forEach((label) => {
+    const input = label.querySelector('input');
+    const span = label.querySelector('span:last-child');
+    if (!input || !span) return;
+    const type = input.dataset.type;
+    if (type === 'user') span.textContent = t('search.user');
+    else if (type === 'assistant') span.textContent = t('search.assistant');
+    else if (type === 'thinking') span.textContent = t('search.thinking');
+    else if (type === 'tool_use') span.textContent = t('search.tool');
+    else if (type === 'tool_result') span.textContent = t('search.result');
+  });
+
+  // Sidebar sections
+  document.querySelectorAll('.sidebar-section').forEach((section) => {
+    const sectionType = (section as HTMLElement).dataset.section;
+    const header = section.querySelector('.sidebar-section-header h3');
+    if (!header) return;
+    if (sectionType === 'metrics') header.textContent = t('sidebar.metrics');
+    else if (sectionType === 'words') header.textContent = t('sidebar.topWords');
+    else if (sectionType === 'details') header.textContent = t('sidebar.details');
+  });
+
+  // Metrics labels
+  document.querySelectorAll('.metric-row').forEach((row) => {
+    const metric = (row as HTMLElement).dataset.metric;
+    const label = row.querySelector('.metric-label');
+    if (!label) return;
+    if (metric === 'totalTokens') label.textContent = t('sidebar.tokens');
+    else if (metric === 'outputTokens') label.textContent = t('sidebar.output');
+    else if (metric === 'inputTokens') label.textContent = t('sidebar.input');
+    else if (metric === 'thinkingCount') label.textContent = t('sidebar.thinking');
+    else if (metric === 'toolCount') label.textContent = t('sidebar.tools');
+  });
+
+  // Word frequency source options
+  const wordFreqSource = document.getElementById('word-freq-source') as HTMLSelectElement | null;
+  if (wordFreqSource) {
+    const options = wordFreqSource.querySelectorAll('option');
+    options.forEach((option) => {
+      if (option.value === 'all') option.textContent = t('sidebar.allContent');
+      else if (option.value === 'user') option.textContent = t('sidebar.userOnly');
+      else if (option.value === 'assistant') option.textContent = t('sidebar.assistantOnly');
+      else if (option.value === 'thinking') option.textContent = t('sidebar.thinkingOnly');
+    });
+  }
+
+  // Detail panel empty state
+  const detailEmpty = document.querySelector('.detail-empty');
+  if (detailEmpty) detailEmpty.textContent = t('sidebar.noSelection');
+
+  // Legend
+  const legendHeaderSpan = document.querySelector('#legend-header span:first-child');
+  if (legendHeaderSpan) legendHeaderSpan.textContent = t('legend.title');
+
+  const legendSections = document.querySelectorAll('.legend-section h3');
+  legendSections.forEach((h3) => {
+    if (h3.textContent === 'Node Types') h3.textContent = t('legend.nodeTypes');
+  });
+
+  document.querySelectorAll('.legend-item').forEach((item) => {
+    const colorDiv = item.querySelector('.legend-color');
+    const label = item.querySelector('.legend-label');
+    if (!colorDiv || !label) return;
+    if (colorDiv.classList.contains('user')) label.textContent = t('legend.user');
+    else if (colorDiv.classList.contains('assistant')) label.textContent = t('legend.assistant');
+    else if (colorDiv.classList.contains('thinking')) label.textContent = t('legend.thinking');
+    else if (colorDiv.classList.contains('tool-use')) label.textContent = t('legend.toolCall');
+    else if (colorDiv.classList.contains('tool-result-success')) label.textContent = t('legend.toolSuccess');
+    else if (colorDiv.classList.contains('tool-result')) label.textContent = t('legend.toolError');
+  });
+
+  // Canvas controls
+  const expandToggle = document.getElementById('expand-toggle');
+  const watchToggle = document.getElementById('watch-toggle');
+  const coilControlsToggle = document.getElementById('coil-controls-toggle');
+  if (expandToggle && !expandToggle.classList.contains('expanded')) {
+    expandToggle.textContent = t('sidebar.expand');
+  } else if (expandToggle) {
+    expandToggle.textContent = t('sidebar.collapse');
+  }
+  if (watchToggle && !watchToggle.classList.contains('watching')) {
+    watchToggle.textContent = t('landing.watch');
+  } else if (watchToggle) {
+    watchToggle.textContent = t('landing.watching');
+  }
+  if (coilControlsToggle) coilControlsToggle.textContent = t('canvas.coilSettings').split(' ')[0];
+
+  // Coil controls
+  const coilResetBtn = document.getElementById('coil-reset-btn');
+  if (coilResetBtn) coilResetBtn.textContent = t('coil.reset');
+
+  // Conversation filters
+  document.querySelectorAll('.conv-filter').forEach((btn) => {
+    const filter = (btn as HTMLElement).dataset.filter;
+    if (filter === 'user') btn.textContent = t('filter.user');
+    else if (filter === 'output') btn.textContent = t('filter.output');
+    else if (filter === 'thinking') btn.textContent = t('filter.thinking');
+    else if (filter === 'tools') btn.textContent = t('filter.tools');
+    else if (filter === 'documents') btn.textContent = t('filter.documents');
+  });
+
+  // Update language switcher display
+  updateLanguageSwitcher();
+}
+
+/**
+ * Create and setup the language switcher
+ */
+function setupLanguageSwitcher(): void {
+  const exportDropdown = document.querySelector('.export-dropdown');
+  if (!exportDropdown) return;
+
+  // Create language switcher container
+  const langSwitcher = document.createElement('div');
+  langSwitcher.className = 'lang-switcher';
+  langSwitcher.id = 'lang-switcher';
+
+  const currentLang = document.createElement('button');
+  currentLang.className = 'lang-current';
+  currentLang.id = 'lang-current';
+  currentLang.textContent = LOCALE_NAMES[getCurrentLocale()];
+
+  const langMenu = document.createElement('div');
+  langMenu.className = 'lang-menu';
+  langMenu.id = 'lang-menu';
+
+  SUPPORTED_LOCALES.forEach((locale) => {
+    const btn = document.createElement('button');
+    btn.dataset.locale = locale;
+    btn.textContent = LOCALE_NAMES[locale];
+    if (locale === getCurrentLocale()) {
+      btn.classList.add('active');
+    }
+    btn.addEventListener('click', async () => {
+      await changeLocale(locale);
+    });
+    langMenu.appendChild(btn);
+  });
+
+  langSwitcher.appendChild(currentLang);
+  langSwitcher.appendChild(langMenu);
+
+  // Insert before export dropdown
+  exportDropdown.parentNode?.insertBefore(langSwitcher, exportDropdown);
+
+  // Toggle menu on click
+  currentLang.addEventListener('click', (e) => {
+    e.stopPropagation();
+    langSwitcher.classList.toggle('open');
+  });
+
+  // Close menu on outside click
+  document.addEventListener('click', () => {
+    langSwitcher.classList.remove('open');
+  });
+}
+
+/**
+ * Update language switcher display
+ */
+function updateLanguageSwitcher(): void {
+  const currentBtn = document.getElementById('lang-current');
+  const menuBtns = document.querySelectorAll('#lang-menu button');
+
+  if (currentBtn) {
+    currentBtn.textContent = LOCALE_NAMES[getCurrentLocale()];
+  }
+
+  menuBtns.forEach((btn) => {
+    const locale = (btn as HTMLElement).dataset.locale as SupportedLocale;
+    if (locale === getCurrentLocale()) {
+      btn.classList.add('active');
+    } else {
+      btn.classList.remove('active');
+    }
+  });
+}
+
+// Subscribe to locale changes
+onLocaleChange(() => {
+  updateStaticText();
+});
 
 // Get DOM elements
 const container = document.getElementById('canvas-container');
@@ -520,14 +786,14 @@ async function loadFromUrl(url: string, customName?: string, options?: { retries
   const isPath = /[/.]/.test(trimmedUrl); // Contains slash or dot (like samples/file.jsonl)
   if (!isAbsoluteUrl && !isPath) {
     if (!silent) {
-      showToast('Please enter a valid URL (e.g., https://example.com/trace.jsonl)', 'error', 'Invalid URL');
+      showToast(t('toast.invalidUrlMessage'), 'error', t('toast.invalidUrl'));
     }
     return false;
   }
 
   // Update UI to show loading
   if (urlLoadBtn) {
-    urlLoadBtn.textContent = 'Loading...';
+    urlLoadBtn.textContent = t('landing.loading');
     urlLoadBtn.classList.add('loading');
   }
 
@@ -564,20 +830,22 @@ async function loadFromUrl(url: string, customName?: string, options?: { retries
     const message = lastError.message;
     // Provide friendlier error messages for common cases
     if (message.includes('JSON Parse error') || message.includes('SyntaxError')) {
-      showToast('The URL did not return a valid JSONL file', 'error', 'Failed to load');
+      showToast(t('toast.invalidJsonl'), 'error', t('toast.failedToLoad'));
     } else if (message.includes('Failed to fetch') || message.includes('NetworkError')) {
       if (isLocalhost) {
-        showToast('Could not connect to local server. Make sure the CLI is still running.', 'error', 'Connection failed');
+        showToast(t('toast.localServerFailed'), 'error', t('toast.failedToLoad'));
       } else {
-        showToast('Could not fetch the URL (check if it exists and allows cross-origin requests)', 'error', 'Failed to load');
+        showToast(t('toast.fetchFailed'), 'error', t('toast.failedToLoad'));
       }
+    } else if (message.includes('Authentication failed')) {
+      showToast(t('toast.authFailed'), 'error', t('toast.failedToLoad'));
     } else {
-      showToast(message, 'error', 'Failed to load');
+      showToast(message, 'error', t('toast.failedToLoad'));
     }
   }
 
   if (urlLoadBtn) {
-    urlLoadBtn.textContent = 'Load URL';
+    urlLoadBtn.textContent = t('landing.loadUrl');
     urlLoadBtn.classList.remove('loading');
   }
 
@@ -622,8 +890,8 @@ urlInput?.addEventListener('keydown', (e) => {
     if (isLocalhost && dropOverlay) {
       const dropText = dropOverlay.querySelector('.drop-text');
       const dropSubtext = dropOverlay.querySelector('.drop-subtext');
-      if (dropText) dropText.textContent = 'Loading from local server...';
-      if (dropSubtext) dropSubtext.textContent = 'Connecting to CLI';
+      if (dropText) dropText.textContent = t('landing.loadingFromServer');
+      if (dropSubtext) dropSubtext.textContent = t('landing.connectingToCli');
     }
 
     // Attempt to load from URL (with retries for localhost)
@@ -646,8 +914,8 @@ urlInput?.addEventListener('keydown', (e) => {
       if (isLocalhost && dropOverlay) {
         const dropText = dropOverlay.querySelector('.drop-text');
         const dropSubtext = dropOverlay.querySelector('.drop-subtext');
-        if (dropText) dropText.textContent = 'Drop a conversation file';
-        if (dropSubtext) dropSubtext.textContent = 'Supports .jsonl trace files from AI coding assistants';
+        if (dropText) dropText.textContent = t('landing.dropText');
+        if (dropSubtext) dropSubtext.textContent = t('landing.dropSubtext');
       }
       console.log('URL load failed, showing file selector');
     }
@@ -1042,6 +1310,9 @@ if (exportBtn && exportDropdown) {
 
 // Load recent traces on startup
 recentTracesManager?.refresh();
+
+// Setup language switcher
+setupLanguageSwitcher();
 
 // Save UI state before leaving and cleanup
 window.addEventListener('beforeunload', () => {
