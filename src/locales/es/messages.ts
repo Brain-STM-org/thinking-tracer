@@ -179,4 +179,66 @@ export const messages = {
   // Misc
   'misc.github': 'GitHub',
   'misc.of': 'de',
+  'misc.browseFiles': 'Explorar archivos',
+  'misc.urlHint': 'Compatible con URLs de GitHub y URLs con CORS habilitado',
+  'misc.storedLocally': 'Almacenado localmente en tu navegador',
+  'misc.clearAll': 'Borrar todo',
+  'misc.clearConfirm': '¿Borrar todas las trazas recientes?',
+  'misc.removeFromHistory': 'Eliminar del historial',
+  'misc.errorOccurred': 'Ocurrió un error',
+
+  // Document types
+  'document.label': 'Documento',
+  'document.image': 'Imagen',
+  'document.pdf': 'PDF',
+  'document.textFile': 'Archivo de texto',
+  'document.sourceUrl': 'URL',
+  'document.sourceFile': 'Archivo',
+  'document.sourceBase64': 'Base64',
+  'document.open': 'Abrir {type}',
+  'document.fileId': 'ID de archivo:',
+  'document.downloadPdf': 'Descargar PDF',
+  'document.base64Data': 'Datos Base64 ({size} KB)',
+  'document.noPreview': 'Vista previa no disponible',
+
+  // Recent traces
+  'recent.turns': '{count} turnos',
+  'recent.clusters': '{count} grupos',
+
+  // Detail panel actions
+  'detail.collapseToSingle': 'Contraer a un solo nodo',
+  'detail.expandAll': 'Expandir para mostrar todos los bloques',
+  'detail.centerCamera': 'Centrar cámara en este turno',
+  'detail.copyContent': 'Copiar contenido del turno al portapapeles',
+  'detail.prevTurn': 'Ir al turno anterior',
+  'detail.nextTurn': 'Ir al siguiente turno',
+
+  // Metrics
+  'metrics.turnNumber': 'Turno {number}',
+
+  // Legend sections
+  'legend.camera': 'Cámara',
+  'legend.navigation': 'Navegación',
+  'legend.rotate': 'Rotar',
+  'legend.pan': 'Desplazar',
+  'legend.forwardBack': 'Adelante/Atrás',
+  'legend.zoom': 'Zoom',
+  'legend.homeView': 'Vista inicial',
+  'legend.resetView': 'Restablecer vista',
+  'legend.prevNextTurn': 'Turno anterior/siguiente',
+  'legend.expandCollapse': 'Expandir/Contraer',
+  'legend.firstLast': 'Primero/Último',
+
+  // Coil controls (additional)
+  'coil.tilt': 'Inclinación',
+  'coil.cone': 'Cono',
+  'coil.expandAngle': 'Ángulo ∠',
+  'coil.focus': 'Enfoque',
+  'coil.minGap': 'Espacio mín',
+  'coil.maxGap': 'Espacio máx',
+  'coil.showClusterLines': 'Mostrar líneas de grupo',
+  'coil.parameters': 'Parámetros de espiral',
+
+  // Watch
+  'watch.requiresChromium': 'La vigilancia de archivos requiere un navegador basado en Chromium',
 };

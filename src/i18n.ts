@@ -104,6 +104,7 @@ export async function initI18n(locale?: SupportedLocale): Promise<SupportedLocal
 
   await loadMessages(targetLocale);
   i18n.activate(targetLocale);
+  i18nInitialized = true;
 
   // Update document language attribute
   document.documentElement.lang = targetLocale;
@@ -142,14 +143,29 @@ export function getCurrentLocale(): SupportedLocale {
   return (i18n.locale as SupportedLocale) || 'en';
 }
 
+// Track if i18n has been initialized
+let i18nInitialized = false;
+
 /**
  * Translate a message key with optional interpolation values
  * @param key The message key (e.g., 'landing.dropText')
  * @param values Optional interpolation values (e.g., { count: 5 })
  */
 export function t(key: string, values?: Record<string, string | number>): string {
+  // If i18n not yet initialized, return key (will be updated when locale changes)
+  if (!i18nInitialized) {
+    // Simple interpolation fallback for pre-init calls
+    if (values) {
+      let result = key;
+      for (const [k, v] of Object.entries(values)) {
+        result = result.replace(new RegExp(`\\{${k}\\}`, 'g'), String(v));
+      }
+      return result;
+    }
+    return key;
+  }
+
   // Use Lingui's internal translation function
-  // The i18n._ method handles missing keys and interpolation
   return i18n._(key, values);
 }
 

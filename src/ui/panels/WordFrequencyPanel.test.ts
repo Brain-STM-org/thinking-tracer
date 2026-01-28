@@ -302,7 +302,7 @@ describe('WordFrequencyPanel', () => {
       });
       panel = new WordFrequencyPanel({ container, sourceSelect }, viewer);
       panel.render();
-      expect(container.innerHTML).toContain('No words found');
+      expect(container.innerHTML).toContain('sidebar.noWordsFound');
     });
 
     it('renders word labels', () => {

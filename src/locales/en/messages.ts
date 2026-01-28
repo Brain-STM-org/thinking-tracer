@@ -178,4 +178,66 @@ export const messages = {
   // Misc
   'misc.github': 'GitHub',
   'misc.of': 'of',
+  'misc.browseFiles': 'Browse your files',
+  'misc.urlHint': 'Supports GitHub URLs and CORS-enabled URLs',
+  'misc.storedLocally': 'Stored locally in your browser',
+  'misc.clearAll': 'Clear All',
+  'misc.clearConfirm': 'Clear all recent traces?',
+  'misc.removeFromHistory': 'Remove from history',
+  'misc.errorOccurred': 'Error occurred',
+
+  // Document types
+  'document.label': 'Document',
+  'document.image': 'Image',
+  'document.pdf': 'PDF',
+  'document.textFile': 'Text File',
+  'document.sourceUrl': 'URL',
+  'document.sourceFile': 'File',
+  'document.sourceBase64': 'Base64',
+  'document.open': 'Open {type}',
+  'document.fileId': 'File ID:',
+  'document.downloadPdf': 'Download PDF',
+  'document.base64Data': 'Base64 data ({size} KB)',
+  'document.noPreview': 'No preview available',
+
+  // Recent traces
+  'recent.turns': '{count} turns',
+  'recent.clusters': '{count} clusters',
+
+  // Detail panel actions
+  'detail.collapseToSingle': 'Collapse to single node',
+  'detail.expandAll': 'Expand to show all blocks',
+  'detail.centerCamera': 'Center camera on this turn',
+  'detail.copyContent': 'Copy turn content to clipboard',
+  'detail.prevTurn': 'Go to previous turn',
+  'detail.nextTurn': 'Go to next turn',
+
+  // Metrics
+  'metrics.turnNumber': 'Turn {number}',
+
+  // Legend sections
+  'legend.camera': 'Camera',
+  'legend.navigation': 'Navigation',
+  'legend.rotate': 'Rotate',
+  'legend.pan': 'Pan',
+  'legend.forwardBack': 'Forward/Back',
+  'legend.zoom': 'Zoom',
+  'legend.homeView': 'Home view',
+  'legend.resetView': 'Reset view',
+  'legend.prevNextTurn': 'Prev/Next turn',
+  'legend.expandCollapse': 'Expand/Collapse',
+  'legend.firstLast': 'First/Last',
+
+  // Coil controls (additional)
+  'coil.tilt': 'Tilt',
+  'coil.cone': 'Cone',
+  'coil.expandAngle': 'Expand ∠',
+  'coil.focus': 'Focus',
+  'coil.minGap': 'Min Gap',
+  'coil.maxGap': 'Max Gap',
+  'coil.showClusterLines': 'Show cluster lines',
+  'coil.parameters': 'Coil Parameters',
+
+  // Watch
+  'watch.requiresChromium': 'File watching requires Chromium-based browser',
 };

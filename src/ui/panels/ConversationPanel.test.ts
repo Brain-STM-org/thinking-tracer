@@ -108,7 +108,7 @@ describe('ConversationPanel', () => {
       });
       panel = new ConversationPanel({ container, turnIndicator, filtersContainer }, viewer);
       panel.render();
-      expect(container.innerHTML).toContain('No conversation loaded');
+      expect(container.innerHTML).toContain('conversation.noConversation');
     });
 
     it('renders user messages', () => {
@@ -148,7 +148,7 @@ describe('ConversationPanel', () => {
 
     it('updates turn indicator', () => {
       panel.render();
-      expect(turnIndicator.textContent).toBe('2 turns');
+      expect(turnIndicator.textContent).toBe('conversation.turns');
     });
 
     it('does nothing when disposed', () => {
@@ -171,8 +171,7 @@ describe('ConversationPanel', () => {
       });
       panel = new ConversationPanel({ container, turnIndicator, filtersContainer }, viewer);
       panel.render();
-      expect(container.innerHTML).toContain('300');
-      expect(container.innerHTML).toContain('chars');
+      expect(container.innerHTML).toContain('conversation.chars');
     });
   });
 

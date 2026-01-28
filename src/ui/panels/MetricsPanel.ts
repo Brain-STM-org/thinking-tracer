@@ -2,6 +2,7 @@
  * Metrics Panel - displays per-cluster metrics as bar charts
  */
 
+import { t } from '../../i18n';
 import type { MetricKey, ViewerInterface, MetricsPanelElements } from '../types';
 
 // Chart layout constants
@@ -257,7 +258,7 @@ export class MetricsPanel {
       const turnEl = this.tooltip.querySelector('.tooltip-turn');
       const valueEl = this.tooltip.querySelector('.tooltip-value');
 
-      if (turnEl) turnEl.textContent = `Turn ${clusterIndex + 1}`;
+      if (turnEl) turnEl.textContent = t('metrics.turnNumber', { number: clusterIndex + 1 });
       if (valueEl) valueEl.textContent = value.toLocaleString();
 
       // Position tooltip near cursor

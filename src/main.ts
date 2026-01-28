@@ -112,8 +112,18 @@ function updateStaticText(): void {
   // Recent traces
   const recentHeader = document.querySelector('.recent-header h3');
   const recentClearBtn = document.getElementById('recent-clear-btn');
+  const recentFooter = document.querySelector('.recent-footer');
   if (recentHeader) recentHeader.textContent = t('landing.recentTraces');
-  if (recentClearBtn) recentClearBtn.textContent = t('sidebar.copy').replace('Copy', 'Clear All'); // Use generic clear
+  if (recentClearBtn) recentClearBtn.textContent = t('misc.clearAll');
+  if (recentFooter) recentFooter.textContent = t('misc.storedLocally');
+
+  // File select zone
+  const browseFilesText = document.querySelector('.file-select-zone .drop-subtext');
+  if (browseFilesText) browseFilesText.textContent = t('misc.browseFiles');
+
+  // URL hint
+  const urlHint = document.querySelector('.url-load-hint');
+  if (urlHint) urlHint.textContent = t('misc.urlHint');
 
   // Toolbar
   const toolbarBack = document.getElementById('toolbar-back');
@@ -216,7 +226,10 @@ function updateStaticText(): void {
 
   const legendSections = document.querySelectorAll('.legend-section h3');
   legendSections.forEach((h3) => {
-    if (h3.textContent === 'Node Types') h3.textContent = t('legend.nodeTypes');
+    const text = h3.textContent?.trim();
+    if (text === 'Node Types') h3.textContent = t('legend.nodeTypes');
+    else if (text === 'Camera') h3.textContent = t('legend.camera');
+    else if (text === 'Navigation') h3.textContent = t('legend.navigation');
   });
 
   document.querySelectorAll('.legend-item').forEach((item) => {
@@ -229,6 +242,7 @@ function updateStaticText(): void {
     else if (colorDiv.classList.contains('tool-use')) label.textContent = t('legend.toolCall');
     else if (colorDiv.classList.contains('tool-result-success')) label.textContent = t('legend.toolSuccess');
     else if (colorDiv.classList.contains('tool-result')) label.textContent = t('legend.toolError');
+    else if (colorDiv.classList.contains('document')) label.textContent = t('document.label');
   });
 
   // Canvas controls
@@ -249,7 +263,38 @@ function updateStaticText(): void {
 
   // Coil controls
   const coilResetBtn = document.getElementById('coil-reset-btn');
+  const coilControlsHeader = document.querySelector('#coil-controls-header span');
+  const clusterLinesLabel = document.querySelector('#cluster-lines-toggle + span');
   if (coilResetBtn) coilResetBtn.textContent = t('coil.reset');
+  if (coilControlsHeader) coilControlsHeader.textContent = t('coil.parameters');
+  if (clusterLinesLabel) clusterLinesLabel.textContent = t('coil.showClusterLines');
+
+  // Coil slider labels
+  document.querySelectorAll('.coil-slider').forEach((slider) => {
+    const param = (slider as HTMLElement).dataset.param;
+    const label = slider.querySelector('label');
+    if (!label || !param) return;
+    const labelMap: Record<string, string> = {
+      radius: t('coil.radius'),
+      angleStep: t('coil.angle'),
+      verticalStep: t('coil.verticalStep'),
+      tiltAngle: t('coil.tilt'),
+      radiusGrowth: t('coil.cone'),
+      descendAngle: t('coil.expandAngle'),
+      focusRadius: t('coil.focus'),
+      minVerticalSpacing: t('coil.minGap'),
+      maxVerticalSpacing: t('coil.maxGap'),
+    };
+    if (labelMap[param]) label.textContent = labelMap[param];
+  });
+
+  // Coil line options
+  const lineColorLabel = document.querySelector('.coil-line-option:nth-child(1) label');
+  const lineWidthLabel = document.querySelector('.coil-line-option:nth-child(2) label');
+  const lineOpacityLabel = document.querySelector('.coil-line-option:nth-child(3) label');
+  if (lineColorLabel) lineColorLabel.textContent = t('coil.lineColor');
+  if (lineWidthLabel) lineWidthLabel.textContent = t('coil.lineWidth');
+  if (lineOpacityLabel) lineOpacityLabel.textContent = t('coil.lineOpacity');
 
   // Conversation filters
   document.querySelectorAll('.conv-filter').forEach((btn) => {
@@ -266,25 +311,20 @@ function updateStaticText(): void {
 }
 
 /**
- * Create and setup the language switcher
+ * Create a language switcher element and populate it
  */
-function setupLanguageSwitcher(): void {
-  const exportDropdown = document.querySelector('.export-dropdown');
-  if (!exportDropdown) return;
-
-  // Create language switcher container
-  const langSwitcher = document.createElement('div');
-  langSwitcher.className = 'lang-switcher';
-  langSwitcher.id = 'lang-switcher';
+function createLanguageSwitcherContent(container: HTMLElement, idPrefix: string): void {
+  // Clear existing content
+  container.innerHTML = '';
 
   const currentLang = document.createElement('button');
   currentLang.className = 'lang-current';
-  currentLang.id = 'lang-current';
+  currentLang.id = `${idPrefix}-current`;
   currentLang.textContent = LOCALE_NAMES[getCurrentLocale()];
 
   const langMenu = document.createElement('div');
   langMenu.className = 'lang-menu';
-  langMenu.id = 'lang-menu';
+  langMenu.id = `${idPrefix}-menu`;
 
   SUPPORTED_LOCALES.forEach((locale) => {
     const btn = document.createElement('button');
@@ -299,43 +339,77 @@ function setupLanguageSwitcher(): void {
     langMenu.appendChild(btn);
   });
 
-  langSwitcher.appendChild(currentLang);
-  langSwitcher.appendChild(langMenu);
-
-  // Insert before export dropdown
-  exportDropdown.parentNode?.insertBefore(langSwitcher, exportDropdown);
+  container.appendChild(currentLang);
+  container.appendChild(langMenu);
 
   // Toggle menu on click
   currentLang.addEventListener('click', (e) => {
     e.stopPropagation();
-    langSwitcher.classList.toggle('open');
+    container.classList.toggle('open');
   });
 
-  // Close menu on outside click
-  document.addEventListener('click', () => {
-    langSwitcher.classList.remove('open');
+  // Close menu on outside click (only add once per container)
+  document.addEventListener('click', (e) => {
+    if (!container.contains(e.target as Node)) {
+      container.classList.remove('open');
+    }
   });
 }
 
 /**
- * Update language switcher display
+ * Create and setup the toolbar language switcher
+ */
+function setupLanguageSwitcher(): void {
+  const exportDropdown = document.querySelector('.export-dropdown');
+  if (!exportDropdown) return;
+
+  // Create language switcher container
+  const langSwitcher = document.createElement('div');
+  langSwitcher.className = 'lang-switcher';
+  langSwitcher.id = 'lang-switcher';
+
+  // Insert before export dropdown
+  exportDropdown.parentNode?.insertBefore(langSwitcher, exportDropdown);
+
+  // Populate with language options
+  createLanguageSwitcherContent(langSwitcher, 'lang');
+}
+
+/**
+ * Setup the landing page language switcher
+ */
+function setupLandingLanguageSwitcher(): void {
+  const langSwitcher = document.getElementById('landing-lang-switcher');
+  if (!langSwitcher) return;
+
+  // Populate with language options
+  createLanguageSwitcherContent(langSwitcher, 'landing-lang');
+}
+
+/**
+ * Update language switcher display (both toolbar and landing page)
  */
 function updateLanguageSwitcher(): void {
-  const currentBtn = document.getElementById('lang-current');
-  const menuBtns = document.querySelectorAll('#lang-menu button');
+  // Update all language switchers (toolbar and landing page)
+  const switchers = ['lang', 'landing-lang'];
 
-  if (currentBtn) {
-    currentBtn.textContent = LOCALE_NAMES[getCurrentLocale()];
-  }
+  for (const prefix of switchers) {
+    const currentBtn = document.getElementById(`${prefix}-current`);
+    const menuBtns = document.querySelectorAll(`#${prefix}-menu button`);
 
-  menuBtns.forEach((btn) => {
-    const locale = (btn as HTMLElement).dataset.locale as SupportedLocale;
-    if (locale === getCurrentLocale()) {
-      btn.classList.add('active');
-    } else {
-      btn.classList.remove('active');
+    if (currentBtn) {
+      currentBtn.textContent = LOCALE_NAMES[getCurrentLocale()];
     }
-  });
+
+    menuBtns.forEach((btn) => {
+      const locale = (btn as HTMLElement).dataset.locale as SupportedLocale;
+      if (locale === getCurrentLocale()) {
+        btn.classList.add('active');
+      } else {
+        btn.classList.remove('active');
+      }
+    });
+  }
 }
 
 // Subscribe to locale changes
@@ -1311,8 +1385,9 @@ if (exportBtn && exportDropdown) {
 // Load recent traces on startup
 recentTracesManager?.refresh();
 
-// Setup language switcher
+// Setup language switchers (toolbar and landing page)
 setupLanguageSwitcher();
+setupLandingLanguageSwitcher();
 
 // Save UI state before leaving and cleanup
 window.addEventListener('beforeunload', () => {

@@ -179,4 +179,66 @@ export const messages = {
   // Misc
   'misc.github': 'GitHub',
   'misc.of': '/',
+  'misc.browseFiles': '浏览文件',
+  'misc.urlHint': '支持GitHub链接和允许跨域的链接',
+  'misc.storedLocally': '存储在本地浏览器中',
+  'misc.clearAll': '清除全部',
+  'misc.clearConfirm': '清除所有最近的轨迹？',
+  'misc.removeFromHistory': '从历史中移除',
+  'misc.errorOccurred': '发生错误',
+
+  // Document types
+  'document.label': '文档',
+  'document.image': '图片',
+  'document.pdf': 'PDF',
+  'document.textFile': '文本文件',
+  'document.sourceUrl': '链接',
+  'document.sourceFile': '文件',
+  'document.sourceBase64': 'Base64',
+  'document.open': '打开{type}',
+  'document.fileId': '文件ID：',
+  'document.downloadPdf': '下载PDF',
+  'document.base64Data': 'Base64数据 ({size} KB)',
+  'document.noPreview': '无法预览',
+
+  // Recent traces
+  'recent.turns': '{count} 轮',
+  'recent.clusters': '{count} 个集群',
+
+  // Detail panel actions
+  'detail.collapseToSingle': '折叠为单个节点',
+  'detail.expandAll': '展开显示所有块',
+  'detail.centerCamera': '将相机对准此轮',
+  'detail.copyContent': '复制轮次内容到剪贴板',
+  'detail.prevTurn': '转到上一轮',
+  'detail.nextTurn': '转到下一轮',
+
+  // Metrics
+  'metrics.turnNumber': '轮次 {number}',
+
+  // Legend sections
+  'legend.camera': '相机',
+  'legend.navigation': '导航',
+  'legend.rotate': '旋转',
+  'legend.pan': '平移',
+  'legend.forwardBack': '前进/后退',
+  'legend.zoom': '缩放',
+  'legend.homeView': '主视图',
+  'legend.resetView': '重置视图',
+  'legend.prevNextTurn': '上一轮/下一轮',
+  'legend.expandCollapse': '展开/折叠',
+  'legend.firstLast': '第一个/最后一个',
+
+  // Coil controls (additional)
+  'coil.tilt': '倾斜',
+  'coil.cone': '锥度',
+  'coil.expandAngle': '展开角',
+  'coil.focus': '焦点',
+  'coil.minGap': '最小间隙',
+  'coil.maxGap': '最大间隙',
+  'coil.showClusterLines': '显示集群线',
+  'coil.parameters': '螺旋参数',
+
+  // Watch
+  'watch.requiresChromium': '文件监视需要基于Chromium的浏览器',
 };

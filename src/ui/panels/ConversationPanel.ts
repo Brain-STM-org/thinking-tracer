@@ -4,6 +4,7 @@
 
 import { escapeHtml, renderMarkdown } from '../../export';
 import { getUIText } from '../../config';
+import { t } from '../../i18n';
 import type { ViewerInterface } from '../types';
 
 /**
@@ -11,14 +12,14 @@ import type { ViewerInterface } from '../types';
  */
 function formatDuration(ms: number): string {
   if (ms < 1000) {
-    return `${ms}ms`;
+    return t('time.ms', { value: ms });
   } else if (ms < 60000) {
     const secs = ms / 1000;
-    return `${secs.toFixed(1)}s`;
+    return t('time.seconds', { value: secs.toFixed(1) });
   } else {
     const mins = Math.floor(ms / 60000);
     const secs = ((ms % 60000) / 1000).toFixed(0);
-    return `${mins}m ${secs}s`;
+    return t('time.minutes', { minutes: mins, seconds: secs });
   }
 }
 
@@ -93,7 +94,7 @@ export class ConversationPanel {
 
     const conversation = this.viewer.getConversation();
     if (!conversation) {
-      this.container.innerHTML = '<div style="color: #666; text-align: center; padding: 40px;">No conversation loaded</div>';
+      this.container.innerHTML = `<div style="color: #666; text-align: center; padding: 40px;">${escapeHtml(t('conversation.noConversation'))}</div>`;
       return;
     }
 
@@ -121,17 +122,17 @@ export class ConversationPanel {
 
       // Error banner
       if (cluster.hasError) {
-        const errorText = cluster.error ? escapeHtml(cluster.error) : 'Error occurred';
+        const errorText = cluster.error ? escapeHtml(cluster.error) : escapeHtml(t('misc.errorOccurred'));
         html += `<div class="conv-error-banner">${errorText}</div>`;
       }
 
       // User message
       if (cluster.userText) {
         const len = cluster.userText.length;
-        const charCount = len > 200 ? `<span style="color: #666; font-weight: normal;">(${len.toLocaleString()} chars)</span>` : '';
+        const charCount = len > 200 ? `<span style="color: #666; font-weight: normal;">(${t('conversation.chars', { count: len.toLocaleString() })})</span>` : '';
         html += `<div class="conv-user expanded">
-<div class="conv-user-header"><span class="arrow">▶</span><span>User</span>${charCount}</div>
-<div class="conv-user-content"><div class="conv-content-wrap markdown-content">${renderMarkdown(cluster.userText)}<button class="conv-expand-btn">More</button></div></div>
+<div class="conv-user-header"><span class="arrow">▶</span><span>${escapeHtml(t('conversation.userLabel'))}</span>${charCount}</div>
+<div class="conv-user-content"><div class="conv-content-wrap markdown-content">${renderMarkdown(cluster.userText)}<button class="conv-expand-btn">${escapeHtml(t('conversation.more'))}</button></div></div>
 </div>`;
       }
 
@@ -139,51 +140,51 @@ export class ConversationPanel {
       html += `<div class="conv-assistant">`;
 
       // Thinking blocks (default collapsed)
-      for (let t = 0; t < cluster.thinkingBlocks.length; t++) {
-        const thinking = cluster.thinkingBlocks[t];
+      for (let ti = 0; ti < cluster.thinkingBlocks.length; ti++) {
+        const thinking = cluster.thinkingBlocks[ti];
         const thinkingText = thinking.text;
         const durationStr = thinking.durationMs ? ` · ${formatDuration(thinking.durationMs)}` : '';
-        html += `<div class="conv-thinking" data-thinking-index="${t}">
-<div class="conv-thinking-header"><span class="arrow">▶</span><span>Thinking</span><span style="color: #666; font-weight: normal;">(${thinkingText.length.toLocaleString()} chars${durationStr})</span></div>
-<div class="conv-thinking-content"><div class="conv-content-wrap markdown-content">${renderMarkdown(thinkingText)}<button class="conv-expand-btn">More</button></div></div>
+        html += `<div class="conv-thinking" data-thinking-index="${ti}">
+<div class="conv-thinking-header"><span class="arrow">▶</span><span>${escapeHtml(t('conversation.thinkingLabel'))}</span><span style="color: #666; font-weight: normal;">(${t('conversation.chars', { count: thinkingText.length.toLocaleString() })}${durationStr})</span></div>
+<div class="conv-thinking-content"><div class="conv-content-wrap markdown-content">${renderMarkdown(thinkingText)}<button class="conv-expand-btn">${escapeHtml(t('conversation.more'))}</button></div></div>
 </div>`;
       }
 
       // Tool calls and results (interleaved, default collapsed)
-      for (let t = 0; t < cluster.toolUses.length; t++) {
-        const toolUse = cluster.toolUses[t];
-        html += `<div class="conv-tool tool-use" data-tool-index="${t}">
+      for (let ti = 0; ti < cluster.toolUses.length; ti++) {
+        const toolUse = cluster.toolUses[ti];
+        html += `<div class="conv-tool tool-use" data-tool-index="${ti}">
 <div class="conv-tool-header"><span class="arrow">▶</span><span class="conv-tool-name">${escapeHtml(toolUse.name)}</span></div>
-<div class="conv-tool-content"><div class="conv-content-wrap">${escapeHtml(toolUse.input)}<button class="conv-expand-btn">More</button></div></div>
+<div class="conv-tool-content"><div class="conv-content-wrap">${escapeHtml(toolUse.input)}<button class="conv-expand-btn">${escapeHtml(t('conversation.more'))}</button></div></div>
 </div>`;
 
         // Matching tool result (if exists)
-        if (t < cluster.toolResults.length) {
-          const toolResult = cluster.toolResults[t];
+        if (ti < cluster.toolResults.length) {
+          const toolResult = cluster.toolResults[ti];
           const isError = toolResult.isError;
           const durationStr = toolResult.durationMs ? `<span style="color: #666; font-weight: normal; margin-left: 8px;">${formatDuration(toolResult.durationMs)}</span>` : '';
-          html += `<div class="conv-tool tool-result ${isError ? '' : 'success'}" data-result-index="${t}">
-<div class="conv-tool-header"><span class="arrow">▶</span><span>${isError ? '✗ Error' : '✓ Result'}</span>${durationStr}</div>
-<div class="conv-tool-content"><div class="conv-content-wrap">${escapeHtml(toolResult.content)}<button class="conv-expand-btn">More</button></div></div>
+          html += `<div class="conv-tool tool-result ${isError ? '' : 'success'}" data-result-index="${ti}">
+<div class="conv-tool-header"><span class="arrow">▶</span><span>${isError ? escapeHtml(t('conversation.resultError')) : escapeHtml(t('conversation.resultSuccess'))}</span>${durationStr}</div>
+<div class="conv-tool-content"><div class="conv-content-wrap">${escapeHtml(toolResult.content)}<button class="conv-expand-btn">${escapeHtml(t('conversation.more'))}</button></div></div>
 </div>`;
         }
       }
 
       // Documents (images, PDFs, etc.)
-      for (let t = 0; t < cluster.documents.length; t++) {
-        const doc = cluster.documents[t];
+      for (let di = 0; di < cluster.documents.length; di++) {
+        const doc = cluster.documents[di];
         const sizeStr = doc.size ? ` (${(doc.size / 1024).toFixed(1)} KB)` : '';
-        const sourceLabel = doc.sourceType === 'url' ? 'URL' : doc.sourceType === 'file' ? 'File' : 'Base64';
+        const sourceLabel = doc.sourceType === 'url' ? t('document.sourceUrl') : doc.sourceType === 'file' ? t('document.sourceFile') : t('document.sourceBase64');
         // Determine display name based on media type
-        let docLabel = 'Document';
+        let docLabel = t('document.label');
         const isImage = doc.mediaType.startsWith('image/');
         const isPdf = doc.mediaType === 'application/pdf';
         if (isImage) {
-          docLabel = 'Image';
+          docLabel = t('document.image');
         } else if (isPdf) {
-          docLabel = 'PDF';
+          docLabel = t('document.pdf');
         } else if (doc.mediaType.startsWith('text/')) {
-          docLabel = 'Text File';
+          docLabel = t('document.textFile');
         }
         const titleStr = doc.title ? ` "${escapeHtml(doc.title)}"` : '';
 
@@ -191,60 +192,60 @@ export class ConversationPanel {
         let contentHtml = '';
         if (doc.data && isImage) {
           // Render image from base64
-          contentHtml = `<img src="data:${doc.mediaType};base64,${doc.data}" alt="${docLabel}" style="max-width: 100%; max-height: 400px; border-radius: 4px;">`;
+          contentHtml = `<img src="data:${doc.mediaType};base64,${doc.data}" alt="${escapeHtml(docLabel)}" style="max-width: 100%; max-height: 400px; border-radius: 4px;">`;
         } else if (doc.url && isImage) {
           // Render image from URL
-          contentHtml = `<img src="${escapeHtml(doc.url)}" alt="${docLabel}" style="max-width: 100%; max-height: 400px; border-radius: 4px;">`;
+          contentHtml = `<img src="${escapeHtml(doc.url)}" alt="${escapeHtml(docLabel)}" style="max-width: 100%; max-height: 400px; border-radius: 4px;">`;
         } else if (doc.url) {
           // Show link for other URL-based documents
-          contentHtml = `<a href="${escapeHtml(doc.url)}" target="_blank" rel="noopener" style="color: #f1c40f;">Open ${docLabel}</a>`;
+          contentHtml = `<a href="${escapeHtml(doc.url)}" target="_blank" rel="noopener" style="color: #f1c40f;">${escapeHtml(t('document.open', { type: docLabel }))}</a>`;
         } else if (doc.fileId) {
           // File API reference
-          contentHtml = `<span style="color: #888;">File ID: ${escapeHtml(doc.fileId)}</span>`;
+          contentHtml = `<span style="color: #888;">${escapeHtml(t('document.fileId'))} ${escapeHtml(doc.fileId)}</span>`;
         } else if (doc.data && isPdf) {
           // PDF - show as embedded or download link
-          contentHtml = `<a href="data:${doc.mediaType};base64,${doc.data}" download="document.pdf" style="color: #f1c40f;">Download PDF</a>`;
+          contentHtml = `<a href="data:${doc.mediaType};base64,${doc.data}" download="document.pdf" style="color: #f1c40f;">${escapeHtml(t('document.downloadPdf'))}</a>`;
         } else if (doc.data) {
           // Other base64 data - show download link
-          contentHtml = `<span style="color: #888;">Base64 data (${(doc.size || 0) / 1024} KB)</span>`;
+          contentHtml = `<span style="color: #888;">${escapeHtml(t('document.base64Data', { size: ((doc.size || 0) / 1024).toFixed(1) }))}</span>`;
         } else {
-          contentHtml = `<span style="color: #888;">No preview available</span>`;
+          contentHtml = `<span style="color: #888;">${escapeHtml(t('document.noPreview'))}</span>`;
         }
 
-        html += `<div class="conv-document" data-document-index="${t}">
-<div class="conv-document-header"><span class="arrow">▶</span><span>${docLabel}</span><span style="color: #888; font-weight: normal; margin-left: 8px;">${escapeHtml(doc.mediaType)}${titleStr} · ${sourceLabel}${sizeStr}</span></div>
+        html += `<div class="conv-document" data-document-index="${di}">
+<div class="conv-document-header"><span class="arrow">▶</span><span>${escapeHtml(docLabel)}</span><span style="color: #888; font-weight: normal; margin-left: 8px;">${escapeHtml(doc.mediaType)}${titleStr} · ${escapeHtml(sourceLabel)}${sizeStr}</span></div>
 <div class="conv-document-content">${contentHtml}</div>
 </div>`;
       }
 
       // Summary line with total thinking and tool time
-      const totalThinkingMs = cluster.thinkingBlocks.reduce((sum, t) => sum + (t.durationMs || 0), 0);
+      const totalThinkingMs = cluster.thinkingBlocks.reduce((sum, tb) => sum + (tb.durationMs || 0), 0);
       const totalToolMs = cluster.toolResults.reduce((sum, r) => sum + (r.durationMs || 0), 0);
-      const totalChars = cluster.thinkingBlocks.reduce((sum, t) => sum + t.text.length, 0);
+      const totalChars = cluster.thinkingBlocks.reduce((sum, tb) => sum + tb.text.length, 0);
       if (cluster.thinkingBlocks.length > 0 || cluster.toolResults.length > 0) {
         const parts: string[] = [];
         if (cluster.thinkingBlocks.length > 0) {
           const thinkingStr = totalThinkingMs > 0
-            ? `${cluster.thinkingBlocks.length} thinking (${totalChars.toLocaleString()} chars · ${formatDuration(totalThinkingMs)})`
-            : `${cluster.thinkingBlocks.length} thinking (${totalChars.toLocaleString()} chars)`;
+            ? t('conversation.thinkingSummary', { count: cluster.thinkingBlocks.length, chars: totalChars.toLocaleString(), duration: formatDuration(totalThinkingMs) })
+            : t('conversation.thinkingSummaryNoTime', { count: cluster.thinkingBlocks.length, chars: totalChars.toLocaleString() });
           parts.push(thinkingStr);
         }
         if (cluster.toolResults.length > 0) {
           const toolStr = totalToolMs > 0
-            ? `${cluster.toolResults.length} tools (${formatDuration(totalToolMs)})`
-            : `${cluster.toolResults.length} tools`;
+            ? t('conversation.toolsSummary', { count: cluster.toolResults.length, duration: formatDuration(totalToolMs) })
+            : t('conversation.toolsSummaryNoTime', { count: cluster.toolResults.length });
           parts.push(toolStr);
         }
-        html += `<div class="conv-summary" style="color: #888; font-size: 11px; margin-bottom: 8px; padding-left: 4px;">${parts.join(' · ')}</div>`;
+        html += `<div class="conv-summary" style="color: #888; font-size: 11px; margin-bottom: 8px; padding-left: 4px;">${escapeHtml(parts.join(' · '))}</div>`;
       }
 
       // Assistant text output
       if (cluster.assistantText) {
         const len = cluster.assistantText.length;
-        const charCount = len > 200 ? `<span style="color: #666; font-weight: normal;">(${len.toLocaleString()} chars)</span>` : '';
+        const charCount = len > 200 ? `<span style="color: #666; font-weight: normal;">(${t('conversation.chars', { count: len.toLocaleString() })})</span>` : '';
         html += `<div class="conv-text expanded">
-<div class="conv-text-header"><span class="arrow">▶</span><span>Output</span>${charCount}</div>
-<div class="conv-text-content"><div class="conv-content-wrap markdown-content">${renderMarkdown(cluster.assistantText)}<button class="conv-expand-btn">More</button></div></div>
+<div class="conv-text-header"><span class="arrow">▶</span><span>${escapeHtml(t('conversation.outputLabel'))}</span>${charCount}</div>
+<div class="conv-text-content"><div class="conv-content-wrap markdown-content">${renderMarkdown(cluster.assistantText)}<button class="conv-expand-btn">${escapeHtml(t('conversation.more'))}</button></div></div>
 </div>`;
       }
 
@@ -271,7 +272,7 @@ export class ConversationPanel {
 
     // Update turn indicator
     if (this.turnIndicator) {
-      this.turnIndicator.textContent = `${clusterCount} turns`;
+      this.turnIndicator.textContent = t('conversation.turns', { count: clusterCount });
     }
 
     // Apply visibility filters

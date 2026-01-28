@@ -121,7 +121,7 @@ describe('RecentTracesManager', () => {
       expect(container.classList.contains('hidden')).toBe(false);
       // Should render example traces section
       expect(listElement.innerHTML).toContain('example-traces-section');
-      expect(listElement.innerHTML).toContain('Example Traces');
+      expect(listElement.innerHTML).toContain('landing.exampleTraces');
       manager.dispose();
     });
 
@@ -496,7 +496,7 @@ describe('RecentTracesManager', () => {
 
       await manager.refresh();
 
-      expect(listElement.innerHTML).toContain('10 turns');
+      expect(listElement.innerHTML).toContain('recent.turns');
       expect(listElement.innerHTML).toContain('1024 bytes');
       manager.dispose();
     });

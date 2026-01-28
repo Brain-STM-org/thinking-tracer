@@ -4,6 +4,7 @@
 
 import { escapeHtml } from '../../export';
 import { getUIText } from '../../config';
+import { t } from '../../i18n';
 import type { ViewerInterface, Selection, SearchableCluster } from '../types';
 
 /**
@@ -100,7 +101,7 @@ export class DetailPanel {
     this.clearTimeouts();
 
     if (!selection) {
-      this.container.innerHTML = '<div class="detail-empty">&lt;no selection&gt;</div>';
+      this.container.innerHTML = `<div class="detail-empty">${escapeHtml(t('sidebar.noSelection'))}</div>`;
       return;
     }
 
@@ -112,7 +113,7 @@ export class DetailPanel {
    * Clear the panel
    */
   public clear(): void {
-    this.container.innerHTML = '<div class="detail-empty">&lt;no selection&gt;</div>';
+    this.container.innerHTML = `<div class="detail-empty">${escapeHtml(t('sidebar.noSelection'))}</div>`;
     this.copyableContent = {};
   }
 
@@ -135,7 +136,7 @@ export class DetailPanel {
     this.copyableContent = {};
 
     let content = `<div class="detail-section">
-    <div class="detail-section-label"><span>Type</span></div>
+    <div class="detail-section-label"><span>${escapeHtml(t('sidebar.type'))}</span></div>
     <div class="detail-section-content">
       <span class="detail-type-badge ${type}">${type.replace('_', ' ')}</span>
     </div>
@@ -147,14 +148,14 @@ export class DetailPanel {
     } else if (selection.clusterIndex !== undefined) {
       // Child node of a cluster - show turn number and collapse option
       content += `<div class="detail-section">
-      <div class="detail-section-label">Turn</div>
-      <div class="detail-section-content"><strong>${selection.clusterIndex + 1}</strong> of ${this.viewer.getClusterCount()}</div>
+      <div class="detail-section-label">${escapeHtml(t('sidebar.turn'))}</div>
+      <div class="detail-section-content"><strong>${selection.clusterIndex + 1}</strong> ${escapeHtml(t('misc.of'))} ${this.viewer.getClusterCount()}</div>
     </div>`;
       content += `<div class="detail-section">
-      <div class="detail-section-label">Actions</div>
+      <div class="detail-section-label">${escapeHtml(t('sidebar.actions'))}</div>
       <div class="detail-section-content">
         <button id="collapse-parent-btn" class="detail-action-btn" data-cluster-index="${selection.clusterIndex}">
-          ↩ Collapse Turn
+          ${escapeHtml(t('sidebar.collapseTurn'))}
         </button>
       </div>
     </div>`;
@@ -168,8 +169,8 @@ export class DetailPanel {
     this.copyableContent['raw-data'] = rawJson;
     content += `<div class="detail-section">
     <div class="detail-section-label">
-      <button id="toggle-raw-btn" class="raw-toggle-btn">Show Raw Data</button>
-      <button class="copy-btn" data-copy-id="raw-data" style="margin-left: 8px;">Copy</button>
+      <button id="toggle-raw-btn" class="raw-toggle-btn">${escapeHtml(t('sidebar.showRawData'))}</button>
+      <button class="copy-btn" data-copy-id="raw-data" style="margin-left: 8px;">${escapeHtml(t('sidebar.copy'))}</button>
     </div>
     <div id="raw-data-content" class="detail-section-content code raw-data" style="display: none;">${escapeHtml(truncate(rawJson, 10000))}</div>
   </div>`;
@@ -206,36 +207,36 @@ export class DetailPanel {
     };
 
     let content = `<div class="detail-section">
-      <div class="detail-section-label">Turn</div>
-      <div class="detail-section-content"><strong>${cluster.index + 1}</strong> of ${this.viewer.getClusterCount()}</div>
+      <div class="detail-section-label">${escapeHtml(t('sidebar.turn'))}</div>
+      <div class="detail-section-content"><strong>${cluster.index + 1}</strong> ${escapeHtml(t('misc.of'))} ${this.viewer.getClusterCount()}</div>
     </div>`;
 
     content += `<div class="detail-section">
-      <div class="detail-section-label">Actions</div>
+      <div class="detail-section-label">${escapeHtml(t('sidebar.actions'))}</div>
       <div class="detail-section-content detail-actions">
-        <button id="toggle-cluster-btn" class="detail-action-btn" data-cluster-index="${cluster.index}" title="${cluster.expanded ? 'Collapse to single node' : 'Expand to show all blocks'}">
-          ${cluster.expanded ? 'Collapse' : 'Expand'}
+        <button id="toggle-cluster-btn" class="detail-action-btn" data-cluster-index="${cluster.index}" title="${cluster.expanded ? escapeHtml(t('detail.collapseToSingle')) : escapeHtml(t('detail.expandAll'))}">
+          ${cluster.expanded ? escapeHtml(t('sidebar.collapse')) : escapeHtml(t('sidebar.expand'))}
         </button>
-        <button id="focus-cluster-btn" class="detail-action-btn" data-cluster-index="${cluster.index}" title="Center camera on this turn">
-          Focus
+        <button id="focus-cluster-btn" class="detail-action-btn" data-cluster-index="${cluster.index}" title="${escapeHtml(t('detail.centerCamera'))}">
+          ${escapeHtml(t('sidebar.focus'))}
         </button>
-        <button id="copy-turn-btn" class="detail-action-btn" data-cluster-index="${cluster.index}" title="Copy turn content to clipboard">
-          Copy
+        <button id="copy-turn-btn" class="detail-action-btn" data-cluster-index="${cluster.index}" title="${escapeHtml(t('detail.copyContent'))}">
+          ${escapeHtml(t('sidebar.copy'))}
         </button>
-        <button id="prev-turn-btn" class="detail-action-btn" data-cluster-index="${cluster.index}" title="Go to previous turn" ${cluster.index === 0 ? 'disabled' : ''}>
-          ← Prev
+        <button id="prev-turn-btn" class="detail-action-btn" data-cluster-index="${cluster.index}" title="${escapeHtml(t('detail.prevTurn'))}" ${cluster.index === 0 ? 'disabled' : ''}>
+          ${escapeHtml(t('sidebar.prevTurn'))}
         </button>
-        <button id="next-turn-btn" class="detail-action-btn" data-cluster-index="${cluster.index}" title="Go to next turn" ${cluster.index >= this.viewer.getClusterCount() - 1 ? 'disabled' : ''}>
-          Next →
+        <button id="next-turn-btn" class="detail-action-btn" data-cluster-index="${cluster.index}" title="${escapeHtml(t('detail.nextTurn'))}" ${cluster.index >= this.viewer.getClusterCount() - 1 ? 'disabled' : ''}>
+          ${escapeHtml(t('sidebar.nextTurn'))}
         </button>
       </div>
     </div>`;
 
     // Metadata: error, sidechain, agent, stop reason, thinking
     if (cluster.hasError) {
-      const errorText = cluster.assistantTurn?.error || 'Error occurred';
+      const errorText = cluster.assistantTurn?.error || t('misc.errorOccurred');
       content += `<div class="detail-section">
-        <div class="detail-section-label">Error</div>
+        <div class="detail-section-label">${escapeHtml(t('sidebar.error'))}</div>
         <div class="detail-section-content" style="color: #e74c3c;">${escapeHtml(errorText)}</div>
       </div>`;
     }
@@ -250,14 +251,14 @@ export class DetailPanel {
 
     if (cluster.agentId) {
       content += `<div class="detail-section">
-        <div class="detail-section-label">Agent</div>
+        <div class="detail-section-label">${escapeHtml(t('sidebar.agent'))}</div>
         <div class="detail-section-content">${escapeHtml(cluster.agentId)}</div>
       </div>`;
     }
 
     if (cluster.stopReason && cluster.stopReason !== 'end_turn') {
       content += `<div class="detail-section">
-        <div class="detail-section-label">Stop Reason</div>
+        <div class="detail-section-label">${escapeHtml(t('sidebar.stopReason'))}</div>
         <div class="detail-section-content">${escapeHtml(cluster.stopReason)}</div>
       </div>`;
     }
@@ -270,7 +271,7 @@ export class DetailPanel {
       if (tm.triggers?.length) parts.push(`Triggers: ${tm.triggers.join(', ')}`);
       if (parts.length > 0) {
         content += `<div class="detail-section">
-          <div class="detail-section-label">Thinking Config</div>
+          <div class="detail-section-label">${escapeHtml(t('sidebar.thinkingConfig'))}</div>
           <div class="detail-section-content">${escapeHtml(parts.join(' | '))}</div>
         </div>`;
       }
@@ -284,7 +285,7 @@ export class DetailPanel {
         .join('\n');
       if (userText) {
         content += `<div class="detail-section">
-          <div class="detail-section-label">User</div>
+          <div class="detail-section-label">${escapeHtml(t('sidebar.user'))}</div>
           <div class="detail-section-content">${escapeHtml(truncate(userText, 200))}</div>
         </div>`;
       }
@@ -298,7 +299,7 @@ export class DetailPanel {
         .join('\n');
       if (assistantText) {
         content += `<div class="detail-section">
-          <div class="detail-section-label">Assistant</div>
+          <div class="detail-section-label">${escapeHtml(t('sidebar.assistant'))}</div>
           <div class="detail-section-content">${escapeHtml(truncate(assistantText, 200))}</div>
         </div>`;
       }
@@ -307,7 +308,7 @@ export class DetailPanel {
       const thinkingBlocks = cluster.assistantTurn.content.filter((b) => b.type === 'thinking');
       if (thinkingBlocks.length > 0) {
         content += `<div class="detail-section">
-          <div class="detail-section-label">Thinking (${thinkingBlocks.length})</div>
+          <div class="detail-section-label">${escapeHtml(t('sidebar.thinkingBlocks', { count: thinkingBlocks.length }))}</div>
           <div class="detail-section-content cluster-list">`;
         for (const block of thinkingBlocks) {
           const preview = truncate(block.thinking || '', 100);
@@ -320,7 +321,7 @@ export class DetailPanel {
       const toolUses = cluster.assistantTurn.content.filter((b) => b.type === 'tool_use');
       if (toolUses.length > 0) {
         content += `<div class="detail-section">
-          <div class="detail-section-label">Tool Calls (${toolUses.length})</div>
+          <div class="detail-section-label">${escapeHtml(t('sidebar.toolCalls', { count: toolUses.length }))}</div>
           <div class="detail-section-content cluster-list">`;
         for (const block of toolUses) {
           content += `<div class="cluster-list-item tool_use">${escapeHtml(block.name || 'unknown')}</div>`;
@@ -332,7 +333,7 @@ export class DetailPanel {
       const toolResults = cluster.assistantTurn.content.filter((b) => b.type === 'tool_result');
       if (toolResults.length > 0) {
         content += `<div class="detail-section">
-          <div class="detail-section-label">Tool Results (${toolResults.length})</div>
+          <div class="detail-section-label">${escapeHtml(t('sidebar.toolResults', { count: toolResults.length }))}</div>
           <div class="detail-section-content cluster-list">`;
         for (const block of toolResults) {
           const status = block.is_error ? 'error' : 'success';
@@ -372,7 +373,7 @@ export class DetailPanel {
 
       if (blockSummary) {
         content += `<div class="detail-section">
-        <div class="detail-section-label">Contains</div>
+        <div class="detail-section-label">${escapeHtml(t('sidebar.contains'))}</div>
         <div class="detail-section-content">${escapeHtml(blockSummary)}</div>
       </div>`;
       }
@@ -383,7 +384,7 @@ export class DetailPanel {
         const text = textBlocks.map((b) => b.text || '').join('\n\n');
         this.copyableContent['text'] = text;
         content += `<div class="detail-section">
-        <div class="detail-section-label"><span>Text</span><button class="copy-btn" data-copy-id="text">Copy</button></div>
+        <div class="detail-section-label"><span>${escapeHtml(t('sidebar.text'))}</span><button class="copy-btn" data-copy-id="text">${escapeHtml(t('sidebar.copy'))}</button></div>
         <div class="detail-section-content">${escapeHtml(truncate(text, 1000))}</div>
       </div>`;
       }
@@ -394,7 +395,7 @@ export class DetailPanel {
         const thinking = thinkingBlocks.map((b) => b.thinking || '').join('\n\n');
         this.copyableContent['thinking'] = thinking;
         content += `<div class="detail-section">
-        <div class="detail-section-label"><span>Thinking</span><button class="copy-btn" data-copy-id="thinking">Copy</button></div>
+        <div class="detail-section-label"><span>${escapeHtml(t('sidebar.thinking'))}</span><button class="copy-btn" data-copy-id="thinking">${escapeHtml(t('sidebar.copy'))}</button></div>
         <div class="detail-section-content code">${escapeHtml(truncate(thinking, 500))}</div>
       </div>`;
       }
@@ -412,21 +413,21 @@ export class DetailPanel {
       if (block.thinking) {
         this.copyableContent['thinking-block'] = block.thinking;
         content += `<div class="detail-section">
-        <div class="detail-section-label"><span>Thinking</span><button class="copy-btn" data-copy-id="thinking-block">Copy</button></div>
+        <div class="detail-section-label"><span>${escapeHtml(t('sidebar.thinking'))}</span><button class="copy-btn" data-copy-id="thinking-block">${escapeHtml(t('sidebar.copy'))}</button></div>
         <div class="detail-section-content code">${escapeHtml(truncate(block.thinking, 2000))}</div>
       </div>`;
       }
     } else if (type === 'tool_use') {
       const block = data as { name?: string; input?: Record<string, unknown> };
       content += `<div class="detail-section">
-      <div class="detail-section-label"><span>Tool</span></div>
+      <div class="detail-section-label"><span>${escapeHtml(t('search.tool'))}</span></div>
       <div class="detail-section-content"><strong>${escapeHtml(block.name || 'unknown')}</strong></div>
     </div>`;
       if (block.input) {
         const inputJson = JSON.stringify(block.input, null, 2);
         this.copyableContent['tool-input'] = inputJson;
         content += `<div class="detail-section">
-        <div class="detail-section-label"><span>Input</span><button class="copy-btn" data-copy-id="tool-input">Copy</button></div>
+        <div class="detail-section-label"><span>${escapeHtml(t('sidebar.toolInput'))}</span><button class="copy-btn" data-copy-id="tool-input">${escapeHtml(t('sidebar.copy'))}</button></div>
         <div class="detail-section-content code">${escapeHtml(truncate(inputJson, 1500))}</div>
       </div>`;
       }
@@ -435,7 +436,7 @@ export class DetailPanel {
       const resultContent = String(block.content || '');
       this.copyableContent['tool-result'] = resultContent;
       content += `<div class="detail-section">
-      <div class="detail-section-label"><span>Result${block.is_error ? ' (Error)' : ''}</span><button class="copy-btn" data-copy-id="tool-result">Copy</button></div>
+      <div class="detail-section-label"><span>${escapeHtml(block.is_error ? t('sidebar.toolResultError') : t('sidebar.toolResult'))}</span><button class="copy-btn" data-copy-id="tool-result">${escapeHtml(t('sidebar.copy'))}</button></div>
       <div class="detail-section-content code">${escapeHtml(truncate(resultContent, 2000))}</div>
     </div>`;
     }
@@ -473,9 +474,9 @@ export class DetailPanel {
 
       try {
         await navigator.clipboard.writeText(text);
-        copyTurnBtn.textContent = 'Copied!';
+        copyTurnBtn.textContent = t('sidebar.copied');
         this.scheduleTimeout(() => {
-          copyTurnBtn.textContent = 'Copy';
+          copyTurnBtn.textContent = t('sidebar.copy');
         }, 1500);
       } catch {
         console.error('Failed to copy');
@@ -513,7 +514,7 @@ export class DetailPanel {
       if (rawDataContent) {
         const isHidden = rawDataContent.style.display === 'none';
         rawDataContent.style.display = isHidden ? 'block' : 'none';
-        rawToggleBtn.textContent = isHidden ? 'Hide Raw Data' : 'Show Raw Data';
+        rawToggleBtn.textContent = isHidden ? t('sidebar.hideRawData') : t('sidebar.showRawData');
       }
     });
 
@@ -525,17 +526,17 @@ export class DetailPanel {
 
         try {
           await navigator.clipboard.writeText(this.copyableContent[copyId]);
-          btn.textContent = 'Copied!';
+          btn.textContent = t('sidebar.copied');
           btn.classList.add('copied');
           this.scheduleTimeout(() => {
-            btn.textContent = 'Copy';
+            btn.textContent = t('sidebar.copy');
             btn.classList.remove('copied');
           }, 1500);
         } catch (err) {
           console.error('Failed to copy:', err);
-          btn.textContent = 'Failed';
+          btn.textContent = t('sidebar.failed');
           this.scheduleTimeout(() => {
-            btn.textContent = 'Copy';
+            btn.textContent = t('sidebar.copy');
           }, 1500);
         }
       });

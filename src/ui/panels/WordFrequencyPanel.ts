@@ -3,6 +3,7 @@
  */
 
 import { escapeHtml } from '../../export';
+import { t } from '../../i18n';
 import type { ViewerInterface, SearchableCluster } from '../types';
 
 /**
@@ -163,7 +164,7 @@ export class WordFrequencyPanel {
     const frequencies = getWordFrequencies(searchableContent, source);
 
     if (frequencies.length === 0) {
-      this.container.innerHTML = '<div style="color: #666; font-size: 11px; text-align: center; padding: 20px;">No words found</div>';
+      this.container.innerHTML = `<div style="color: #666; font-size: 11px; text-align: center; padding: 20px;">${escapeHtml(t('sidebar.noWordsFound'))}</div>`;
       return;
     }
 

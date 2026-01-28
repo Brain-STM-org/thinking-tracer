@@ -1885,3 +1885,27 @@ i want this to work with an international audience, even right away there could 
 ## 2026-01-27T20:36:06Z
 
 please proceed
+
+---
+
+## 2026-01-27T20:54:59Z
+
+that's a great.  i see there are still some places in the ui where english heading are being used, identify them and internationalize.  debugging scaffolding can stay in english.
+
+---
+
+## 2026-01-28T14:42:40Z
+
+runtime error in browser: [Error] Error: Lingui: Attempted to call a translation function without setting a locale.
+Make sure to call `i18n.activate(locale)` before using Lingui functions.
+This issue may also occur due to a race condition in your initialization logic.
+    _ (@lingui_core.js:1519)
+    attachListeners (FileLoader.ts:51)
+    FileLoader (FileLoader.ts:39)
+    Module Code (main.ts:560)
+
+---
+
+## 2026-01-28T15:49:49Z
+
+put the same language control on the intro page

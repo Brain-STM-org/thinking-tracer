@@ -1387,12 +1387,43 @@ html, body {
   max-width: 500px;
 }
 
+.drop-header-top {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
 .drop-title {
   font-size: 32px;
   font-weight: 700;
   color: #fff;
-  margin: 0 0 16px 0;
+  margin: 0;
   letter-spacing: -0.5px;
+}
+
+/* Landing page language switcher */
+.lang-switcher.landing {
+  position: relative;
+}
+
+.lang-switcher.landing .lang-current {
+  background: transparent;
+  border: 1px solid #444;
+  color: #888;
+  padding: 4px 10px;
+  font-size: 12px;
+}
+
+.lang-switcher.landing .lang-current:hover {
+  border-color: #666;
+  color: #fff;
+}
+
+.lang-switcher.landing .lang-menu {
+  right: 0;
+  left: auto;
 }
 
 .drop-intro {

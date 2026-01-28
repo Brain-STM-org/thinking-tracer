@@ -15,6 +15,7 @@ import {
   type TraceUIState,
 } from '../../utils/recent-traces';
 import { escapeHtml } from '../../export';
+import { t } from '../../i18n';
 
 /**
  * Example trace definition (hardcoded, not stored)
@@ -129,7 +130,7 @@ export class RecentTracesManager {
    */
   private async handleClearClick(): Promise<void> {
     if (this.disposed) return;
-    if (confirm('Clear all recent traces?')) {
+    if (confirm(t('misc.clearConfirm'))) {
       await this.clearAll();
     }
   }
@@ -180,7 +181,7 @@ export class RecentTracesManager {
    */
   private renderExamples(): string {
     let html = '<div class="example-traces-section">';
-    html += '<div class="example-traces-header">Example Traces</div>';
+    html += `<div class="example-traces-header">${escapeHtml(t('landing.exampleTraces'))}</div>`;
     html += EXAMPLE_TRACES.map((example) => this.renderExampleItem(example)).join('');
     html += '</div>';
     return html;
@@ -197,7 +198,7 @@ export class RecentTracesManager {
           <div class="recent-item-title example">${escapeHtml(example.name)}</div>
           <div class="recent-item-path">${escapeHtml(example.description)}</div>
           <div class="recent-item-meta">
-            ${example.turnCount} turns · ${example.clusterCount} clusters · ${formatSize(example.size)}
+            ${t('recent.turns', { count: example.turnCount })} · ${t('recent.clusters', { count: example.clusterCount })} · ${formatSize(example.size)}
           </div>
         </div>
       </div>
@@ -223,10 +224,10 @@ export class RecentTracesManager {
           <div class="recent-item-title ${hasCustomName ? 'custom' : ''}">${escapeHtml(displayName)}</div>
           <div class="recent-item-path" title="${escapeHtml(trace.filename)}">${escapeHtml(shortPath)}</div>
           <div class="recent-item-meta">
-            ${trace.turnCount} turns · ${formatSize(trace.size)} · ${formatRelativeTime(trace.lastOpened)}
+            ${t('recent.turns', { count: trace.turnCount })} · ${formatSize(trace.size)} · ${formatRelativeTime(trace.lastOpened)}
           </div>
         </div>
-        <button class="recent-item-delete" title="Remove from history">&times;</button>
+        <button class="recent-item-delete" title="${escapeHtml(t('misc.removeFromHistory'))}">&times;</button>
       </div>
     `;
   }

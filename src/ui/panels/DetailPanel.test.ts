@@ -155,7 +155,7 @@ describe('DetailPanel', () => {
   describe('update', () => {
     it('shows empty message when selection is null', () => {
       panel.update(null);
-      expect(container.innerHTML).toContain('&lt;no selection&gt;');
+      expect(container.innerHTML).toContain('sidebar.noSelection');
     });
 
     it('renders type badge for selection', () => {
@@ -213,7 +213,7 @@ describe('DetailPanel', () => {
       panel.update(selection);
 
       expect(container.innerHTML).toContain('toggle-raw-btn');
-      expect(container.innerHTML).toContain('Show Raw Data');
+      expect(container.innerHTML).toContain('sidebar.showRawData');
     });
 
     it('does nothing when disposed', () => {
@@ -228,7 +228,7 @@ describe('DetailPanel', () => {
     it('clears content and shows empty message', () => {
       panel.update({ type: 'test', data: {}, turnIndex: 0 });
       panel.clear();
-      expect(container.innerHTML).toContain('&lt;no selection&gt;');
+      expect(container.innerHTML).toContain('sidebar.noSelection');
     });
   });
 
@@ -380,11 +380,11 @@ describe('DetailPanel', () => {
 
       toggleBtn?.click();
       expect(rawContent?.style.display).toBe('block');
-      expect(toggleBtn?.textContent).toBe('Hide Raw Data');
+      expect(toggleBtn?.textContent).toBe('sidebar.hideRawData');
 
       toggleBtn?.click();
       expect(rawContent?.style.display).toBe('none');
-      expect(toggleBtn?.textContent).toBe('Show Raw Data');
+      expect(toggleBtn?.textContent).toBe('sidebar.showRawData');
     });
   });
 
@@ -497,7 +497,7 @@ describe('DetailPanel', () => {
       };
       panel.update(selection);
 
-      expect(container.innerHTML).toContain('User');
+      expect(container.innerHTML).toContain('sidebar.user');
       expect(container.innerHTML).toContain('Hello, how are you?');
     });
 
@@ -517,7 +517,7 @@ describe('DetailPanel', () => {
       };
       panel.update(selection);
 
-      expect(container.innerHTML).toContain('Assistant');
+      expect(container.innerHTML).toContain('sidebar.assistant');
       expect(container.innerHTML).toContain('I am doing well!');
     });
 
@@ -540,7 +540,7 @@ describe('DetailPanel', () => {
       };
       panel.update(selection);
 
-      expect(container.innerHTML).toContain('Thinking (2)');
+      expect(container.innerHTML).toContain('sidebar.thinkingBlocks');
       expect(container.innerHTML).toContain('First thought');
       expect(container.innerHTML).toContain('Second thought');
     });
@@ -564,7 +564,7 @@ describe('DetailPanel', () => {
       };
       panel.update(selection);
 
-      expect(container.innerHTML).toContain('Tool Calls (2)');
+      expect(container.innerHTML).toContain('sidebar.toolCalls');
       expect(container.innerHTML).toContain('Read');
       expect(container.innerHTML).toContain('Write');
     });
@@ -588,7 +588,7 @@ describe('DetailPanel', () => {
       };
       panel.update(selection);
 
-      expect(container.innerHTML).toContain('Tool Results (2)');
+      expect(container.innerHTML).toContain('sidebar.toolResults');
       expect(container.innerHTML).toContain('Success output');
       expect(container.innerHTML).toContain('Error output');
     });

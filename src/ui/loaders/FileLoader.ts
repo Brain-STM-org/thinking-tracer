@@ -9,6 +9,7 @@ import {
   decompressZstdBuffer,
   FileWatcher,
 } from '../../utils/file-drop';
+import { t } from '../../i18n';
 
 /**
  * Callback for when a file is loaded
@@ -89,7 +90,7 @@ export class FileLoader {
       this.watchToggle.addEventListener('click', this.boundHandleWatchClick);
     } else if (this.watchToggle) {
       (this.watchToggle as HTMLButtonElement).disabled = true;
-      this.watchToggle.title = 'File watching requires Chromium-based browser';
+      this.watchToggle.title = t('watch.requiresChromium');
     }
 
     this.trySampleBtn?.addEventListener('click', this.boundHandleTrySampleClick);
@@ -144,7 +145,7 @@ export class FileLoader {
     // If already watching, stop
     if (this.fileWatcher?.isWatching()) {
       this.stopWatching();
-      this.showWatchNotification('Stopped watching');
+      this.showWatchNotification(t('watch.stopped'));
       return;
     }
 
@@ -153,12 +154,12 @@ export class FileLoader {
       onChange: async (content, filename) => {
         if (this.disposed) return;
         await this.onLoad(content, filename, false);
-        this.showWatchNotification('File updated');
+        this.showWatchNotification(t('watch.fileUpdated'));
       },
       onError: (error) => {
         if (this.disposed) return;
         console.error('Watch error:', error);
-        this.showWatchNotification('Watch stopped: ' + error.message);
+        this.showWatchNotification(t('watch.watchingStopped', { error: error.message }));
         this.updateWatchButtonState();
       },
       pollInterval: 1000,
@@ -168,7 +169,7 @@ export class FileLoader {
     if (result) {
       await this.onLoad(result.content, result.filename);
       this.updateWatchButtonState();
-      this.showWatchNotification(`Watching: ${result.filename}`);
+      this.showWatchNotification(t('watch.watchingFile', { filename: result.filename }));
     } else {
       // User cancelled or error
       this.fileWatcher = null;
@@ -187,7 +188,7 @@ export class FileLoader {
     const btnText = this.trySampleBtn.querySelector('.sample-preview-btn');
     try {
       this.trySampleBtn.classList.add('loading');
-      if (btnText) btnText.textContent = 'Loading...';
+      if (btnText) btnText.textContent = t('landing.loading');
 
       await this.loadFromUrl('samples/sample-trace.jsonl.zstd', 'sample-trace.jsonl.zstd');
     } catch (error) {
@@ -195,7 +196,7 @@ export class FileLoader {
       this.onError(error instanceof Error ? error : new Error(String(error)));
     } finally {
       this.trySampleBtn.classList.remove('loading');
-      if (btnText) btnText.textContent = 'See How This Was Built';
+      if (btnText) btnText.textContent = t('landing.seeHowBuilt');
     }
   }
 
@@ -267,10 +268,10 @@ export class FileLoader {
 
     if (this.fileWatcher?.isWatching()) {
       this.watchToggle.classList.add('watching');
-      this.watchToggle.textContent = 'Watching';
+      this.watchToggle.textContent = t('landing.watching');
     } else {
       this.watchToggle.classList.remove('watching');
-      this.watchToggle.textContent = 'Watch';
+      this.watchToggle.textContent = t('landing.watch');
     }
   }
 
@@ -316,7 +317,7 @@ export class FileLoader {
     const response = await fetch(url, { headers });
     if (!response.ok) {
       if (response.status === 401 || response.status === 403) {
-        throw new Error('Authentication failed - invalid or missing token');
+        throw new Error(t('toast.authFailed'));
       }
       throw new Error(`Failed to fetch: ${response.status}`);
     }
