@@ -1909,3 +1909,69 @@ This issue may also occur due to a race condition in your initialization logic.
 ## 2026-01-28T15:49:49Z
 
 put the same language control on the intro page
+
+---
+
+## 2026-01-28T16:01:00Z
+
+on the intro page, place the language switcher and the GitHub link next to each other in the upper right corner 
+
+---
+
+## 2026-01-28T16:16:53Z
+
+the subtext under the title can flow to be about 20% wider than it is now
+
+---
+
+## 2026-01-28T16:19:39Z
+
+on the "see how this was built" area, put a little "X" button in the upper right of it to allow dismissal of it and remember it for the next time they visit.  i was pondering how to make it re-appear ever again, maybe that doesn't matter
+
+---
+
+## 2026-01-28T16:23:25Z
+
+when that's dismissed, keep Thinking Tracer title at the same location on the top and allow the rest of the page to flow, especially the recent traces section. 
+
+---
+
+## 2026-01-28T16:25:15Z
+
+at the end of the subtitle add a little caret for opening/closing the "how i built this example"  it will still have its close button
+
+---
+
+## 2026-01-28T16:28:00Z
+
+at the end of the subtitle add a little caret for opening/closing the "how i built this example"  it will still have its close button
+
+---
+
+## 2026-01-28T17:27:26Z
+
+i don't see it ?
+
+---
+
+## 2026-01-28T17:30:33Z
+
+i do not visibly see it stil nor do i see it with the web inspector in safari?
+
+---
+
+## 2026-01-28T17:38:29Z
+
+ah i see it now, it is quite small, please make it bigger.  it can also be at the end of the subtitle line
+
+---
+
+## 2026-01-28T17:41:39Z
+
+the "stored locally in your browser" footer should be at the bottom and the traces / examples should flow to their natural length or to a maximum of just above the footer
+
+---
+
+## 2026-01-28T17:41:52Z
+
+the "stored locally in your browser" footer should be at the bottom of the page and the traces / examples should flow to their natural length or to a maximum of just above the footer

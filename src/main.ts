@@ -90,7 +90,7 @@ function showToast(message: string, type: ToastType = 'info', title?: string, du
 function updateStaticText(): void {
   // Landing page
   const dropTitle = document.querySelector('.drop-title');
-  const dropIntro = document.querySelector('.drop-intro');
+  const dropIntro = document.querySelector('.drop-intro-text');
   const dropText = document.querySelector('.drop-text');
   const dropSubtext = document.querySelector('.drop-subtext');
   const fileSelectBtn = document.getElementById('file-select-btn');
@@ -430,6 +430,7 @@ const sidebarToggle = document.getElementById('sidebar-toggle');
 const sidebarResize = document.getElementById('sidebar-resize');
 const fileSelectBtn = document.getElementById('file-select-btn');
 const trySampleBtn = document.getElementById('try-sample-btn');
+const sampleDismissBtn = document.getElementById('sample-dismiss-btn');
 const canvasControls = document.getElementById('canvas-controls');
 const watchToggle = document.getElementById('watch-toggle');
 const fileInput = document.getElementById('file-input') as HTMLInputElement | null;
@@ -1388,6 +1389,66 @@ recentTracesManager?.refresh();
 // Setup language switchers (toolbar and landing page)
 setupLanguageSwitcher();
 setupLandingLanguageSwitcher();
+
+// Setup sample preview dismiss/toggle functionality
+const SAMPLE_DISMISSED_KEY = 'thinking-tracer-sample-dismissed';
+const sampleToggle = document.getElementById('sample-toggle');
+
+// Show sample preview
+function showSample(): void {
+  trySampleBtn?.classList.remove('dismissed');
+  dropOverlay?.classList.remove('sample-dismissed');
+  dropOverlay?.classList.remove('sample-shown');
+  sampleToggle?.classList.add('open');
+}
+
+// Hide sample preview
+function hideSample(): void {
+  trySampleBtn?.classList.add('dismissed');
+  dropOverlay?.classList.add('sample-dismissed');
+  dropOverlay?.classList.remove('sample-shown');
+  sampleToggle?.classList.remove('open');
+  try {
+    localStorage.setItem(SAMPLE_DISMISSED_KEY, 'true');
+  } catch {
+    // localStorage may be unavailable
+  }
+}
+
+// Check if sample was previously dismissed
+if (trySampleBtn) {
+  try {
+    if (localStorage.getItem(SAMPLE_DISMISSED_KEY) === 'true') {
+      hideSample();
+    } else {
+      sampleToggle?.classList.add('open');
+    }
+  } catch {
+    sampleToggle?.classList.add('open');
+  }
+}
+
+// Handle dismiss button click (X on sample)
+sampleDismissBtn?.addEventListener('click', (e) => {
+  e.stopPropagation();
+  hideSample();
+});
+
+// Handle toggle caret click
+sampleToggle?.addEventListener('click', (e) => {
+  e.preventDefault();
+  const isOpen = sampleToggle.classList.contains('open');
+  if (isOpen) {
+    hideSample();
+  } else {
+    showSample();
+    try {
+      localStorage.removeItem(SAMPLE_DISMISSED_KEY);
+    } catch {
+      // localStorage may be unavailable
+    }
+  }
+});
 
 // Save UI state before leaving and cleanup
 window.addEventListener('beforeunload', () => {

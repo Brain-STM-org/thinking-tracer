@@ -1058,6 +1058,38 @@ html, body {
 #drop-overlay.active { opacity: 1; }
 #drop-overlay.visible { pointer-events: auto; opacity: 1; }
 
+/* Compact layout when sample preview is dismissed */
+#drop-overlay.sample-dismissed {
+  justify-content: flex-start;
+  padding-top: 80px;
+}
+
+#drop-overlay.sample-dismissed .drop-header {
+  margin-bottom: 32px;
+}
+
+#drop-overlay.sample-dismissed #recent-traces {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  margin-bottom: 0;
+  padding-bottom: 16px;
+}
+
+#drop-overlay.sample-dismissed .recent-list {
+  flex: 1;
+  max-height: none;
+  overflow-y: auto;
+  min-height: 0;
+}
+
+#drop-overlay.sample-dismissed .recent-footer {
+  margin-top: auto;
+  flex-shrink: 0;
+  padding: 12px 0;
+}
+
 /* URL loading section */
 .url-load-section {
   margin-top: 20px;
@@ -1381,26 +1413,15 @@ html, body {
   color: #4a90d9;
 }
 
-.drop-header {
-  text-align: center;
-  margin-bottom: 40px;
-  max-width: 500px;
-}
-
-.drop-header-top {
+/* Corner links (language switcher + GitHub) */
+.drop-corner-links {
+  position: absolute;
+  top: 16px;
+  right: 20px;
   display: flex;
   align-items: center;
-  justify-content: center;
-  gap: 16px;
-  margin-bottom: 16px;
-}
-
-.drop-title {
-  font-size: 32px;
-  font-weight: 700;
-  color: #fff;
-  margin: 0;
-  letter-spacing: -0.5px;
+  gap: 12px;
+  z-index: 10;
 }
 
 /* Landing page language switcher */
@@ -1424,6 +1445,32 @@ html, body {
 .lang-switcher.landing .lang-menu {
   right: 0;
   left: auto;
+}
+
+/* GitHub link in corner */
+.drop-corner-links .github-link {
+  margin-top: 0;
+  padding: 4px 10px;
+  font-size: 12px;
+}
+
+.drop-corner-links .github-link svg {
+  width: 16px;
+  height: 16px;
+}
+
+.drop-header {
+  text-align: center;
+  margin-bottom: 40px;
+  max-width: 650px;
+}
+
+.drop-title {
+  font-size: 32px;
+  font-weight: 700;
+  color: #fff;
+  margin: 0 0 16px 0;
+  letter-spacing: -0.5px;
 }
 
 .drop-intro {
@@ -1472,6 +1519,67 @@ html, body {
 .sample-preview:hover {
   transform: scale(1.02);
   box-shadow: 0 6px 28px rgba(0, 0, 0, 0.5);
+}
+
+.sample-preview.dismissed {
+  display: none;
+}
+
+/* Sample toggle caret inline with subtitle */
+.sample-toggle {
+  background: none;
+  border: none;
+  color: #666;
+  cursor: pointer;
+  padding: 2px 4px;
+  font-size: 14px;
+  vertical-align: middle;
+  transition: color 0.2s;
+}
+
+.sample-toggle:hover {
+  color: #fff;
+}
+
+.sample-toggle-caret {
+  display: inline-block;
+  transition: transform 0.2s;
+}
+
+.sample-toggle.open .sample-toggle-caret {
+  transform: rotate(90deg);
+}
+
+/* Re-show sample when toggled open after dismiss */
+#drop-overlay.sample-dismissed.sample-shown .sample-preview {
+  display: block;
+}
+
+.sample-dismiss {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  z-index: 10;
+  width: 24px;
+  height: 24px;
+  border: none;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.5);
+  color: #999;
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.2s, background 0.2s, color 0.2s;
+}
+
+.sample-preview:hover .sample-dismiss {
+  opacity: 1;
+}
+
+.sample-dismiss:hover {
+  background: rgba(0, 0, 0, 0.7);
+  color: #fff;
 }
 
 .sample-preview-img {
