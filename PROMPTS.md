@@ -1975,3 +1975,21 @@ the "stored locally in your browser" footer should be at the bottom and the trac
 ## 2026-01-28T17:41:52Z
 
 the "stored locally in your browser" footer should be at the bottom of the page and the traces / examples should flow to their natural length or to a maximum of just above the footer
+
+---
+
+## 2026-01-28T20:31:07Z
+
+when changing language, the conversation summary shows "{count} 次思考 ({chars} 字符 · {duration}) · {count} 个工具 ({duration})" rather than changing text and rendering properly
+
+---
+
+## 2026-01-28T20:34:19Z
+
+now i see this: thinking ( chars · ) · tools ()
+
+---
+
+## 2026-01-28T20:40:08Z
+
+the conversation cluster summaries are rendering properly but they are not changing dynamically when the language is changed

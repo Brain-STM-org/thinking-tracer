@@ -334,6 +334,7 @@ function createLanguageSwitcherContent(container: HTMLElement, idPrefix: string)
       btn.classList.add('active');
     }
     btn.addEventListener('click', async () => {
+      container.classList.remove('open');
       await changeLocale(locale);
     });
     langMenu.appendChild(btn);
@@ -415,6 +416,7 @@ function updateLanguageSwitcher(): void {
 // Subscribe to locale changes
 onLocaleChange(() => {
   updateStaticText();
+  conversationPanel?.render();
 });
 
 // Get DOM elements

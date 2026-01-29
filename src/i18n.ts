@@ -152,21 +152,25 @@ let i18nInitialized = false;
  * @param values Optional interpolation values (e.g., { count: 5 })
  */
 export function t(key: string, values?: Record<string, string | number>): string {
-  // If i18n not yet initialized, return key (will be updated when locale changes)
-  if (!i18nInitialized) {
-    // Simple interpolation fallback for pre-init calls
-    if (values) {
-      let result = key;
-      for (const [k, v] of Object.entries(values)) {
-        result = result.replace(new RegExp(`\\{${k}\\}`, 'g'), String(v));
-      }
-      return result;
-    }
-    return key;
+  let result: string;
+
+  if (i18nInitialized) {
+    // Get the raw message string from the catalog, bypassing Lingui's ICU
+    // interpolation which strips {name} placeholders when no values are passed
+    const msg = (i18n.messages[key] as string) ?? key;
+    result = msg;
+  } else {
+    result = key;
   }
 
-  // Use Lingui's internal translation function
-  return i18n._(key, values);
+  // Handle {name} interpolation ourselves
+  if (values) {
+    for (const [k, v] of Object.entries(values)) {
+      result = result.replace(new RegExp(`\\{${k}\\}`, 'g'), String(v));
+    }
+  }
+
+  return result;
 }
 
 /**
